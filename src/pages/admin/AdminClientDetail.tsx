@@ -79,6 +79,7 @@ export default function AdminClientDetail() {
   const [setupResult, setSetupResult] = useState<SetupResult | null>(null)
   const [settingUp, setSettingUp] = useState(false)
   const [newPass, setNewPass] = useState('')
+  const [resetEmail, setResetEmail] = useState('')
   const [resetMsg, setResetMsg] = useState<{ ok: boolean; text: string } | null>(null)
   const [resetting, setResetting] = useState(false)
 
@@ -119,7 +120,7 @@ export default function AdminClientDetail() {
           'Content-Type': 'application/json',
           ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
         },
-        body: JSON.stringify({ orgId: id, newPassword: newPass }),
+        body: JSON.stringify({ orgId: id, newPassword: newPass, email: resetEmail || undefined }),
       })
       const data = await res.json() as { ok?: boolean; error?: string }
       if (data.ok) {
@@ -379,26 +380,34 @@ export default function AdminClientDetail() {
                 <p className="font-black text-zinc-900 text-sm uppercase tracking-wider">Redefinir Senha</p>
               </div>
 
-              <div className="flex gap-3">
+              <div className="grid grid-cols-2 gap-3">
+                <input
+                  type="email"
+                  value={resetEmail}
+                  onChange={e => { setResetEmail(e.target.value); setResetMsg(null) }}
+                  placeholder="E-mail do usuário (se não vinculado)"
+                  className="px-3.5 py-2.5 rounded-xl border border-zinc-200 text-sm bg-white text-zinc-800 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
+                />
                 <input
                   type="password"
                   value={newPass}
                   onChange={e => { setNewPass(e.target.value); setResetMsg(null) }}
                   placeholder="Nova senha (mín. 6 caracteres)"
-                  className="flex-1 px-3.5 py-2.5 rounded-xl border border-zinc-200 text-sm bg-white text-zinc-800 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
+                  className="px-3.5 py-2.5 rounded-xl border border-zinc-200 text-sm bg-white text-zinc-800 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
                 />
-                <button
-                  onClick={handleResetPassword}
-                  disabled={resetting || newPass.length < 6}
-                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-zinc-900 text-white text-sm font-bold hover:bg-zinc-800 disabled:opacity-50 transition-colors whitespace-nowrap"
-                >
-                  {resetting
-                    ? <Loader2 className="w-4 h-4 animate-spin" />
-                    : <KeyRound className="w-4 h-4" />
-                  }
-                  {resetting ? 'Salvando...' : 'Redefinir'}
-                </button>
               </div>
+
+              <button
+                onClick={handleResetPassword}
+                disabled={resetting || newPass.length < 6}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-zinc-900 text-white text-sm font-bold hover:bg-zinc-800 disabled:opacity-50 transition-colors"
+              >
+                {resetting
+                  ? <Loader2 className="w-4 h-4 animate-spin" />
+                  : <KeyRound className="w-4 h-4" />
+                }
+                {resetting ? 'Salvando...' : 'Redefinir Senha'}
+              </button>
 
               {resetMsg && (
                 <div className={`flex items-center gap-2 text-xs font-bold px-3 py-2 rounded-lg ${
