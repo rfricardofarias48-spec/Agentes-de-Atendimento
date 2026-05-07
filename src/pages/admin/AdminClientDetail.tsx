@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Save, Trash2, Wifi, WifiOff, RefreshCw, CheckCircle2, XCircle, Loader2, Zap } from 'lucide-react'
+import { ArrowLeft, Save, Trash2, Wifi, WifiOff, RefreshCw, CheckCircle2, XCircle, Loader2, Zap, KeyRound } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { type Organization, type OrgPlan, type OrgStatus } from '../../types'
 import { planLabel, statusLabel, formatDate } from '../../lib/utils'
@@ -78,6 +78,9 @@ export default function AdminClientDetail() {
   const [checkingConn, setCheckingConn] = useState(false)
   const [setupResult, setSetupResult] = useState<SetupResult | null>(null)
   const [settingUp, setSettingUp] = useState(false)
+  const [newPass, setNewPass] = useState('')
+  const [resetMsg, setResetMsg] = useState<{ ok: boolean; text: string } | null>(null)
+  const [resetting, setResetting] = useState(false)
 
   useEffect(() => {
     if (!isNew && id) {
@@ -101,6 +104,34 @@ export default function AdminClientDetail() {
       setConnectionStatus('close')
     } finally {
       setCheckingConn(false)
+    }
+  }
+
+  async function handleResetPassword() {
+    if (!newPass) return
+    setResetting(true)
+    setResetMsg(null)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const res = await fetch('/api/admin/reset-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+        },
+        body: JSON.stringify({ orgId: id, newPassword: newPass }),
+      })
+      const data = await res.json() as { ok?: boolean; error?: string }
+      if (data.ok) {
+        setResetMsg({ ok: true, text: 'Senha redefinida com sucesso.' })
+        setNewPass('')
+      } else {
+        setResetMsg({ ok: false, text: data.error || 'Erro ao redefinir senha.' })
+      }
+    } catch (e) {
+      setResetMsg({ ok: false, text: String(e) })
+    } finally {
+      setResetting(false)
     }
   }
 
@@ -337,6 +368,49 @@ export default function AdminClientDetail() {
                 </Field>
               </div>
               <p className="text-xs text-zinc-400">O usuário pode alterar a senha após o primeiro acesso.</p>
+            </div>
+          )}
+
+          {/* Redefinir senha (apenas edição) */}
+          {!isNew && (
+            <div className="bg-white rounded-[1.75rem] border border-zinc-100 shadow-sm p-6 space-y-4">
+              <div className="flex items-center gap-2">
+                <KeyRound className="w-4 h-4 text-zinc-400" />
+                <p className="font-black text-zinc-900 text-sm uppercase tracking-wider">Redefinir Senha</p>
+              </div>
+
+              <div className="flex gap-3">
+                <input
+                  type="password"
+                  value={newPass}
+                  onChange={e => { setNewPass(e.target.value); setResetMsg(null) }}
+                  placeholder="Nova senha (mín. 6 caracteres)"
+                  className="flex-1 px-3.5 py-2.5 rounded-xl border border-zinc-200 text-sm bg-white text-zinc-800 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
+                />
+                <button
+                  onClick={handleResetPassword}
+                  disabled={resetting || newPass.length < 6}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-zinc-900 text-white text-sm font-bold hover:bg-zinc-800 disabled:opacity-50 transition-colors whitespace-nowrap"
+                >
+                  {resetting
+                    ? <Loader2 className="w-4 h-4 animate-spin" />
+                    : <KeyRound className="w-4 h-4" />
+                  }
+                  {resetting ? 'Salvando...' : 'Redefinir'}
+                </button>
+              </div>
+
+              {resetMsg && (
+                <div className={`flex items-center gap-2 text-xs font-bold px-3 py-2 rounded-lg ${
+                  resetMsg.ok ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'
+                }`}>
+                  {resetMsg.ok
+                    ? <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                    : <XCircle className="w-3.5 h-3.5 shrink-0" />
+                  }
+                  {resetMsg.text}
+                </div>
+              )}
             </div>
           )}
 
