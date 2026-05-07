@@ -1,0 +1,232 @@
+/**
+ * Chatwoot Service — AgenteClin
+ * Multi-tenant: um servidor Chatwoot compartilhado, uma conta por organização.
+ * Config por org vem da tabela organizations (chatwoot_account_id, chatwoot_token, chatwoot_inbox_id).
+ */
+
+const CHATWOOT_URL = (process.env.CHATWOOT_URL || '').replace(/\/$/, '');
+const CHATWOOT_ADMIN_TOKEN = process.env.CHATWOOT_ADMIN_TOKEN || '';
+
+interface ChatwootContact {
+  id: number;
+  name: string;
+  phone_number?: string;
+}
+
+interface ChatwootConversation {
+  id: number;
+  status: string;
+}
+
+async function chatwootRequest(
+  method: string,
+  path: string,
+  token: string,
+  body?: Record<string, unknown>,
+): Promise<unknown> {
+  if (!CHATWOOT_URL) {
+    console.warn('[Chatwoot] CHATWOOT_URL not configured');
+    return null;
+  }
+  try {
+    const res = await fetch(`${CHATWOOT_URL}${path}`, {
+      method,
+      headers: { 'Content-Type': 'application/json', 'api_access_token': token },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      console.error(`[Chatwoot] ${method} ${path} → HTTP ${res.status}: ${text.substring(0, 200)}`);
+      return null;
+    }
+    return res.json().catch(() => null);
+  } catch (err) {
+    console.error(`[Chatwoot] fetch error on ${method} ${path}:`, err);
+    return null;
+  }
+}
+
+/** Encontra ou cria um contato no Chatwoot pelo telefone */
+export async function findOrCreateContact(
+  accountId: number,
+  token: string,
+  phone: string,
+  name?: string,
+): Promise<number | null> {
+  const normalized = phone.startsWith('+') ? phone : `+${phone}`;
+
+  const search = await chatwootRequest(
+    'GET',
+    `/api/v1/accounts/${accountId}/contacts/search?q=${encodeURIComponent(normalized)}&page=1`,
+    token,
+  ) as { payload?: ChatwootContact[] } | null;
+
+  const found = search?.payload?.find(c => c.phone_number === normalized || c.phone_number === phone);
+  if (found) return found.id;
+
+  const created = await chatwootRequest(
+    'POST',
+    `/api/v1/accounts/${accountId}/contacts`,
+    token,
+    { name: name || phone, phone_number: normalized },
+  ) as { id?: number } | null;
+
+  return created?.id ?? null;
+}
+
+/** Encontra conversa aberta ou cria nova */
+export async function findOrCreateConversation(
+  accountId: number,
+  token: string,
+  contactId: number,
+  inboxId: number,
+): Promise<number | null> {
+  const contactConvs = await chatwootRequest(
+    'GET',
+    `/api/v1/accounts/${accountId}/contacts/${contactId}/conversations`,
+    token,
+  ) as { payload?: ChatwootConversation[] } | null;
+
+  const existing = contactConvs?.payload?.find(c => c.status === 'open');
+  if (existing) return existing.id;
+
+  const created = await chatwootRequest(
+    'POST',
+    `/api/v1/accounts/${accountId}/conversations`,
+    token,
+    { inbox_id: inboxId, contact_id: contactId },
+  ) as { id?: number } | null;
+
+  return created?.id ?? null;
+}
+
+/** Posta mensagem em uma conversa */
+export async function postMessage(
+  accountId: number,
+  token: string,
+  conversationId: number,
+  content: string,
+  messageType: 'incoming' | 'outgoing',
+): Promise<void> {
+  await chatwootRequest(
+    'POST',
+    `/api/v1/accounts/${accountId}/conversations/${conversationId}/messages`,
+    token,
+    { content, message_type: messageType, private: false },
+  );
+}
+
+/** Espelha mensagem no Chatwoot — cria contato/conversa automaticamente */
+export async function mirrorMessage(
+  accountId: number,
+  token: string,
+  inboxId: number,
+  phone: string,
+  content: string,
+  direction: 'incoming' | 'outgoing',
+  patientName?: string,
+  existingConversationId?: number,
+): Promise<number | null> {
+  try {
+    let conversationId = existingConversationId ?? null;
+
+    if (!conversationId) {
+      const contactId = await findOrCreateContact(accountId, token, phone, patientName);
+      if (!contactId) return null;
+      conversationId = await findOrCreateConversation(accountId, token, contactId, inboxId);
+      if (!conversationId) return null;
+    }
+
+    await postMessage(accountId, token, conversationId, content, direction);
+    return conversationId;
+  } catch (err) {
+    console.error('[Chatwoot] mirrorMessage error:', err);
+    return null;
+  }
+}
+
+/**
+ * Configura a integração Chatwoot na instância Evolution.
+ * Deve ser chamado ao salvar as configurações da organização.
+ */
+export async function configureChatwootOnEvolution(
+  instance: string,
+  evolutionToken: string,
+  chatwootAccountId: number,
+  chatwootToken: string,
+  chatwootInboxId?: number,
+  inboxName?: string,
+): Promise<boolean> {
+  const evolutionUrl = (process.env.EVOLUTION_API_URL || '').replace(/\/$/, '');
+  if (!evolutionUrl || !CHATWOOT_URL) {
+    console.warn('[Chatwoot] EVOLUTION_API_URL ou CHATWOOT_URL não configurado');
+    return false;
+  }
+
+  const cleanToken = chatwootToken.trim().replace(/[\r\n\t"']/g, '');
+  const body: Record<string, unknown> = {
+    enabled: true,
+    accountId: String(chatwootAccountId),
+    token: cleanToken,
+    url: CHATWOOT_URL,
+    signMsg: false,
+    reopenConversation: true,
+    conversationPending: false,
+    mergeBrazilContacts: true,
+    importContacts: false,
+    importMessages: false,
+    daysLimitImportMessages: 0,
+    autoCreate: chatwootInboxId ? false : true,
+  };
+  if (chatwootInboxId) body.inboxId = String(chatwootInboxId);
+  if (inboxName) body.nameInbox = inboxName;
+
+  try {
+    const res = await fetch(`${evolutionUrl}/chatwoot/set/${instance}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', apikey: evolutionToken },
+      body: JSON.stringify(body),
+    });
+    if (res.ok) {
+      console.log(`[Chatwoot] Evolution configurado para instância: ${instance}`);
+      return true;
+    }
+    const text = await res.text();
+    console.error(`[Chatwoot] configureChatwootOnEvolution falhou: ${res.status} ${text.substring(0, 200)}`);
+    return false;
+  } catch (err) {
+    console.error('[Chatwoot] configureChatwootOnEvolution error:', err);
+    return false;
+  }
+}
+
+/**
+ * Cria uma nova conta Chatwoot para uma organização (via admin token).
+ * Retorna { accountId, token } ou null.
+ */
+export async function createChatwootAccount(orgName: string): Promise<{ accountId: number; token: string } | null> {
+  if (!CHATWOOT_ADMIN_TOKEN) {
+    console.warn('[Chatwoot] CHATWOOT_ADMIN_TOKEN não configurado');
+    return null;
+  }
+
+  const account = await chatwootRequest(
+    'POST',
+    '/auth/sign_up',
+    CHATWOOT_ADMIN_TOKEN,
+    {
+      account_name: orgName,
+      email: `org-${Date.now()}@agenteclin.internal`,
+      password: `Ac${Math.random().toString(36).slice(2, 10)}!`,
+      user_full_name: orgName,
+    },
+  ) as { data?: { access_token?: string; account_id?: number } } | null;
+
+  if (account?.data?.account_id && account?.data?.access_token) {
+    return {
+      accountId: account.data.account_id,
+      token: account.data.access_token,
+    };
+  }
+  return null;
+}
