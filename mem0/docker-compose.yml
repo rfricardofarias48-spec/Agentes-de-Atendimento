@@ -52,11 +52,11 @@ services:
     volumes:
       - neo4j_data:/data
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:7474 || exit 1"]
+      test: ["CMD", "neo4j", "status"]
       interval: 15s
       timeout: 10s
-      retries: 10
-      start_period: 120s
+      retries: 15
+      start_period: 180s
     restart: unless-stopped
 
 volumes:
