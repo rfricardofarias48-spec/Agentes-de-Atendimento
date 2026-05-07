@@ -1,169 +1,186 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Users, MessageSquare, TrendingUp, DollarSign, ArrowRight, Plus } from 'lucide-react'
+import { Users, ArrowRight, Plus } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { type Organization } from '../../types'
 import { planLabel, statusLabel, formatDateShort } from '../../lib/utils'
-import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card'
-import { Badge } from '../../components/ui/badge'
-import { Button } from '../../components/ui/button'
 
-interface Stats {
-  total_orgs: number
-  active_orgs: number
-  total_conversations: number
-  mrr: number
+const planColors: Record<string, string> = {
+  starter: 'bg-zinc-100 text-zinc-600',
+  pro: 'bg-blue-100 text-blue-700',
+  clinic: 'bg-green-100 text-green-700',
 }
 
-const planColors: Record<string, 'default' | 'secondary' | 'success'> = {
-  starter: 'secondary',
-  pro: 'default',
-  clinic: 'success',
+const statusColors: Record<string, string> = {
+  active: 'bg-green-100 text-green-700',
+  trial: 'bg-yellow-100 text-yellow-700',
+  inactive: 'bg-zinc-100 text-zinc-500',
+  suspended: 'bg-red-100 text-red-600',
 }
 
-const statusColors: Record<string, 'success' | 'secondary' | 'warning' | 'destructive' | 'outline'> = {
-  active: 'success',
-  trial: 'warning',
-  inactive: 'secondary',
-  suspended: 'destructive',
-}
+const PLAN_MRR: Record<string, number> = { starter: 397, pro: 797, clinic: 1497 }
 
 export default function AdminDashboard() {
   const [orgs, setOrgs] = useState<Organization[]>([])
-  const [stats, setStats] = useState<Stats>({ total_orgs: 0, active_orgs: 0, total_conversations: 0, mrr: 0 })
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    async function load() {
-      const { data } = await supabase
-        .from('organizations')
-        .select('*')
-        .order('created_at', { ascending: false })
-
-      if (data) {
-        setOrgs(data)
-        const planMrr: Record<string, number> = { starter: 397, pro: 797, clinic: 1497 }
-        setStats({
-          total_orgs: data.length,
-          active_orgs: data.filter(o => o.status === 'active').length,
-          total_conversations: data.reduce((s, o) => s + (o.conversations_used ?? 0), 0),
-          mrr: data.filter(o => o.status === 'active').reduce((s, o) => s + (planMrr[o.plan] ?? 0), 0),
-        })
-      }
-      setLoading(false)
-    }
-    load()
+    supabase.from('organizations').select('*').order('created_at', { ascending: false })
+      .then(({ data }) => { setOrgs(data ?? []); setLoading(false) })
   }, [])
 
-  const statCards = [
-    { label: 'Total de Clientes', value: stats.total_orgs, icon: Users, color: 'text-blue-600', bg: 'bg-blue-50' },
-    { label: 'Clientes Ativos', value: stats.active_orgs, icon: TrendingUp, color: 'text-green-600', bg: 'bg-green-50' },
-    { label: 'Conversas (mês)', value: stats.total_conversations.toLocaleString('pt-BR'), icon: MessageSquare, color: 'text-purple-600', bg: 'bg-purple-50' },
-    { label: 'MRR', value: `R$${stats.mrr.toLocaleString('pt-BR')}`, icon: DollarSign, color: 'text-orange-600', bg: 'bg-orange-50' },
-  ]
+  const activeOrgs = orgs.filter(o => o.status === 'active')
+  const mrr = activeOrgs.reduce((s, o) => s + (PLAN_MRR[o.plan] ?? 0), 0)
+  const totalConvs = orgs.reduce((s, o) => s + (o.conversations_used ?? 0), 0)
+  const starterCount = orgs.filter(o => o.plan === 'starter').length
+  const proCount = orgs.filter(o => o.plan === 'pro').length
+  const clinicCount = orgs.filter(o => o.plan === 'clinic').length
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-8 animate-fade-in pb-8">
+
+      {/* Header */}
+      <div className="flex items-end justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-          <p className="text-sm text-gray-500">Visão geral de todos os clientes</p>
+          <h1 className="text-3xl font-black text-zinc-900 tracking-tight">Visão Geral</h1>
+          <p className="text-zinc-400 text-sm mt-0.5 font-medium capitalize">
+            {new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+          </p>
         </div>
         <Link to="/admin/clients/new">
-          <Button className="gap-2">
+          <button className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-zinc-900 text-white text-sm font-bold hover:bg-zinc-800 transition-colors">
             <Plus className="w-4 h-4" />
             Novo Cliente
-          </Button>
+          </button>
         </Link>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {statCards.map(({ label, value, icon: Icon, color, bg }) => (
-          <Card key={label}>
-            <CardContent className="p-6">
-              <div className="flex items-center gap-4">
-                <div className={`w-12 h-12 rounded-xl ${bg} flex items-center justify-center`}>
-                  <Icon className={`w-6 h-6 ${color}`} />
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">{label}</p>
-                  <p className="text-2xl font-bold text-gray-900">{value}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+      {/* KPI strip */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* MRR — destaque dark */}
+        <div className="col-span-2 lg:col-span-1 relative overflow-hidden rounded-[1.75rem] bg-zinc-950 p-6 shadow-xl">
+          <div className="absolute -top-8 -right-8 w-32 h-32 rounded-full opacity-20"
+            style={{ background: 'radial-gradient(circle, #4ade80 0%, transparent 70%)' }} />
+          <div className="relative">
+            <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-3">MRR Estimado</p>
+            <p className="text-3xl font-black text-white leading-none">
+              R$ {mrr.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+            </p>
+            <div className="mt-3 pt-3 border-t border-zinc-800 flex items-center justify-between">
+              <span className="text-[10px] text-zinc-500 font-bold uppercase">ARR</span>
+              <span className="text-sm font-black text-green-400">R$ {(mrr * 12 / 1000).toFixed(1)}k</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-[1.75rem] bg-white border border-zinc-100 p-6 shadow-sm flex flex-col justify-between">
+          <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Clientes Ativos</p>
+          <div className="mt-2">
+            <p className="text-4xl font-black text-zinc-900">{activeOrgs.length}</p>
+            <p className="text-[11px] text-zinc-400 font-bold mt-1">{orgs.length} total</p>
+          </div>
+        </div>
+
+        <div className="rounded-[1.75rem] bg-white border border-zinc-100 p-6 shadow-sm flex flex-col justify-between">
+          <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Conversas / Mês</p>
+          <div className="mt-2">
+            <p className="text-4xl font-black text-zinc-900">{totalConvs.toLocaleString('pt-BR')}</p>
+            <p className="text-[11px] text-zinc-400 font-bold mt-1">todas as clínicas</p>
+          </div>
+        </div>
+
+        <div className="rounded-[1.75rem] bg-white border border-zinc-100 p-6 shadow-sm flex flex-col justify-between">
+          <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Distribuição</p>
+          <div className="mt-2 space-y-1">
+            <div className="flex justify-between text-xs font-bold">
+              <span className="text-zinc-500">Starter</span><span className="text-zinc-900">{starterCount}</span>
+            </div>
+            <div className="flex justify-between text-xs font-bold">
+              <span className="text-blue-500">Pro</span><span className="text-zinc-900">{proCount}</span>
+            </div>
+            <div className="flex justify-between text-xs font-bold">
+              <span className="text-green-500">Clinic</span><span className="text-zinc-900">{clinicCount}</span>
+            </div>
+          </div>
+        </div>
       </div>
 
-      {/* Clients table */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Clientes Recentes</CardTitle>
+      {/* Tabela de clientes */}
+      <div className="bg-white rounded-[1.75rem] border border-zinc-100 shadow-sm overflow-hidden">
+        <div className="px-7 pt-6 pb-4 flex items-center justify-between border-b border-zinc-50">
+          <div>
+            <p className="font-black text-zinc-900 text-lg">Clientes Recentes</p>
+            <p className="text-xs text-zinc-400 font-medium mt-0.5">{orgs.length} clínicas cadastradas</p>
+          </div>
           <Link to="/admin/clients">
-            <Button variant="ghost" size="sm" className="gap-1 text-primary">
-              Ver todos <ArrowRight className="w-3 h-3" />
-            </Button>
+            <button className="flex items-center gap-1.5 text-xs font-bold text-green-600 hover:text-green-700 transition-colors">
+              Ver todos <ArrowRight className="w-3.5 h-3.5" />
+            </button>
           </Link>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="flex justify-center py-8">
-              <div className="w-6 h-6 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-            </div>
-          ) : orgs.length === 0 ? (
-            <div className="text-center py-10 text-gray-400">
-              <Users className="w-10 h-10 mx-auto mb-3 opacity-30" />
-              <p>Nenhum cliente cadastrado ainda.</p>
-              <Link to="/admin/clients/new">
-                <Button className="mt-4 gap-2" size="sm">
-                  <Plus className="w-4 h-4" /> Adicionar primeiro cliente
-                </Button>
-              </Link>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-gray-100">
-                    <th className="text-left py-3 px-2 text-gray-500 font-medium">Cliente</th>
-                    <th className="text-left py-3 px-2 text-gray-500 font-medium">Plano</th>
-                    <th className="text-left py-3 px-2 text-gray-500 font-medium">Status</th>
-                    <th className="text-left py-3 px-2 text-gray-500 font-medium">Conversas</th>
-                    <th className="text-left py-3 px-2 text-gray-500 font-medium">Desde</th>
-                    <th className="py-3 px-2" />
+        </div>
+
+        {loading ? (
+          <div className="flex justify-center py-12">
+            <div className="w-6 h-6 border-3 border-zinc-300 border-t-zinc-900 rounded-full animate-spin" />
+          </div>
+        ) : orgs.length === 0 ? (
+          <div className="text-center py-14 text-zinc-400">
+            <Users className="w-10 h-10 mx-auto mb-3 opacity-20" />
+            <p className="font-semibold">Nenhum cliente ainda</p>
+            <Link to="/admin/clients/new">
+              <button className="mt-4 px-4 py-2 rounded-xl bg-zinc-900 text-white text-sm font-bold hover:bg-zinc-800 transition-colors">
+                Adicionar primeiro cliente
+              </button>
+            </Link>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-zinc-50">
+                  <th className="text-left py-3 px-6 text-[11px] font-black text-zinc-400 uppercase tracking-wider">Clínica</th>
+                  <th className="text-left py-3 px-4 text-[11px] font-black text-zinc-400 uppercase tracking-wider">Plano</th>
+                  <th className="text-left py-3 px-4 text-[11px] font-black text-zinc-400 uppercase tracking-wider">Status</th>
+                  <th className="text-left py-3 px-4 text-[11px] font-black text-zinc-400 uppercase tracking-wider">Conversas</th>
+                  <th className="text-left py-3 px-4 text-[11px] font-black text-zinc-400 uppercase tracking-wider">Cadastro</th>
+                  <th className="py-3 px-4" />
+                </tr>
+              </thead>
+              <tbody>
+                {orgs.slice(0, 8).map(org => (
+                  <tr key={org.id} className="border-b border-zinc-50 hover:bg-zinc-50/70 transition-colors">
+                    <td className="py-3.5 px-6">
+                      <p className="font-bold text-zinc-900">{org.name}</p>
+                      <p className="text-xs text-zinc-400 mt-0.5">{org.evolution_instance || org.slug}</p>
+                    </td>
+                    <td className="py-3.5 px-4">
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-black uppercase ${planColors[org.plan] ?? 'bg-zinc-100 text-zinc-500'}`}>
+                        {planLabel(org.plan)}
+                      </span>
+                    </td>
+                    <td className="py-3.5 px-4">
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-black ${statusColors[org.status] ?? 'bg-zinc-100 text-zinc-500'}`}>
+                        {statusLabel(org.status)}
+                      </span>
+                    </td>
+                    <td className="py-3.5 px-4 text-zinc-600 font-medium">
+                      {org.conversations_used ?? 0}/{org.max_conversations_month}
+                    </td>
+                    <td className="py-3.5 px-4 text-zinc-400 font-medium">{formatDateShort(org.created_at)}</td>
+                    <td className="py-3.5 px-4">
+                      <Link to={`/admin/clients/${org.id}`}>
+                        <button className="text-xs font-bold text-zinc-500 hover:text-zinc-900 transition-colors">
+                          Detalhes →
+                        </button>
+                      </Link>
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {orgs.slice(0, 8).map(org => (
-                    <tr key={org.id} className="border-b border-gray-50 hover:bg-gray-50/50">
-                      <td className="py-3 px-2">
-                        <p className="font-medium text-gray-900">{org.name}</p>
-                        <p className="text-xs text-gray-400">{org.slug}</p>
-                      </td>
-                      <td className="py-3 px-2">
-                        <Badge variant={planColors[org.plan] ?? 'outline'}>{planLabel(org.plan)}</Badge>
-                      </td>
-                      <td className="py-3 px-2">
-                        <Badge variant={statusColors[org.status] ?? 'outline'}>{statusLabel(org.status)}</Badge>
-                      </td>
-                      <td className="py-3 px-2 text-gray-600">
-                        {org.conversations_used ?? 0}/{org.max_conversations_month}
-                      </td>
-                      <td className="py-3 px-2 text-gray-500">{formatDateShort(org.created_at)}</td>
-                      <td className="py-3 px-2">
-                        <Link to={`/admin/clients/${org.id}`}>
-                          <Button variant="ghost" size="sm">Ver</Button>
-                        </Link>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
     </div>
   )
 }

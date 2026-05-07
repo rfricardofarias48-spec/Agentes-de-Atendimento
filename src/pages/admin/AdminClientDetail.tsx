@@ -1,12 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Save, Trash2 } from 'lucide-react'
+import { ArrowLeft, Save, Trash2, Wifi, WifiOff, RefreshCw } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { type Organization, type OrgPlan, type OrgStatus } from '../../types'
-import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card'
-import { Button } from '../../components/ui/button'
-import { Input } from '../../components/ui/input'
-
 import { planLabel, statusLabel, formatDate } from '../../lib/utils'
 
 const plans: OrgPlan[] = ['starter', 'pro', 'clinic']
@@ -14,10 +10,49 @@ const statuses: OrgStatus[] = ['active', 'trial', 'inactive', 'suspended']
 
 const maxConvByPlan: Record<OrgPlan, number> = { starter: 600, pro: 2000, clinic: 999999 }
 
+const PLAN_PRICES: Record<OrgPlan, number> = { starter: 397, pro: 797, clinic: 1497 }
+
+const planColors: Record<string, string> = {
+  starter: 'border-zinc-300 text-zinc-600',
+  pro: 'border-blue-400 text-blue-700',
+  clinic: 'border-green-400 text-green-700',
+}
+
+const statusColors: Record<string, string> = {
+  active: 'border-green-400 text-green-700',
+  trial: 'border-yellow-400 text-yellow-700',
+  inactive: 'border-zinc-300 text-zinc-500',
+  suspended: 'border-red-400 text-red-600',
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <label className="block text-xs font-black text-zinc-500 uppercase tracking-wider mb-1.5">{label}</label>
+      {children}
+    </div>
+  )
+}
+
+function TextInput({ value, onChange, placeholder, type = 'text' }: {
+  value: string; onChange: (v: string) => void; placeholder?: string; type?: string
+}) {
+  return (
+    <input
+      type={type}
+      value={value}
+      onChange={e => onChange(e.target.value)}
+      placeholder={placeholder}
+      className="w-full px-3.5 py-2.5 rounded-xl border border-zinc-200 text-sm bg-white text-zinc-800 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
+    />
+  )
+}
+
 export default function AdminClientDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const isNew = id === 'new'
+
   const [org, setOrg] = useState<Partial<Organization>>({
     name: '', slug: '', plan: 'starter', status: 'trial',
     whatsapp_numbers: [], agent_tone: 'friendly',
@@ -27,6 +62,8 @@ export default function AdminClientDetail() {
   const [saving, setSaving] = useState(false)
   const [newEmail, setNewEmail] = useState('')
   const [newPassword, setNewPassword] = useState('')
+  const [connectionStatus, setConnectionStatus] = useState<'unknown' | 'open' | 'connecting' | 'close'>('unknown')
+  const [checkingConn, setCheckingConn] = useState(false)
 
   useEffect(() => {
     if (!isNew && id) {
@@ -39,25 +76,49 @@ export default function AdminClientDetail() {
     setOrg(o => ({ ...o, plan, max_conversations_month: maxConvByPlan[plan] }))
   }
 
+  async function checkEvolutionConnection() {
+    if (!org.evolution_instance) return
+    setCheckingConn(true)
+    try {
+      const res = await fetch(`/api/evolution/status/${org.evolution_instance}`)
+      const data = await res.json()
+      setConnectionStatus(data.state || 'unknown')
+    } catch {
+      setConnectionStatus('close')
+    } finally {
+      setCheckingConn(false)
+    }
+  }
+
   async function handleSave() {
     setSaving(true)
+    const payload = {
+      name: org.name,
+      slug: org.slug,
+      plan: org.plan,
+      status: org.status,
+      whatsapp_numbers: org.whatsapp_numbers ?? [],
+      agent_tone: org.agent_tone ?? 'friendly',
+      max_conversations_month: org.max_conversations_month,
+      conversations_used: isNew ? 0 : org.conversations_used,
+      evolution_instance: org.evolution_instance ?? null,
+      evolution_token: org.evolution_token ?? null,
+      chatwoot_account_id: org.chatwoot_account_id ?? null,
+      chatwoot_token: org.chatwoot_token ?? null,
+      chatwoot_inbox_id: org.chatwoot_inbox_id ?? null,
+      google_calendar_id: org.google_calendar_id ?? null,
+      asaas_key: org.asaas_key ?? null,
+    }
+
     if (isNew) {
-      // Cria organização
-      const { data: newOrg, error } = await supabase.from('organizations').insert({
-        name: org.name, slug: org.slug, plan: org.plan, status: org.status,
-        whatsapp_numbers: org.whatsapp_numbers ?? [],
-        agent_tone: org.agent_tone ?? 'friendly',
-        max_conversations_month: org.max_conversations_month,
-        conversations_used: 0,
-        chatwoot_url: org.chatwoot_url ?? null,
-        chatwoot_token: org.chatwoot_token ?? null,
-        asaas_key: org.asaas_key ?? null,
-        google_calendar_id: org.google_calendar_id ?? null,
-      }).select().single()
+      const { data: newOrg, error } = await supabase
+        .from('organizations')
+        .insert(payload)
+        .select()
+        .single()
 
       if (error) { alert('Erro ao criar cliente: ' + error.message); setSaving(false); return }
 
-      // Cria usuário se email/senha preenchidos
       if (newEmail && newPassword && newOrg) {
         const { data: authData, error: authError } = await supabase.auth.admin.createUser({
           email: newEmail, password: newPassword, email_confirm: true,
@@ -71,158 +132,249 @@ export default function AdminClientDetail() {
 
       navigate(`/admin/clients/${newOrg?.id}`)
     } else {
-      const { error } = await supabase.from('organizations').update({
-        name: org.name, slug: org.slug, plan: org.plan, status: org.status,
-        whatsapp_numbers: org.whatsapp_numbers,
-        agent_tone: org.agent_tone,
-        max_conversations_month: org.max_conversations_month,
-        chatwoot_url: org.chatwoot_url,
-        chatwoot_token: org.chatwoot_token,
-        asaas_key: org.asaas_key,
-        google_calendar_id: org.google_calendar_id,
-      }).eq('id', id!)
+      const { error } = await supabase.from('organizations').update(payload).eq('id', id!)
       if (error) { alert('Erro ao salvar: ' + error.message) }
+      else alert('Salvo com sucesso!')
     }
     setSaving(false)
   }
 
   if (loading) return (
     <div className="flex justify-center py-20">
-      <div className="w-6 h-6 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+      <div className="w-6 h-6 border-2 border-zinc-300 border-t-zinc-900 rounded-full animate-spin" />
     </div>
   )
 
+  const connIcon = connectionStatus === 'open'
+    ? <Wifi className="w-4 h-4 text-green-500" />
+    : connectionStatus === 'connecting'
+      ? <Wifi className="w-4 h-4 text-yellow-500" />
+      : <WifiOff className="w-4 h-4 text-zinc-400" />
+
   return (
-    <div className="space-y-6 max-w-2xl">
+    <div className="space-y-6 max-w-2xl pb-8 animate-fade-in">
+      {/* Header */}
       <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" onClick={() => navigate('/admin/clients')}>
+        <button
+          onClick={() => navigate('/admin/clients')}
+          className="p-2 rounded-xl text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 transition-colors"
+        >
           <ArrowLeft className="w-4 h-4" />
-        </Button>
+        </button>
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">
+          <h1 className="text-2xl font-black text-zinc-900 tracking-tight">
             {isNew ? 'Novo Cliente' : org.name}
           </h1>
           {!isNew && org.created_at && (
-            <p className="text-sm text-gray-500">Criado em {formatDate(org.created_at)}</p>
+            <p className="text-xs text-zinc-400 font-medium mt-0.5">Criado em {formatDate(org.created_at)}</p>
           )}
         </div>
+        {!isNew && (
+          <div className="ml-auto flex items-center gap-1.5 text-xs font-bold text-zinc-500">
+            {connIcon}
+            <span className="capitalize">{connectionStatus === 'unknown' ? 'Não verificado' : connectionStatus}</span>
+          </div>
+        )}
       </div>
 
       {/* Dados básicos */}
-      <Card>
-        <CardHeader><CardTitle>Dados da Clínica</CardTitle></CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Nome</label>
-              <Input value={org.name ?? ''} onChange={e => setOrg(o => ({ ...o, name: e.target.value }))} placeholder="Clínica São Lucas" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Slug</label>
-              <Input value={org.slug ?? ''} onChange={e => setOrg(o => ({ ...o, slug: e.target.value.toLowerCase().replace(/\s+/g, '-') }))} placeholder="clinica-sao-lucas" />
-            </div>
-          </div>
+      <div className="bg-white rounded-[1.75rem] border border-zinc-100 shadow-sm p-6 space-y-5">
+        <p className="font-black text-zinc-900 text-sm uppercase tracking-wider">Dados da Clínica</p>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Plano</label>
-              <div className="flex gap-2">
-                {plans.map(p => (
-                  <button
-                    key={p}
-                    onClick={() => handlePlanChange(p)}
-                    className={`px-3 py-1.5 rounded-md text-sm font-medium border transition-colors ${org.plan === p ? 'bg-primary text-white border-primary' : 'border-gray-200 text-gray-600 hover:border-primary/50'}`}
-                  >
-                    {planLabel(p)}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Status</label>
-              <div className="flex gap-2 flex-wrap">
-                {statuses.map(s => (
-                  <button
-                    key={s}
-                    onClick={() => setOrg(o => ({ ...o, status: s }))}
-                    className={`px-3 py-1.5 rounded-md text-sm font-medium border transition-colors ${org.status === s ? 'bg-primary text-white border-primary' : 'border-gray-200 text-gray-600 hover:border-primary/50'}`}
-                  >
-                    {statusLabel(s)}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
+        <div className="grid grid-cols-2 gap-4">
+          <Field label="Nome">
+            <TextInput value={org.name ?? ''} onChange={v => setOrg(o => ({ ...o, name: v }))} placeholder="Clínica São Lucas" />
+          </Field>
+          <Field label="Slug">
+            <TextInput
+              value={org.slug ?? ''}
+              onChange={v => setOrg(o => ({ ...o, slug: v.toLowerCase().replace(/\s+/g, '-') }))}
+              placeholder="clinica-sao-lucas"
+            />
+          </Field>
+        </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Tom do Agente</label>
-            <div className="flex gap-2">
-              {(['formal', 'friendly'] as const).map(t => (
-                <button key={t} onClick={() => setOrg(o => ({ ...o, agent_tone: t }))}
-                  className={`px-3 py-1.5 rounded-md text-sm font-medium border transition-colors ${org.agent_tone === t ? 'bg-primary text-white border-primary' : 'border-gray-200 text-gray-600'}`}>
-                  {t === 'formal' ? 'Formal' : 'Amigável'}
-                </button>
-              ))}
-            </div>
+        <Field label="Plano">
+          <div className="flex gap-2">
+            {plans.map(p => (
+              <button
+                key={p}
+                onClick={() => handlePlanChange(p)}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-black border-2 transition-all ${
+                  org.plan === p
+                    ? `${planColors[p]} bg-white shadow-sm`
+                    : 'border-zinc-200 text-zinc-400 hover:border-zinc-300'
+                }`}
+              >
+                {planLabel(p)}
+                <span className="ml-1.5 text-[10px] text-zinc-400">R${PLAN_PRICES[p]}</span>
+              </button>
+            ))}
           </div>
-        </CardContent>
-      </Card>
+        </Field>
 
-      {/* Integrações */}
-      <Card>
-        <CardHeader><CardTitle>Integrações</CardTitle></CardHeader>
-        <CardContent className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Chatwoot URL</label>
-            <Input value={org.chatwoot_url ?? ''} onChange={e => setOrg(o => ({ ...o, chatwoot_url: e.target.value }))} placeholder="https://chatwoot.seudominio.com" />
+        <Field label="Status">
+          <div className="flex gap-2 flex-wrap">
+            {statuses.map(s => (
+              <button
+                key={s}
+                onClick={() => setOrg(o => ({ ...o, status: s }))}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-black border-2 transition-all ${
+                  org.status === s
+                    ? `${statusColors[s]} bg-white shadow-sm`
+                    : 'border-zinc-200 text-zinc-400 hover:border-zinc-300'
+                }`}
+              >
+                {statusLabel(s)}
+              </button>
+            ))}
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Chatwoot Token</label>
-            <Input value={org.chatwoot_token ?? ''} onChange={e => setOrg(o => ({ ...o, chatwoot_token: e.target.value }))} placeholder="token do inbox" type="password" />
+        </Field>
+
+        <Field label="Tom do Agente">
+          <div className="flex gap-2">
+            {(['formal', 'friendly'] as const).map(t => (
+              <button
+                key={t}
+                onClick={() => setOrg(o => ({ ...o, agent_tone: t }))}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-black border-2 transition-all ${
+                  org.agent_tone === t
+                    ? 'border-zinc-900 text-zinc-900 bg-white shadow-sm'
+                    : 'border-zinc-200 text-zinc-400 hover:border-zinc-300'
+                }`}
+              >
+                {t === 'formal' ? 'Formal' : 'Amigável'}
+              </button>
+            ))}
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Google Calendar ID</label>
-            <Input value={org.google_calendar_id ?? ''} onChange={e => setOrg(o => ({ ...o, google_calendar_id: e.target.value }))} placeholder="email@gmail.com ou calendar_id" />
+        </Field>
+      </div>
+
+      {/* Evolution API */}
+      <div className="bg-white rounded-[1.75rem] border border-zinc-100 shadow-sm p-6 space-y-5">
+        <div className="flex items-center justify-between">
+          <p className="font-black text-zinc-900 text-sm uppercase tracking-wider">Evolution API</p>
+          {org.evolution_instance && (
+            <button
+              onClick={checkEvolutionConnection}
+              disabled={checkingConn}
+              className="flex items-center gap-1.5 text-xs font-bold text-zinc-500 hover:text-zinc-800 transition-colors disabled:opacity-50"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${checkingConn ? 'animate-spin' : ''}`} />
+              Verificar conexão
+            </button>
+          )}
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <Field label="Nome da Instância">
+            <TextInput
+              value={org.evolution_instance ?? ''}
+              onChange={v => setOrg(o => ({ ...o, evolution_instance: v }))}
+              placeholder="AgenteClin-Demo"
+            />
+          </Field>
+          <Field label="Token da Instância">
+            <TextInput
+              value={org.evolution_token ?? ''}
+              onChange={v => setOrg(o => ({ ...o, evolution_token: v }))}
+              placeholder="415C2136-..."
+              type="password"
+            />
+          </Field>
+        </div>
+      </div>
+
+      {/* Chatwoot */}
+      <div className="bg-white rounded-[1.75rem] border border-zinc-100 shadow-sm p-6 space-y-5">
+        <p className="font-black text-zinc-900 text-sm uppercase tracking-wider">Chatwoot</p>
+
+        <div className="grid grid-cols-3 gap-4">
+          <Field label="Account ID">
+            <TextInput
+              value={org.chatwoot_account_id != null ? String(org.chatwoot_account_id) : ''}
+              onChange={v => setOrg(o => ({ ...o, chatwoot_account_id: v ? Number(v) : undefined }))}
+              placeholder="1"
+            />
+          </Field>
+          <Field label="Inbox ID">
+            <TextInput
+              value={org.chatwoot_inbox_id != null ? String(org.chatwoot_inbox_id) : ''}
+              onChange={v => setOrg(o => ({ ...o, chatwoot_inbox_id: v ? Number(v) : undefined }))}
+              placeholder="3"
+            />
+          </Field>
+          <div className="col-span-3">
+            <Field label="Token do Agente">
+              <TextInput
+                value={org.chatwoot_token ?? ''}
+                onChange={v => setOrg(o => ({ ...o, chatwoot_token: v }))}
+                placeholder="token do inbox"
+                type="password"
+              />
+            </Field>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Asaas API Key</label>
-            <Input value={org.asaas_key ?? ''} onChange={e => setOrg(o => ({ ...o, asaas_key: e.target.value }))} placeholder="$aas_..." type="password" />
-          </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
+
+      {/* Outras integrações */}
+      <div className="bg-white rounded-[1.75rem] border border-zinc-100 shadow-sm p-6 space-y-5">
+        <p className="font-black text-zinc-900 text-sm uppercase tracking-wider">Outras Integrações</p>
+
+        <Field label="Google Calendar ID">
+          <TextInput
+            value={org.google_calendar_id ?? ''}
+            onChange={v => setOrg(o => ({ ...o, google_calendar_id: v }))}
+            placeholder="email@gmail.com ou calendar_id"
+          />
+        </Field>
+        <Field label="Asaas API Key">
+          <TextInput
+            value={org.asaas_key ?? ''}
+            onChange={v => setOrg(o => ({ ...o, asaas_key: v }))}
+            placeholder="$aas_..."
+            type="password"
+          />
+        </Field>
+      </div>
 
       {/* Criar usuário (apenas novo) */}
       {isNew && (
-        <Card>
-          <CardHeader><CardTitle>Acesso ao Dashboard</CardTitle></CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">E-mail do cliente</label>
-              <Input type="email" value={newEmail} onChange={e => setNewEmail(e.target.value)} placeholder="dono@clinica.com" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Senha inicial</label>
-              <Input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="Senha provisória" />
-            </div>
-            <p className="text-xs text-gray-400">O cliente pode alterar a senha após o primeiro login.</p>
-          </CardContent>
-        </Card>
+        <div className="bg-white rounded-[1.75rem] border border-zinc-100 shadow-sm p-6 space-y-5">
+          <p className="font-black text-zinc-900 text-sm uppercase tracking-wider">Acesso ao Dashboard</p>
+          <Field label="E-mail do cliente">
+            <TextInput type="email" value={newEmail} onChange={setNewEmail} placeholder="dono@clinica.com" />
+          </Field>
+          <Field label="Senha inicial">
+            <TextInput type="password" value={newPassword} onChange={setNewPassword} placeholder="Senha provisória" />
+          </Field>
+          <p className="text-xs text-zinc-400">O cliente pode alterar a senha após o primeiro acesso.</p>
+        </div>
       )}
 
-      <div className="flex gap-3">
-        <Button onClick={handleSave} disabled={saving} className="gap-2">
+      {/* Ações */}
+      <div className="flex items-center gap-3">
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-zinc-900 text-white text-sm font-bold hover:bg-zinc-800 disabled:opacity-60 transition-colors"
+        >
           <Save className="w-4 h-4" />
           {saving ? 'Salvando...' : 'Salvar'}
-        </Button>
+        </button>
+
         {!isNew && (
-          <Button variant="destructive" size="sm" className="gap-2 ml-auto"
+          <button
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-red-200 text-red-500 text-sm font-bold hover:bg-red-50 transition-colors ml-auto"
             onClick={async () => {
-              if (!confirm('Remover este cliente? Ação irreversível.')) return
+              if (!confirm(`Remover "${org.name}"? Ação irreversível.`)) return
               await supabase.from('organizations').delete().eq('id', id!)
               navigate('/admin/clients')
-            }}>
-            <Trash2 className="w-4 h-4" /> Remover Cliente
-          </Button>
+            }}
+          >
+            <Trash2 className="w-4 h-4" />
+            Remover Cliente
+          </button>
         )}
       </div>
     </div>

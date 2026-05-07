@@ -10,14 +10,19 @@ export interface Organization {
   plan: OrgPlan
   status: OrgStatus
   whatsapp_numbers: string[]
-  chatwoot_url: string | null
+  evolution_instance: string | null
+  evolution_token: string | null
+  chatwoot_account_id: number | null
   chatwoot_token: string | null
+  chatwoot_inbox_id: number | null
+  chatwoot_url: string | null
   asaas_key: string | null
   google_calendar_id: string | null
   agent_tone: 'formal' | 'friendly'
   max_conversations_month: number
   conversations_used: number
   created_at: string
+  updated_at: string
 }
 
 export interface OrgUser {
