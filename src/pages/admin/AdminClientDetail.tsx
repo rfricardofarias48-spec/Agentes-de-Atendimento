@@ -152,7 +152,7 @@ export default function AdminClientDetail() {
       : <WifiOff className="w-4 h-4 text-zinc-400" />
 
   return (
-    <div className="space-y-6 max-w-2xl pb-8 animate-fade-in">
+    <div className="space-y-6 pb-8 animate-fade-in">
       {/* Header */}
       <div className="flex items-center gap-3">
         <button
@@ -163,7 +163,7 @@ export default function AdminClientDetail() {
         </button>
         <div>
           <h1 className="text-2xl font-black text-zinc-900 tracking-tight">
-            {isNew ? 'Novo Cliente' : org.name}
+            {isNew ? 'Novo Usuário' : org.name}
           </h1>
           {!isNew && org.created_at && (
             <p className="text-xs text-zinc-400 font-medium mt-0.5">Criado em {formatDate(org.created_at)}</p>
@@ -177,134 +177,185 @@ export default function AdminClientDetail() {
         )}
       </div>
 
-      {/* Dados básicos */}
-      <div className="bg-white rounded-[1.75rem] border border-zinc-100 shadow-sm p-6 space-y-5">
-        <p className="font-black text-zinc-900 text-sm uppercase tracking-wider">Dados da Clínica</p>
+      {/* Layout em duas colunas */}
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
 
-        <div className="grid grid-cols-2 gap-4">
-          <Field label="Nome">
-            <TextInput value={org.name ?? ''} onChange={v => setOrg(o => ({ ...o, name: v }))} placeholder="Clínica São Lucas" />
-          </Field>
-          <Field label="Slug">
-            <TextInput
-              value={org.slug ?? ''}
-              onChange={v => setOrg(o => ({ ...o, slug: v.toLowerCase().replace(/\s+/g, '-') }))}
-              placeholder="clinica-sao-lucas"
-            />
-          </Field>
-        </div>
+        {/* Coluna esquerda */}
+        <div className="space-y-6">
 
-        <Field label="Plano">
-          <div className="flex gap-2">
-            {plans.map(p => (
-              <button
-                key={p}
-                onClick={() => handlePlanChange(p)}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-black border-2 transition-all ${
-                  org.plan === p
-                    ? `${planColors[p]} bg-white shadow-sm`
-                    : 'border-zinc-200 text-zinc-400 hover:border-zinc-300'
-                }`}
-              >
-                {planLabel(p)}
-                <span className="ml-1.5 text-[10px] text-zinc-400">R${PLAN_PRICES[p]}</span>
-              </button>
-            ))}
+          {/* Dados básicos */}
+          <div className="bg-white rounded-[1.75rem] border border-zinc-100 shadow-sm p-6 space-y-5">
+            <p className="font-black text-zinc-900 text-sm uppercase tracking-wider">Dados da Clínica</p>
+
+            <div className="grid grid-cols-2 gap-4">
+              <Field label="Nome">
+                <TextInput value={org.name ?? ''} onChange={v => setOrg(o => ({ ...o, name: v }))} placeholder="Clínica São Lucas" />
+              </Field>
+              <Field label="Slug">
+                <TextInput
+                  value={org.slug ?? ''}
+                  onChange={v => setOrg(o => ({ ...o, slug: v.toLowerCase().replace(/\s+/g, '-') }))}
+                  placeholder="clinica-sao-lucas"
+                />
+              </Field>
+            </div>
+
+            <Field label="Plano">
+              <div className="flex gap-2 flex-wrap">
+                {plans.map(p => (
+                  <button
+                    key={p}
+                    onClick={() => handlePlanChange(p)}
+                    className={`px-3.5 py-1.5 rounded-xl text-xs font-black border-2 transition-all ${
+                      org.plan === p
+                        ? `${planColors[p]} bg-white shadow-sm`
+                        : 'border-zinc-200 text-zinc-400 hover:border-zinc-300'
+                    }`}
+                  >
+                    {planLabel(p)}
+                    <span className="ml-1.5 text-[10px] text-zinc-400">R${PLAN_PRICES[p]}</span>
+                  </button>
+                ))}
+              </div>
+            </Field>
+
+            <div className="grid grid-cols-2 gap-4">
+              <Field label="Status">
+                <div className="flex gap-2 flex-wrap">
+                  {statuses.map(s => (
+                    <button
+                      key={s}
+                      onClick={() => setOrg(o => ({ ...o, status: s }))}
+                      className={`px-3.5 py-1.5 rounded-xl text-xs font-black border-2 transition-all ${
+                        org.status === s
+                          ? `${statusColors[s]} bg-white shadow-sm`
+                          : 'border-zinc-200 text-zinc-400 hover:border-zinc-300'
+                      }`}
+                    >
+                      {statusLabel(s)}
+                    </button>
+                  ))}
+                </div>
+              </Field>
+
+              <Field label="Tom do Agente">
+                <div className="flex gap-2">
+                  {(['formal', 'friendly'] as const).map(t => (
+                    <button
+                      key={t}
+                      onClick={() => setOrg(o => ({ ...o, agent_tone: t }))}
+                      className={`px-3.5 py-1.5 rounded-xl text-xs font-black border-2 transition-all ${
+                        org.agent_tone === t
+                          ? 'border-zinc-900 text-zinc-900 bg-white shadow-sm'
+                          : 'border-zinc-200 text-zinc-400 hover:border-zinc-300'
+                      }`}
+                    >
+                      {t === 'formal' ? 'Formal' : 'Amigável'}
+                    </button>
+                  ))}
+                </div>
+              </Field>
+            </div>
           </div>
-        </Field>
 
-        <Field label="Status">
-          <div className="flex gap-2 flex-wrap">
-            {statuses.map(s => (
-              <button
-                key={s}
-                onClick={() => setOrg(o => ({ ...o, status: s }))}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-black border-2 transition-all ${
-                  org.status === s
-                    ? `${statusColors[s]} bg-white shadow-sm`
-                    : 'border-zinc-200 text-zinc-400 hover:border-zinc-300'
-                }`}
-              >
-                {statusLabel(s)}
-              </button>
-            ))}
+          {/* Outras integrações */}
+          <div className="bg-white rounded-[1.75rem] border border-zinc-100 shadow-sm p-6 space-y-5">
+            <p className="font-black text-zinc-900 text-sm uppercase tracking-wider">Outras Integrações</p>
+            <div className="grid grid-cols-2 gap-4">
+              <Field label="Google Calendar ID">
+                <TextInput
+                  value={org.google_calendar_id ?? ''}
+                  onChange={v => setOrg(o => ({ ...o, google_calendar_id: v }))}
+                  placeholder="email@gmail.com"
+                />
+              </Field>
+              <Field label="Asaas API Key">
+                <TextInput
+                  value={org.asaas_key ?? ''}
+                  onChange={v => setOrg(o => ({ ...o, asaas_key: v }))}
+                  placeholder="$aas_..."
+                  type="password"
+                />
+              </Field>
+            </div>
           </div>
-        </Field>
 
-        <Field label="Tom do Agente">
-          <div className="flex gap-2">
-            {(['formal', 'friendly'] as const).map(t => (
-              <button
-                key={t}
-                onClick={() => setOrg(o => ({ ...o, agent_tone: t }))}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-black border-2 transition-all ${
-                  org.agent_tone === t
-                    ? 'border-zinc-900 text-zinc-900 bg-white shadow-sm'
-                    : 'border-zinc-200 text-zinc-400 hover:border-zinc-300'
-                }`}
-              >
-                {t === 'formal' ? 'Formal' : 'Amigável'}
-              </button>
-            ))}
-          </div>
-        </Field>
-      </div>
-
-      {/* Evolution API */}
-      <div className="bg-white rounded-[1.75rem] border border-zinc-100 shadow-sm p-6 space-y-5">
-        <div className="flex items-center justify-between">
-          <p className="font-black text-zinc-900 text-sm uppercase tracking-wider">Evolution API</p>
-          {org.evolution_instance && (
-            <button
-              onClick={checkEvolutionConnection}
-              disabled={checkingConn}
-              className="flex items-center gap-1.5 text-xs font-bold text-zinc-500 hover:text-zinc-800 transition-colors disabled:opacity-50"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${checkingConn ? 'animate-spin' : ''}`} />
-              Verificar conexão
-            </button>
+          {/* Criar usuário (apenas novo) */}
+          {isNew && (
+            <div className="bg-white rounded-[1.75rem] border border-zinc-100 shadow-sm p-6 space-y-5">
+              <p className="font-black text-zinc-900 text-sm uppercase tracking-wider">Acesso ao Dashboard</p>
+              <div className="grid grid-cols-2 gap-4">
+                <Field label="E-mail do cliente">
+                  <TextInput type="email" value={newEmail} onChange={setNewEmail} placeholder="dono@clinica.com" />
+                </Field>
+                <Field label="Senha inicial">
+                  <TextInput type="password" value={newPassword} onChange={setNewPassword} placeholder="Senha provisória" />
+                </Field>
+              </div>
+              <p className="text-xs text-zinc-400">O usuário pode alterar a senha após o primeiro acesso.</p>
+            </div>
           )}
-        </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <Field label="Nome da Instância">
-            <TextInput
-              value={org.evolution_instance ?? ''}
-              onChange={v => setOrg(o => ({ ...o, evolution_instance: v }))}
-              placeholder="AgenteClin-Demo"
-            />
-          </Field>
-          <Field label="Token da Instância">
-            <TextInput
-              value={org.evolution_token ?? ''}
-              onChange={v => setOrg(o => ({ ...o, evolution_token: v }))}
-              placeholder="415C2136-..."
-              type="password"
-            />
-          </Field>
-        </div>
-      </div>
+        </div>{/* /coluna esquerda */}
 
-      {/* Chatwoot */}
-      <div className="bg-white rounded-[1.75rem] border border-zinc-100 shadow-sm p-6 space-y-5">
-        <p className="font-black text-zinc-900 text-sm uppercase tracking-wider">Chatwoot</p>
+        {/* Coluna direita */}
+        <div className="space-y-6">
 
-        <div className="grid grid-cols-3 gap-4">
-          <Field label="Account ID">
-            <TextInput
-              value={org.chatwoot_account_id != null ? String(org.chatwoot_account_id) : ''}
-              onChange={v => setOrg(o => ({ ...o, chatwoot_account_id: v ? Number(v) : undefined }))}
-              placeholder="1"
-            />
-          </Field>
-          <Field label="Inbox ID">
-            <TextInput
-              value={org.chatwoot_inbox_id != null ? String(org.chatwoot_inbox_id) : ''}
-              onChange={v => setOrg(o => ({ ...o, chatwoot_inbox_id: v ? Number(v) : undefined }))}
-              placeholder="3"
-            />
-          </Field>
-          <div className="col-span-3">
+          {/* Evolution API */}
+          <div className="bg-white rounded-[1.75rem] border border-zinc-100 shadow-sm p-6 space-y-5">
+            <div className="flex items-center justify-between">
+              <p className="font-black text-zinc-900 text-sm uppercase tracking-wider">Evolution API</p>
+              {org.evolution_instance && (
+                <button
+                  onClick={checkEvolutionConnection}
+                  disabled={checkingConn}
+                  className="flex items-center gap-1.5 text-xs font-bold text-zinc-500 hover:text-zinc-800 transition-colors disabled:opacity-50"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${checkingConn ? 'animate-spin' : ''}`} />
+                  Verificar conexão
+                </button>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <Field label="Nome da Instância">
+                <TextInput
+                  value={org.evolution_instance ?? ''}
+                  onChange={v => setOrg(o => ({ ...o, evolution_instance: v }))}
+                  placeholder="AgenteClin-Demo"
+                />
+              </Field>
+              <Field label="Token da Instância">
+                <TextInput
+                  value={org.evolution_token ?? ''}
+                  onChange={v => setOrg(o => ({ ...o, evolution_token: v }))}
+                  placeholder="415C2136-..."
+                  type="password"
+                />
+              </Field>
+            </div>
+          </div>
+
+          {/* Chatwoot */}
+          <div className="bg-white rounded-[1.75rem] border border-zinc-100 shadow-sm p-6 space-y-5">
+            <p className="font-black text-zinc-900 text-sm uppercase tracking-wider">Chatwoot</p>
+
+            <div className="grid grid-cols-2 gap-4">
+              <Field label="Account ID">
+                <TextInput
+                  value={org.chatwoot_account_id != null ? String(org.chatwoot_account_id) : ''}
+                  onChange={v => setOrg(o => ({ ...o, chatwoot_account_id: v ? Number(v) : undefined }))}
+                  placeholder="1"
+                />
+              </Field>
+              <Field label="Inbox ID">
+                <TextInput
+                  value={org.chatwoot_inbox_id != null ? String(org.chatwoot_inbox_id) : ''}
+                  onChange={v => setOrg(o => ({ ...o, chatwoot_inbox_id: v ? Number(v) : undefined }))}
+                  placeholder="3"
+                />
+              </Field>
+            </div>
             <Field label="Token do Agente">
               <TextInput
                 value={org.chatwoot_token ?? ''}
@@ -314,43 +365,9 @@ export default function AdminClientDetail() {
               />
             </Field>
           </div>
-        </div>
-      </div>
 
-      {/* Outras integrações */}
-      <div className="bg-white rounded-[1.75rem] border border-zinc-100 shadow-sm p-6 space-y-5">
-        <p className="font-black text-zinc-900 text-sm uppercase tracking-wider">Outras Integrações</p>
-
-        <Field label="Google Calendar ID">
-          <TextInput
-            value={org.google_calendar_id ?? ''}
-            onChange={v => setOrg(o => ({ ...o, google_calendar_id: v }))}
-            placeholder="email@gmail.com ou calendar_id"
-          />
-        </Field>
-        <Field label="Asaas API Key">
-          <TextInput
-            value={org.asaas_key ?? ''}
-            onChange={v => setOrg(o => ({ ...o, asaas_key: v }))}
-            placeholder="$aas_..."
-            type="password"
-          />
-        </Field>
-      </div>
-
-      {/* Criar usuário (apenas novo) */}
-      {isNew && (
-        <div className="bg-white rounded-[1.75rem] border border-zinc-100 shadow-sm p-6 space-y-5">
-          <p className="font-black text-zinc-900 text-sm uppercase tracking-wider">Acesso ao Dashboard</p>
-          <Field label="E-mail do cliente">
-            <TextInput type="email" value={newEmail} onChange={setNewEmail} placeholder="dono@clinica.com" />
-          </Field>
-          <Field label="Senha inicial">
-            <TextInput type="password" value={newPassword} onChange={setNewPassword} placeholder="Senha provisória" />
-          </Field>
-          <p className="text-xs text-zinc-400">O cliente pode alterar a senha após o primeiro acesso.</p>
-        </div>
-      )}
+        </div>{/* /coluna direita */}
+      </div>{/* /grid duas colunas */}
 
       {/* Ações */}
       <div className="flex items-center gap-3">
@@ -373,7 +390,7 @@ export default function AdminClientDetail() {
             }}
           >
             <Trash2 className="w-4 h-4" />
-            Remover Cliente
+            Remover Usuário
           </button>
         )}
       </div>

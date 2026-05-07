@@ -50,7 +50,7 @@ export default function AdminDashboard() {
         <Link to="/admin/clients/new">
           <button className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-zinc-900 text-white text-sm font-bold hover:bg-zinc-800 transition-colors">
             <Plus className="w-4 h-4" />
-            Novo Cliente
+            Novo Usuário
           </button>
         </Link>
       </div>
@@ -109,8 +109,8 @@ export default function AdminDashboard() {
       <div className="bg-white rounded-[1.75rem] border border-zinc-100 shadow-sm overflow-hidden">
         <div className="px-7 pt-6 pb-4 flex items-center justify-between border-b border-zinc-50">
           <div>
-            <p className="font-black text-zinc-900 text-lg">Clientes Recentes</p>
-            <p className="text-xs text-zinc-400 font-medium mt-0.5">{orgs.length} clínicas cadastradas</p>
+            <p className="font-black text-zinc-900 text-lg">Usuários Recentes</p>
+            <p className="text-xs text-zinc-400 font-medium mt-0.5">{orgs.length} usuários cadastrados</p>
           </div>
           <Link to="/admin/clients">
             <button className="flex items-center gap-1.5 text-xs font-bold text-green-600 hover:text-green-700 transition-colors">
@@ -129,7 +129,7 @@ export default function AdminDashboard() {
             <p className="font-semibold">Nenhum cliente ainda</p>
             <Link to="/admin/clients/new">
               <button className="mt-4 px-4 py-2 rounded-xl bg-zinc-900 text-white text-sm font-bold hover:bg-zinc-800 transition-colors">
-                Adicionar primeiro cliente
+                Adicionar primeiro usuário
               </button>
             </Link>
           </div>

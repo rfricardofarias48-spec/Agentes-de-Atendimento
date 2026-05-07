@@ -52,12 +52,12 @@ export default function AdminClients() {
       <div className="flex items-end justify-between">
         <div>
           <h1 className="text-3xl font-black text-zinc-900 tracking-tight">Clientes</h1>
-          <p className="text-zinc-400 text-sm font-medium mt-0.5">Gerencie as clínicas da plataforma.</p>
+          <p className="text-zinc-400 text-sm font-medium mt-0.5">Gerencie os usuários da plataforma.</p>
         </div>
         <Link to="/admin/clients/new">
           <button className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-zinc-900 text-white text-sm font-bold hover:bg-zinc-800 transition-colors">
             <Plus className="w-4 h-4" />
-            Novo Cliente
+            Novo Usuário
           </button>
         </Link>
       </div>
@@ -108,7 +108,7 @@ export default function AdminClients() {
         ) : filtered.length === 0 ? (
           <div className="text-center py-14 text-zinc-400">
             <Users className="w-10 h-10 mx-auto mb-3 opacity-20" />
-            <p className="font-semibold">Nenhuma clínica encontrada.</p>
+            <p className="font-semibold">Nenhum usuário encontrado.</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
