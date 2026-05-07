@@ -1,14 +1,15 @@
 import { type ReactNode, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import {
-  LayoutDashboard, Users, LogOut, Menu, X, Bot, Settings
+  LayoutDashboard, Users, LogOut, Menu, X, Bot, Settings, DollarSign
 } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { cn } from '../../lib/utils'
 
 const navItems = [
   { href: '/admin', label: 'Visão Geral', icon: LayoutDashboard },
-  { href: '/admin/clients', label: 'Clientes', icon: Users },
+  { href: '/admin/clients', label: 'Usuários', icon: Users },
+  { href: '/admin/billing', label: 'Faturamento', icon: DollarSign },
   { href: '/admin/settings', label: 'Configurações', icon: Settings },
 ]
 
