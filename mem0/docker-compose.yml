@@ -1,7 +1,7 @@
 services:
   mem0:
     build:
-      context: .
+      context: ./mem0
       dockerfile: Dockerfile
     ports:
       - "8888:8000"
