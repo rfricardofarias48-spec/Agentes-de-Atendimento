@@ -275,8 +275,10 @@ Responda sempre em português brasileiro. Seja conciso — máximo 3 parágrafos
     messages.push(response.choices[0].message);
 
     for (const tc of toolCalls) {
-      const args = JSON.parse(tc.function.arguments) as Record<string, unknown>;
-      const result = await executeTool(tc.function.name, args, org.id, phone, conv as Conversation);
+      if (tc.type !== 'function') continue;
+      const fn = (tc as OpenAI.Chat.ChatCompletionMessageToolCall).function;
+      const args = JSON.parse(fn.arguments) as Record<string, unknown>;
+      const result = await executeTool(fn.name, args, org.id, phone, conv as Conversation);
 
       messages.push({
         role: 'tool',
