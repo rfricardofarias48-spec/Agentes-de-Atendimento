@@ -1,9 +1,21 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Save, Trash2, Wifi, WifiOff, RefreshCw } from 'lucide-react'
+import { ArrowLeft, Save, Trash2, Wifi, WifiOff, RefreshCw, CheckCircle2, XCircle, Loader2, Zap } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { type Organization, type OrgPlan, type OrgStatus } from '../../types'
 import { planLabel, statusLabel, formatDate } from '../../lib/utils'
+
+interface SetupStep {
+  id: string
+  label: string
+  ok: boolean
+  detail: string
+}
+
+interface SetupResult {
+  steps: SetupStep[]
+  webhookUrl?: string
+}
 
 const plans: OrgPlan[] = ['starter', 'pro', 'clinic']
 const statuses: OrgStatus[] = ['active', 'trial', 'inactive', 'suspended']
@@ -64,6 +76,8 @@ export default function AdminClientDetail() {
   const [newPassword, setNewPassword] = useState('')
   const [connectionStatus, setConnectionStatus] = useState<'unknown' | 'open' | 'connecting' | 'close'>('unknown')
   const [checkingConn, setCheckingConn] = useState(false)
+  const [setupResult, setSetupResult] = useState<SetupResult | null>(null)
+  const [settingUp, setSettingUp] = useState(false)
 
   useEffect(() => {
     if (!isNew && id) {
@@ -90,8 +104,31 @@ export default function AdminClientDetail() {
     }
   }
 
+  async function runSetup(orgId: string) {
+    setSettingUp(true)
+    setSetupResult(null)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const res = await fetch('/api/admin/setup-org', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+        },
+        body: JSON.stringify({ orgId }),
+      })
+      const data = await res.json() as SetupResult
+      setSetupResult(data)
+    } catch (e) {
+      setSetupResult({ steps: [{ id: 'error', label: 'Erro', ok: false, detail: String(e) }] })
+    } finally {
+      setSettingUp(false)
+    }
+  }
+
   async function handleSave() {
     setSaving(true)
+    setSetupResult(null)
     const payload = {
       name: org.name,
       slug: org.slug,
@@ -117,7 +154,7 @@ export default function AdminClientDetail() {
         .select()
         .single()
 
-      if (error) { alert('Erro ao criar cliente: ' + error.message); setSaving(false); return }
+      if (error) { alert('Erro ao criar usuário: ' + error.message); setSaving(false); return }
 
       if (newEmail && newPassword && newOrg) {
         const { data: authData, error: authError } = await supabase.auth.admin.createUser({
@@ -130,13 +167,20 @@ export default function AdminClientDetail() {
         }
       }
 
+      setSaving(false)
       navigate(`/admin/clients/${newOrg?.id}`)
     } else {
       const { error } = await supabase.from('organizations').update(payload).eq('id', id!)
-      if (error) { alert('Erro ao salvar: ' + error.message) }
-      else alert('Salvo com sucesso!')
+      setSaving(false)
+      if (error) {
+        alert('Erro ao salvar: ' + error.message)
+        return
+      }
+      // Se tem instância Evolution preenchida, roda o setup automático
+      if (org.evolution_instance && org.evolution_token) {
+        await runSetup(id!)
+      }
     }
-    setSaving(false)
   }
 
   if (loading) return (
@@ -369,16 +413,82 @@ export default function AdminClientDetail() {
         </div>{/* /coluna direita */}
       </div>{/* /grid duas colunas */}
 
+      {/* Painel de setup automático */}
+      {(settingUp || setupResult) && (
+        <div className="bg-white rounded-[1.75rem] border border-zinc-100 shadow-sm p-6 space-y-4">
+          <div className="flex items-center gap-2">
+            <Zap className={`w-4 h-4 ${settingUp ? 'text-yellow-500 animate-pulse' : 'text-green-500'}`} />
+            <p className="font-black text-zinc-900 text-sm uppercase tracking-wider">
+              {settingUp ? 'Configurando automaticamente...' : 'Resultado do Setup'}
+            </p>
+          </div>
+
+          {settingUp && (
+            <div className="flex items-center gap-3 text-zinc-400 text-sm">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Configurando webhook, Chatwoot e agente...
+            </div>
+          )}
+
+          {setupResult && (
+            <div className="space-y-2">
+              {setupResult.steps.map(step => (
+                <div key={step.id} className="flex items-start gap-3 p-3 rounded-xl bg-zinc-50">
+                  {step.ok
+                    ? <CheckCircle2 className="w-4 h-4 text-green-500 mt-0.5 shrink-0" />
+                    : <XCircle className="w-4 h-4 text-zinc-400 mt-0.5 shrink-0" />
+                  }
+                  <div className="min-w-0">
+                    <p className={`text-xs font-black ${step.ok ? 'text-zinc-800' : 'text-zinc-500'}`}>
+                      {step.label}
+                    </p>
+                    <p className="text-[11px] text-zinc-400 mt-0.5">{step.detail}</p>
+                  </div>
+                </div>
+              ))}
+
+              {setupResult.webhookUrl && (
+                <p className="text-[11px] text-zinc-400 pt-1 font-mono break-all">
+                  Webhook: {setupResult.webhookUrl}
+                </p>
+              )}
+
+              {!isNew && org.evolution_instance && (
+                <button
+                  onClick={() => runSetup(id!)}
+                  disabled={settingUp}
+                  className="flex items-center gap-1.5 text-xs font-bold text-zinc-500 hover:text-zinc-800 mt-2 transition-colors disabled:opacity-50"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  Rodar novamente
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Ações */}
       <div className="flex items-center gap-3">
         <button
           onClick={handleSave}
-          disabled={saving}
+          disabled={saving || settingUp}
           className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-zinc-900 text-white text-sm font-bold hover:bg-zinc-800 disabled:opacity-60 transition-colors"
         >
-          <Save className="w-4 h-4" />
-          {saving ? 'Salvando...' : 'Salvar'}
+          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+          {saving ? 'Salvando...' : settingUp ? 'Configurando...' : 'Salvar'}
         </button>
+
+        {!isNew && org.evolution_instance && !setupResult && (
+          <button
+            onClick={() => runSetup(id!)}
+            disabled={settingUp}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-zinc-200 text-zinc-600 text-sm font-bold hover:bg-zinc-50 disabled:opacity-50 transition-colors"
+          >
+            <Zap className="w-4 h-4 text-yellow-500" />
+            Setup automático
+          </button>
+        )}
 
         {!isNew && (
           <button
