@@ -1,132 +1,401 @@
-import { useEffect, useState } from 'react'
-import { Plus, Trash2, BookOpen, FileText } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import {
+  Save, Plus, Trash2, FileText, ChevronDown, Upload, X, Loader2, CheckCircle2, XCircle,
+} from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
-import { type KnowledgeItem } from '../../types'
-import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card'
-import { Button } from '../../components/ui/button'
-import { Input } from '../../components/ui/input'
-import { Badge } from '../../components/ui/badge'
+import { cn } from '../../lib/utils'
 
-export default function ClientTraining() {
+interface Service {
+  id: string
+  name: string
+  description: string
+  price: string
+  pdf_url: string | null
+  pdf_name: string | null
+}
+
+export default function ClientBento() {
   const { orgId } = useAuth()
-  const [items, setItems] = useState<KnowledgeItem[]>([])
-  const [loading, setLoading] = useState(true)
-  const [adding, setAdding] = useState(false)
-  const [form, setForm] = useState({ title: '', content: '', type: 'faq' as 'faq' | 'instruction', specialty: '' })
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
-  async function load() {
+  const [agentId, setAgentId]               = useState<string | null>(null)
+  const [agentName, setAgentName]           = useState('Assistente')
+  const [agentGreeting, setAgentGreeting]   = useState('')
+  const [agentTone, setAgentTone]           = useState<'friendly' | 'formal'>('friendly')
+  const [agentInstructions, setAgentInstructions] = useState('')
+  const [services, setServices]             = useState<Service[]>([])
+
+  const [loading, setLoading]               = useState(true)
+  const [saving, setSaving]                 = useState(false)
+  const [msg, setMsg]                       = useState<{ ok: boolean; text: string } | null>(null)
+
+  const [showAddService, setShowAddService] = useState(false)
+  const [newService, setNewService]         = useState({ name: '', description: '', price: '' })
+  const [expandedService, setExpandedService] = useState<string | null>(null)
+  const [uploadingPdf, setUploadingPdf]     = useState<string | null>(null)
+  const [uploadTarget, setUploadTarget]     = useState<string | null>(null)
+
+  useEffect(() => {
     if (!orgId) return
-    const { data } = await supabase.from('knowledge_items').select('*').eq('org_id', orgId).order('created_at', { ascending: false })
-    setItems(data ?? [])
-    setLoading(false)
+    supabase.from('agent_settings').select('*').eq('org_id', orgId).single()
+      .then(({ data }) => {
+        if (data) {
+          setAgentId(data.id)
+          setAgentName(data.agent_name || 'Assistente')
+          setAgentGreeting(data.greeting_message || '')
+          setAgentTone(data.tone === 'formal' ? 'formal' : 'friendly')
+          setAgentInstructions(data.custom_instructions || '')
+          setServices(data.services || [])
+        }
+        setLoading(false)
+      })
+  }, [orgId])
+
+  async function handleSave() {
+    if (!orgId) return
+    setSaving(true)
+    setMsg(null)
+    const payload = {
+      org_id: orgId,
+      agent_name: agentName,
+      greeting_message: agentGreeting,
+      tone: agentTone,
+      custom_instructions: agentInstructions,
+      specialties: services.map(s => s.name),
+      services,
+    }
+    const { error } = agentId
+      ? await supabase.from('agent_settings').update(payload).eq('id', agentId)
+      : await supabase.from('agent_settings').insert(payload)
+
+    if (error) {
+      setMsg({ ok: false, text: error.message })
+    } else {
+      setMsg({ ok: true, text: 'Configurações salvas com sucesso.' })
+      if (!agentId) {
+        const { data } = await supabase.from('agent_settings').select('id').eq('org_id', orgId).single()
+        if (data) setAgentId(data.id)
+      }
+    }
+    setSaving(false)
   }
 
-  useEffect(() => { load() }, [orgId])
-
-  async function handleAdd() {
-    if (!form.title || !form.content || !orgId) return
-    const { error } = await supabase.from('knowledge_items').insert({
-      org_id: orgId, type: form.type, title: form.title,
-      content: form.content, specialty: form.specialty || null, active: true,
-    })
-    if (!error) { setForm({ title: '', content: '', type: 'faq', specialty: '' }); setAdding(false); load() }
+  function addService() {
+    if (!newService.name.trim()) return
+    setServices(prev => [...prev, {
+      id: crypto.randomUUID(),
+      name: newService.name.trim(),
+      description: newService.description.trim(),
+      price: newService.price.trim(),
+      pdf_url: null,
+      pdf_name: null,
+    }])
+    setNewService({ name: '', description: '', price: '' })
+    setShowAddService(false)
   }
 
-  async function handleDelete(id: string) {
-    if (!confirm('Remover este item?')) return
-    await supabase.from('knowledge_items').delete().eq('id', id)
-    load()
+  function removeService(serviceId: string) {
+    setServices(prev => prev.filter(s => s.id !== serviceId))
   }
 
-  async function toggleActive(item: KnowledgeItem) {
-    await supabase.from('knowledge_items').update({ active: !item.active }).eq('id', item.id)
-    load()
+  function triggerPdfUpload(serviceId: string) {
+    setUploadTarget(serviceId)
+    fileInputRef.current?.click()
   }
 
-  const typeLabel = (t: string) => t === 'faq' ? 'FAQ' : t === 'instruction' ? 'Instrução' : 'PDF'
+  async function handlePdfFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file || !uploadTarget || !orgId) return
+    e.target.value = ''
+
+    setUploadingPdf(uploadTarget)
+    try {
+      const path = `${orgId}/${uploadTarget}.pdf`
+      const { error: upErr } = await supabase.storage
+        .from('specialty-pdfs')
+        .upload(path, file, { upsert: true, contentType: 'application/pdf' })
+
+      if (upErr) { alert('Erro no upload: ' + upErr.message); return }
+
+      const { data: { publicUrl } } = supabase.storage.from('specialty-pdfs').getPublicUrl(path)
+
+      setServices(prev => prev.map(s =>
+        s.id === uploadTarget ? { ...s, pdf_url: publicUrl, pdf_name: file.name } : s
+      ))
+    } finally {
+      setUploadingPdf(null)
+      setUploadTarget(null)
+    }
+  }
+
+  function removePdf(serviceId: string) {
+    setServices(prev => prev.map(s => s.id === serviceId ? { ...s, pdf_url: null, pdf_name: null } : s))
+  }
+
+  if (loading) return (
+    <div className="flex items-center justify-center py-24">
+      <div className="w-6 h-6 border-[3px] border-emerald-500 border-t-transparent rounded-full animate-spin" />
+    </div>
+  )
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Treinamento do Agente</h1>
-          <p className="text-sm text-gray-500">Ensine o agente sobre sua clínica</p>
-        </div>
-        <Button onClick={() => setAdding(true)} className="gap-2" disabled={adding}>
-          <Plus className="w-4 h-4" /> Adicionar
-        </Button>
+    <div className="space-y-5">
+      <input ref={fileInputRef} type="file" accept=".pdf" className="hidden" onChange={handlePdfFileChange} />
+
+      {/* Header */}
+      <div>
+        <h1 className="text-xl text-slate-800 leading-none font-bold">Bento</h1>
+        <p className="text-sm text-slate-500 mt-1">Configure o perfil e comportamento do seu agente</p>
       </div>
 
-      {/* Form novo item */}
-      {adding && (
-        <Card className="border-primary/30 bg-blue-50/30">
-          <CardHeader><CardTitle className="text-base">Novo Item de Treinamento</CardTitle></CardHeader>
-          <CardContent className="space-y-3">
-            <div className="flex gap-2">
-              {(['faq', 'instruction'] as const).map(t => (
-                <button key={t} onClick={() => setForm(f => ({ ...f, type: t }))}
-                  className={`px-3 py-1.5 rounded text-sm font-medium border transition-colors ${form.type === t ? 'bg-primary text-white border-primary' : 'border-gray-200 text-gray-600'}`}>
-                  {typeLabel(t)}
-                </button>
-              ))}
-            </div>
-            <Input placeholder="Título (ex: Qual o horário de atendimento?)" value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} />
-            <textarea
-              className="w-full border border-input rounded-md px-3 py-2 text-sm min-h-[100px] resize-y focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              placeholder="Resposta ou instrução completa..."
-              value={form.content}
-              onChange={e => setForm(f => ({ ...f, content: e.target.value }))}
-            />
-            <Input placeholder="Especialidade (opcional, ex: Cardiologia)" value={form.specialty} onChange={e => setForm(f => ({ ...f, specialty: e.target.value }))} />
-            <div className="flex gap-2">
-              <Button onClick={handleAdd} size="sm">Salvar</Button>
-              <Button variant="ghost" size="sm" onClick={() => setAdding(false)}>Cancelar</Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
 
-      {/* Lista */}
-      <Card>
-        <CardContent className="pt-6">
-          {loading ? (
-            <div className="flex justify-center py-8">
-              <div className="w-6 h-6 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+        {/* Coluna esquerda */}
+        <div className="space-y-5">
+
+          {/* Perfil do Agente */}
+          <div className="bg-white rounded-[2rem] border border-slate-100 shadow-[0px_4px_20px_rgba(0,0,0,0.02)] p-6 space-y-5">
+            <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">Perfil do Agente</p>
+
+            <div className="space-y-1.5">
+              <label className="block text-sm font-medium text-slate-700">Nome do Agente</label>
+              <input
+                type="text"
+                value={agentName}
+                onChange={e => setAgentName(e.target.value)}
+                placeholder="Assistente"
+                className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent transition-all"
+              />
             </div>
-          ) : items.length === 0 ? (
-            <div className="text-center py-10 text-gray-400">
-              <BookOpen className="w-10 h-10 mx-auto mb-3 opacity-30" />
-              <p>Nenhum item de treinamento ainda.</p>
-              <p className="text-xs mt-1">Adicione FAQs e instruções para o agente responder melhor.</p>
+
+            <div className="space-y-1.5">
+              <label className="block text-sm font-medium text-slate-700">Tom de Voz</label>
+              <div className="flex gap-2">
+                {([
+                  { value: 'friendly', label: 'Amigável' },
+                  { value: 'formal',   label: 'Formal' },
+                ] as const).map(opt => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setAgentTone(opt.value)}
+                    className={cn(
+                      'px-4 py-2 rounded-xl text-sm font-medium border-2 transition-all',
+                      agentTone === opt.value
+                        ? 'border-emerald-400 text-emerald-700 bg-white shadow-sm'
+                        : 'border-slate-200 text-slate-500 hover:border-slate-300'
+                    )}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
             </div>
-          ) : (
-            <div className="space-y-3">
-              {items.map(item => (
-                <div key={item.id} className={`flex items-start gap-3 p-4 rounded-lg border ${item.active ? 'border-gray-200 bg-white' : 'border-dashed border-gray-200 bg-gray-50 opacity-60'}`}>
-                  <FileText className="w-4 h-4 text-gray-400 mt-0.5 shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <p className="font-medium text-sm text-gray-900">{item.title}</p>
-                      <Badge variant="secondary" className="text-xs">{typeLabel(item.type)}</Badge>
-                      {item.specialty && <Badge variant="outline" className="text-xs">{item.specialty}</Badge>}
-                    </div>
-                    <p className="text-sm text-gray-500 line-clamp-2">{item.content}</p>
-                  </div>
-                  <div className="flex gap-1 shrink-0">
-                    <Button variant="ghost" size="sm" onClick={() => toggleActive(item)} className="text-xs">
-                      {item.active ? 'Desativar' : 'Ativar'}
-                    </Button>
-                    <Button variant="ghost" size="icon" onClick={() => handleDelete(item.id)}>
-                      <Trash2 className="w-4 h-4 text-red-400" />
-                    </Button>
+
+            <div className="space-y-1.5">
+              <label className="block text-sm font-medium text-slate-700">Mensagem de Saudação</label>
+              <textarea
+                value={agentGreeting}
+                onChange={e => setAgentGreeting(e.target.value)}
+                placeholder="Olá! Sou o assistente da clínica. Como posso ajudar?"
+                rows={3}
+                className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent transition-all"
+              />
+            </div>
+          </div>
+
+          {/* Instruções Personalizadas */}
+          <div className="bg-white rounded-[2rem] border border-slate-100 shadow-[0px_4px_20px_rgba(0,0,0,0.02)] p-6 space-y-4">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">Instruções Personalizadas</p>
+              <p className="text-xs text-slate-400 mt-1">Convênios aceitos, horários, procedimentos, regras de atendimento, etc.</p>
+            </div>
+            <textarea
+              value={agentInstructions}
+              onChange={e => setAgentInstructions(e.target.value)}
+              placeholder={`Ex: Aceitamos os convênios Unimed, Bradesco e Amil.\nFuncionamos de segunda a sexta das 8h às 18h.\nRetornos devem ser agendados em até 30 dias.`}
+              rows={8}
+              className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm resize-none font-mono focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent transition-all"
+            />
+          </div>
+        </div>
+
+        {/* Coluna direita — Serviços */}
+        <div className="bg-white rounded-[2rem] border border-slate-100 shadow-[0px_4px_20px_rgba(0,0,0,0.02)] overflow-hidden">
+          <div className={cn(
+            'flex items-center justify-between px-6 pt-6 pb-4',
+            (services.length > 0 || showAddService) && 'border-b border-slate-100'
+          )}>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">Serviços</p>
+              <p className="text-xs text-slate-400 mt-0.5">PDF enviado automaticamente ao confirmar agendamento</p>
+            </div>
+            <button
+              onClick={() => { setShowAddService(v => !v); setNewService({ name: '', description: '', price: '' }) }}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold text-white bg-emerald-500 hover:bg-emerald-600 transition-colors shrink-0"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Novo Serviço
+            </button>
+          </div>
+
+          {showAddService && (
+            <div className="mx-5 my-4 rounded-2xl p-4 space-y-3 bg-slate-50 border border-slate-100">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Nome *</label>
+                  <input
+                    type="text"
+                    value={newService.name}
+                    onChange={e => setNewService(s => ({ ...s, name: e.target.value }))}
+                    onKeyDown={e => e.key === 'Enter' && addService()}
+                    placeholder="Consulta Cardiologia"
+                    autoFocus
+                    className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Preço</label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-medium text-slate-400 pointer-events-none">R$</span>
+                    <input
+                      type="text"
+                      value={newService.price}
+                      onChange={e => setNewService(s => ({ ...s, price: e.target.value }))}
+                      placeholder="150,00"
+                      className="w-full border border-slate-200 rounded-xl pl-8 pr-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent"
+                    />
                   </div>
                 </div>
-              ))}
+              </div>
+              <div>
+                <label className="block text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Descrição</label>
+                <input
+                  type="text"
+                  value={newService.description}
+                  onChange={e => setNewService(s => ({ ...s, description: e.target.value }))}
+                  placeholder="Detalhes para o agente informar ao paciente"
+                  className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent"
+                />
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={addService}
+                  disabled={!newService.name.trim()}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold text-white bg-gray-900 hover:bg-gray-800 transition-colors disabled:opacity-40"
+                >
+                  <Plus className="w-3.5 h-3.5" /> Adicionar
+                </button>
+                <button
+                  onClick={() => setShowAddService(false)}
+                  className="px-4 py-2 rounded-xl text-sm font-medium text-slate-500 hover:text-slate-700 transition-colors"
+                >
+                  Cancelar
+                </button>
+              </div>
             </div>
           )}
-        </CardContent>
-      </Card>
+
+          {services.length > 0 ? (
+            <div>
+              {services.map(svc => {
+                const isOpen = expandedService === svc.id
+                const isUploading = uploadingPdf === svc.id
+                return (
+                  <div key={svc.id} className="border-b border-slate-100 last:border-b-0">
+                    <button
+                      onClick={() => setExpandedService(isOpen ? null : svc.id)}
+                      className="w-full flex items-center gap-4 px-6 py-4 hover:bg-slate-50 transition-colors text-left"
+                    >
+                      <div className="flex-1 min-w-0 flex items-center gap-3">
+                        <span className="text-sm font-semibold text-slate-700 truncate">{svc.name}</span>
+                        {svc.price && (
+                          <span className="text-xs font-semibold text-emerald-600 shrink-0">R$ {svc.price}</span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className={cn(
+                          'flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full',
+                          svc.pdf_url ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-500'
+                        )}>
+                          <FileText className="w-3 h-3" />
+                          {svc.pdf_url ? 'PDF' : 'Sem PDF'}
+                        </span>
+                        <ChevronDown className={cn('w-4 h-4 text-slate-300 transition-transform duration-200', isOpen && 'rotate-180')} />
+                      </div>
+                    </button>
+
+                    {isOpen && (
+                      <div className="px-6 pb-5 pt-3 bg-slate-50 border-t border-slate-100">
+                        {svc.description && (
+                          <p className="text-xs text-slate-500 mb-4">{svc.description}</p>
+                        )}
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <button
+                            onClick={() => triggerPdfUpload(svc.id)}
+                            disabled={isUploading}
+                            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold border border-slate-200 text-slate-600 bg-white hover:border-emerald-300 hover:text-emerald-600 transition-colors disabled:opacity-50"
+                          >
+                            {isUploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+                            {isUploading ? 'Enviando...' : svc.pdf_url ? 'Trocar PDF' : 'Anexar PDF'}
+                          </button>
+                          {svc.pdf_url && (
+                            <>
+                              <span className="text-xs text-slate-400 truncate max-w-[140px]">{svc.pdf_name}</span>
+                              <button
+                                onClick={() => removePdf(svc.id)}
+                                className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 transition-colors"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            </>
+                          )}
+                          <button
+                            onClick={() => removeService(svc.id)}
+                            className="ml-auto flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-red-500 hover:bg-red-50 transition-colors"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" /> Remover
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          ) : !showAddService && (
+            <div className="text-center py-12 px-6">
+              <div className="w-12 h-12 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center mx-auto mb-3">
+                <FileText className="w-5 h-5 text-slate-300" />
+              </div>
+              <p className="text-sm font-medium text-slate-400">Nenhum serviço cadastrado</p>
+              <p className="text-xs text-slate-300 mt-1">Adicione os serviços oferecidos pela clínica</p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Save */}
+      <div className="flex items-center gap-3">
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className="flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-semibold text-white bg-gray-900 hover:bg-gray-800 transition-colors disabled:opacity-60"
+        >
+          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+          {saving ? 'Salvando...' : 'Salvar Configurações do Agente'}
+        </button>
+        {msg && (
+          <div className={cn(
+            'flex items-center gap-2 text-xs font-medium px-3 py-2 rounded-xl',
+            msg.ok ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'
+          )}>
+            {msg.ok ? <CheckCircle2 className="w-3.5 h-3.5 shrink-0" /> : <XCircle className="w-3.5 h-3.5 shrink-0" />}
+            {msg.text}
+          </div>
+        )}
+      </div>
     </div>
   )
 }

@@ -1,7 +1,7 @@
 import { type ReactNode, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import {
-  LayoutDashboard, Calendar, BookOpen, CreditCard, Settings, LogOut, Menu, X, Bot
+  LayoutDashboard, Calendar, CreditCard, Settings, LogOut, Menu, X, Bot
 } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { cn } from '../../lib/utils'
@@ -9,7 +9,7 @@ import { cn } from '../../lib/utils'
 const navItems = [
   { href: '/dashboard',              label: 'Visão Geral',   icon: LayoutDashboard },
   { href: '/dashboard/appointments', label: 'Agendamentos',  icon: Calendar },
-  { href: '/dashboard/training',     label: 'Treinamento',   icon: BookOpen },
+  { href: '/dashboard/training',     label: 'Bento',         icon: Bot },
   { href: '/dashboard/payments',     label: 'Minha Assinatura', icon: CreditCard },
   { href: '/dashboard/settings',     label: 'Configurações', icon: Settings },
 ]
