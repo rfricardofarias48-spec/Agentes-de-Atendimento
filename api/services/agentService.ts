@@ -7,7 +7,7 @@
 import OpenAI from 'openai';
 import { createClient } from '@supabase/supabase-js';
 import { searchMemory, addMemory } from './mem0Service.js';
-import { sendText } from './evolutionService.js';
+import { sendText, sendDocument } from './evolutionService.js';
 import { mirrorMessage } from './chatwootService.js';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -32,12 +32,20 @@ interface Organization {
   agent_tone: 'formal' | 'friendly';
 }
 
+interface SpecialtyPdf {
+  specialty: string;
+  pdf_url: string;
+  pdf_name: string;
+}
+
 interface AgentSettings {
   agent_name: string;
   greeting_message: string;
   tone: string;
   specialties: string[];
   working_hours: Record<string, unknown> | null;
+  custom_instructions: string | null;
+  specialty_pdfs: SpecialtyPdf[] | null;
 }
 
 interface Conversation {
@@ -123,6 +131,8 @@ async function executeTool(
   orgId: string,
   phone: string,
   conversation: Conversation,
+  org: Organization,
+  settings: AgentSettings,
 ): Promise<string> {
   switch (toolName) {
     case 'schedule_appointment': {
@@ -143,6 +153,23 @@ async function executeTool(
         .single();
 
       if (error) return 'Não foi possível registrar o agendamento no momento. Tente novamente.';
+
+      // Envia PDF de orientações da especialidade (fire-and-forget)
+      const specialty = String(args.specialty || '');
+      const pdfEntry = settings.specialty_pdfs?.find(
+        p => p.specialty.toLowerCase() === specialty.toLowerCase(),
+      );
+      if (pdfEntry?.pdf_url) {
+        sendDocument(
+          org.evolution_instance,
+          phone,
+          pdfEntry.pdf_url,
+          pdfEntry.pdf_name || 'orientacoes-pre-consulta.pdf',
+          `📋 Orientações pré-consulta — ${pdfEntry.specialty}`,
+          org.evolution_token,
+        ).catch(() => { /* best-effort */ });
+      }
+
       return `Agendamento registrado com sucesso! ID: ${data.id}. Nossa equipe confirmará o horário em breve.`;
     }
 
@@ -247,11 +274,15 @@ export async function processMessage(
     ? `\n\nInformações que você sabe sobre este paciente:\n${memories.map(m => `- ${m}`).join('\n')}`
     : '';
 
+  const customInstructions = settings.custom_instructions?.trim()
+    ? `\n\nInstruções específicas da clínica:\n${settings.custom_instructions.trim()}`
+    : '';
+
   const systemPrompt = `Você é ${settings.agent_name}, assistente de atendimento da clínica.
 Seu tom é ${tone}. ${specialtiesStr}
 Você ajuda pacientes a: agendar consultas, consultar agendamentos, cancelar consultas e esclarecer dúvidas.
 Quando não conseguir resolver, escale para um atendente humano.
-Responda sempre em português brasileiro. Seja conciso — máximo 3 parágrafos curtos.${memoriesStr}`;
+Responda sempre em português brasileiro. Seja conciso — máximo 3 parágrafos curtos.${customInstructions}${memoriesStr}`;
 
   // 4. Chama GPT com tool use
   const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
@@ -278,7 +309,7 @@ Responda sempre em português brasileiro. Seja conciso — máximo 3 parágrafos
       if (tc.type !== 'function') continue;
       const fn = (tc as OpenAI.Chat.ChatCompletionMessageToolCall).function;
       const args = JSON.parse(fn.arguments) as Record<string, unknown>;
-      const result = await executeTool(fn.name, args, org.id, phone, conv as Conversation);
+      const result = await executeTool(fn.name, args, org.id, phone, conv as Conversation, org, settings);
 
       messages.push({
         role: 'tool',
@@ -362,7 +393,7 @@ export async function getOrgByInstance(instanceName: string): Promise<{
 
   const { data: settings } = await supabase
     .from('agent_settings')
-    .select('agent_name, greeting_message, tone, specialties, working_hours')
+    .select('agent_name, greeting_message, tone, specialties, working_hours, custom_instructions, specialty_pdfs')
     .eq('org_id', org.id)
     .single();
 
@@ -374,6 +405,8 @@ export async function getOrgByInstance(instanceName: string): Promise<{
       tone: org.agent_tone || 'friendly',
       specialties: [],
       working_hours: null,
+      custom_instructions: null,
+      specialty_pdfs: null,
     },
   };
 }

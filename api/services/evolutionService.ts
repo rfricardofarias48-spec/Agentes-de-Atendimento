@@ -134,6 +134,27 @@ export async function getConnectionStatus(instance: string, instanceToken?: stri
   }
 }
 
+/** Envia um documento (PDF, etc.) via WhatsApp */
+export async function sendDocument(
+  instance: string,
+  jid: string,
+  documentUrl: string,
+  fileName: string,
+  caption: string,
+  instanceToken?: string | null,
+): Promise<boolean> {
+  const phone = cleanPhone(jid);
+  const apiKey = getApiKey(instanceToken);
+  const { ok } = await post(`/message/sendMedia/${instance}`, {
+    number: phone,
+    mediatype: 'document',
+    media: documentUrl,
+    fileName,
+    caption,
+  }, apiKey);
+  return ok;
+}
+
 /** Configura webhook da instância para apontar para o AgenteClin */
 export async function configureWebhook(
   instance: string,
