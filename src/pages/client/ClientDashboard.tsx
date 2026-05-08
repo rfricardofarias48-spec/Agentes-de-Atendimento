@@ -93,19 +93,17 @@ export default function ClientDashboard() {
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           {/* Avatar com offset sombra (Elevva style) */}
           <div className="relative shrink-0 group cursor-default">
             <div className="absolute inset-0 bg-emerald-400 rounded-lg translate-x-1 translate-y-1 transition-transform duration-300 group-hover:translate-x-1.5 group-hover:translate-y-1.5" />
-            <div className="w-9 h-9 bg-slate-600 rounded-lg relative flex items-center justify-center text-white text-sm font-black border-2 border-slate-600 z-10 shadow-sm">
+            <div className="w-9 h-9 bg-slate-600 rounded-lg relative flex items-center justify-center text-white text-sm font-bold border-2 border-slate-600 z-10 shadow-sm">
               {avatarLetter}
             </div>
           </div>
-          <div>
-            <h1 className="text-xl font-black text-slate-900 tracking-tighter leading-none">
-              Olá, {firstName}
-            </h1>
-          </div>
+          <h1 className="text-xl font-semibold text-slate-800 leading-none">
+            Olá, {firstName}
+          </h1>
         </div>
 
         {/* Period filter — Elevva pill style */}
