@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft, Save, Trash2, Wifi, WifiOff, RefreshCw,
   CheckCircle2, XCircle, Loader2, Zap, KeyRound,
-  Bot, Settings2, Upload, Plus, X, FileText, ChevronDown,
+  Bot, Settings2, Upload, Plus, X, FileText, ChevronDown, ArrowRight,
 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { type Organization, type OrgPlan, type OrgStatus } from '../../types'
@@ -24,7 +24,6 @@ const plans: OrgPlan[] = ['starter', 'pro', 'clinic']
 const statuses: OrgStatus[] = ['active', 'trial', 'inactive', 'suspended']
 const maxConvByPlan: Record<OrgPlan, number> = { starter: 600, pro: 2000, clinic: 999999 }
 const PLAN_PRICES: Record<OrgPlan, number> = { starter: 397, pro: 797, clinic: 1497 }
-
 
 const CARD_STYLE: React.CSSProperties = {
   background: '#ffffff',
@@ -68,6 +67,33 @@ function Card({ title, children, extra }: { title: string; children: React.React
   )
 }
 
+function ToggleGroup({ options, value, onChange }: {
+  options: { value: string; label: string }[]
+  value: string
+  onChange: (v: string) => void
+}) {
+  return (
+    <div className="flex gap-2 flex-wrap">
+      {options.map(o => (
+        <button
+          key={o.value}
+          type="button"
+          onClick={() => onChange(o.value)}
+          className="px-3.5 py-1.5 rounded-xl text-xs font-semibold border-2 transition-all"
+          style={value === o.value ? {
+            borderColor: '#34d399', color: '#059669',
+            background: '#ffffff', boxShadow: '0 1px 3px rgba(16,24,40,0.08)',
+          } : {
+            borderColor: '#e4e7ec', color: '#98a2b3',
+          }}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
 export default function AdminClientDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
@@ -75,28 +101,35 @@ export default function AdminClientDetail() {
 
   const [activeTab, setActiveTab] = useState<'geral' | 'agente'>('geral')
 
+  // Org state
   const [org, setOrg] = useState<Partial<Organization>>({
-    name: '', slug: '', plan: 'starter', status: 'trial',
+    name: '', slug: '', plan: 'starter', status: 'active',
     whatsapp_numbers: [], agent_tone: 'friendly',
     max_conversations_month: 600, conversations_used: 0,
   })
   const [loading, setLoading] = useState(!isNew)
   const [saving, setSaving] = useState(false)
 
+  // New user credentials
   const [newEmail, setNewEmail] = useState('')
   const [newPassword, setNewPassword] = useState('')
 
+  // Evolution connection
   const [connectionStatus, setConnectionStatus] = useState<'unknown' | 'open' | 'connecting' | 'close'>('unknown')
   const [checkingConn, setCheckingConn] = useState(false)
 
+  // Setup
   const [setupResult, setSetupResult] = useState<SetupResult | null>(null)
   const [settingUp, setSettingUp] = useState(false)
+  const [createdOrgId, setCreatedOrgId] = useState<string | null>(null)
 
+  // Password reset
   const [newPass, setNewPass] = useState('')
   const [resetEmail, setResetEmail] = useState('')
   const [resetMsg, setResetMsg] = useState<{ ok: boolean; text: string } | null>(null)
   const [resetting, setResetting] = useState(false)
 
+  // Agent settings
   const [agentId, setAgentId] = useState<string | null>(null)
   const [agentName, setAgentName] = useState('Assistente')
   const [agentGreeting, setAgentGreeting] = useState('')
@@ -203,13 +236,14 @@ export default function AdminClientDetail() {
   async function handleSave() {
     setSaving(true)
     setSetupResult(null)
+
     const payload = {
       name: org.name,
       slug: org.slug,
       plan: org.plan,
       status: org.status,
       whatsapp_numbers: org.whatsapp_numbers ?? [],
-      agent_tone: org.agent_tone ?? 'friendly',
+      agent_tone: agentTone,
       max_conversations_month: org.max_conversations_month,
       conversations_used: isNew ? 0 : org.conversations_used,
       evolution_instance: org.evolution_instance ?? null,
@@ -220,26 +254,50 @@ export default function AdminClientDetail() {
     }
 
     if (isNew) {
+      // 1. Criar organização
       const { data: newOrg, error } = await supabase
         .from('organizations').insert(payload).select().single()
       if (error) { alert('Erro ao criar usuário: ' + error.message); setSaving(false); return }
 
+      // 2. Criar usuário no Auth
       if (newEmail && newPassword && newOrg) {
         const { data: authData, error: authError } = await supabase.auth.admin.createUser({
           email: newEmail, password: newPassword, email_confirm: true,
         })
-        if (!authError && authData.user) {
+        if (authError) {
+          alert('Aviso: Organização criada, mas erro ao criar acesso: ' + authError.message)
+        } else if (authData.user) {
           await supabase.from('user_profiles').insert({
             user_id: authData.user.id, org_id: newOrg.id, role: 'client',
           })
         }
       }
+
+      // 3. Criar agent_settings com dados do formulário
+      await supabase.from('agent_settings').insert({
+        org_id: newOrg.id,
+        agent_name: agentName || 'Assistente',
+        greeting_message: agentGreeting || `Olá! Sou o assistente da ${newOrg.name}. Como posso ajudar?`,
+        tone: agentTone,
+        specialties: [],
+        services: [],
+        custom_instructions: '',
+      })
+
       setSaving(false)
-      navigate(`/admin/clients/${newOrg?.id}`)
+      setCreatedOrgId(newOrg.id)
+
+      // 4. Rodar setup se Evolution configurada
+      if (newOrg.evolution_instance && newOrg.evolution_token) {
+        await runSetup(newOrg.id)
+      }
+
     } else {
+      // Atualizar org existente
       const { error } = await supabase.from('organizations').update(payload).eq('id', id!)
       setSaving(false)
       if (error) { alert('Erro ao salvar: ' + error.message); return }
+      // Rodar setup se Evolution configurada
       if (org.evolution_instance && org.evolution_token) await runSetup(id!)
     }
   }
@@ -301,8 +359,7 @@ export default function AdminClientDetail() {
 
     setUploadingPdf(uploadTarget)
     try {
-      const slug = uploadTarget
-      const path = `${id}/${slug}.pdf`
+      const path = `${id}/${uploadTarget}.pdf`
       const { error: upErr } = await supabase.storage
         .from('specialty-pdfs')
         .upload(path, file, { upsert: true, contentType: 'application/pdf' })
@@ -336,6 +393,73 @@ export default function AdminClientDetail() {
       ? <Wifi className="w-4 h-4 text-amber-500" />
       : <WifiOff className="w-4 h-4 text-slate-400" />
 
+  // ── Resultado de criação bem-sucedida ──────────────────────────────────────
+  if (isNew && createdOrgId && !saving) {
+    return (
+      <div className="max-w-xl mx-auto space-y-6 py-12 animate-fade-up">
+        <div style={CARD_STYLE} className="p-8 text-center space-y-4">
+          <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto"
+            style={{ background: '#f0fdf4', border: '1px solid #a7f3d0' }}>
+            <CheckCircle2 className="w-7 h-7 text-emerald-500" />
+          </div>
+          <div>
+            <h2 className="text-lg font-bold" style={{ color: '#101828' }}>Usuário criado com sucesso!</h2>
+            <p className="text-sm mt-1" style={{ color: '#98a2b3' }}>
+              {newEmail ? `Login: ${newEmail}` : 'O usuário foi criado na plataforma.'}
+            </p>
+          </div>
+
+          {/* Setup result */}
+          {(settingUp || setupResult) && (
+            <div className="text-left rounded-xl p-4 space-y-2" style={{ background: '#f9fafb', border: '1px solid #f2f4f7' }}>
+              <div className="flex items-center gap-2 mb-3">
+                <Zap className={`w-4 h-4 ${settingUp ? 'text-amber-500 animate-pulse' : 'text-emerald-500'}`} />
+                <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#344054' }}>
+                  {settingUp ? 'Configurando automaticamente...' : 'Setup concluído'}
+                </p>
+              </div>
+              {settingUp && (
+                <div className="flex items-center gap-2 text-sm" style={{ color: '#98a2b3' }}>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Criando conta Chatwoot, configurando webhook e agente...
+                </div>
+              )}
+              {setupResult?.steps.map(step => (
+                <div key={step.id} className="flex items-start gap-2.5">
+                  {step.ok
+                    ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 mt-0.5 shrink-0" />
+                    : <XCircle className="w-3.5 h-3.5 text-slate-400 mt-0.5 shrink-0" />}
+                  <div>
+                    <p className="text-xs font-semibold" style={{ color: step.ok ? '#344054' : '#98a2b3' }}>{step.label}</p>
+                    <p className="text-[11px]" style={{ color: '#98a2b3' }}>{step.detail}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="flex gap-3 pt-2">
+            <button
+              onClick={() => navigate(`/admin/clients/${createdOrgId}`)}
+              className="btn-primary flex-1 flex items-center justify-center gap-2 py-2.5 text-sm"
+            >
+              Gerenciar cliente <ArrowRight className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => navigate('/admin/clients/new')}
+              className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-colors"
+              style={{ border: '1px solid #e4e7ec', color: '#667085' }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#f9fafb' }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent' }}
+            >
+              <Plus className="w-4 h-4" /> Novo usuário
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6 pb-8 animate-fade-in">
       <input ref={fileInputRef} type="file" accept=".pdf" className="hidden" onChange={handlePdfFileChange} />
@@ -365,7 +489,7 @@ export default function AdminClientDetail() {
         )}
       </div>
 
-      {/* Sub-abas */}
+      {/* Sub-abas (só edição) */}
       {!isNew && (
         <div
           className="flex gap-1 p-1 rounded-2xl w-fit"
@@ -380,12 +504,9 @@ export default function AdminClientDetail() {
               onClick={() => setActiveTab(tab.key)}
               className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all"
               style={activeTab === tab.key ? {
-                background: '#ffffff',
-                color: '#344054',
+                background: '#ffffff', color: '#344054',
                 boxShadow: '0 1px 3px rgba(16,24,40,0.08)',
-              } : {
-                color: '#98a2b3',
-              }}
+              } : { color: '#98a2b3' }}
             >
               <tab.icon className="w-3.5 h-3.5" />
               {tab.label}
@@ -394,19 +515,20 @@ export default function AdminClientDetail() {
         </div>
       )}
 
-      {/* ══ ABA GERAL ══════════════════════════════════════════════ */}
+      {/* ══ NOVO USUÁRIO / ABA GERAL ══════════════════════════════════════════ */}
       {(isNew || activeTab === 'geral') && (
         <>
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
 
             {/* Coluna esquerda */}
             <div className="space-y-6">
+
               <Card title="Dados da Clínica">
                 <div className="grid grid-cols-2 gap-4">
-                  <Field label="Nome">
+                  <Field label="Nome da Clínica">
                     <TextInput value={org.name ?? ''} onChange={v => setOrg(o => ({ ...o, name: v }))} placeholder="Clínica São Lucas" />
                   </Field>
-                  <Field label="Slug">
+                  <Field label="Slug (URL)">
                     <TextInput
                       value={org.slug ?? ''}
                       onChange={v => setOrg(o => ({ ...o, slug: v.toLowerCase().replace(/\s+/g, '-') }))}
@@ -423,12 +545,8 @@ export default function AdminClientDetail() {
                         style={org.plan === p ? {
                           borderColor: p === 'starter' ? '#94a3b8' : p === 'pro' ? '#60a5fa' : '#34d399',
                           color: p === 'starter' ? '#475467' : p === 'pro' ? '#2563eb' : '#059669',
-                          background: '#ffffff',
-                          boxShadow: '0 1px 3px rgba(16,24,40,0.08)',
-                        } : {
-                          borderColor: '#e4e7ec',
-                          color: '#98a2b3',
-                        }}
+                          background: '#ffffff', boxShadow: '0 1px 3px rgba(16,24,40,0.08)',
+                        } : { borderColor: '#e4e7ec', color: '#98a2b3' }}
                       >
                         {planLabel(p)}<span className="ml-1.5 text-[10px]" style={{ color: '#d0d5dd' }}>R${PLAN_PRICES[p]}</span>
                       </button>
@@ -436,62 +554,69 @@ export default function AdminClientDetail() {
                   </div>
                 </Field>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <Field label="Status">
-                    <div className="flex gap-2 flex-wrap">
-                      {statuses.map(s => (
-                        <button key={s} onClick={() => setOrg(o => ({ ...o, status: s }))}
-                          className="px-3.5 py-1.5 rounded-xl text-xs font-semibold border-2 transition-all"
-                          style={org.status === s ? {
-                            borderColor: s === 'active' ? '#34d399' : s === 'trial' ? '#fbbf24' : s === 'inactive' ? '#94a3b8' : '#f87171',
-                            color: s === 'active' ? '#059669' : s === 'trial' ? '#d97706' : s === 'inactive' ? '#475467' : '#dc2626',
-                            background: '#ffffff',
-                            boxShadow: '0 1px 3px rgba(16,24,40,0.08)',
-                          } : {
-                            borderColor: '#e4e7ec',
-                            color: '#98a2b3',
-                          }}
-                        >
-                          {statusLabel(s)}
-                        </button>
-                      ))}
-                    </div>
-                  </Field>
-                  <Field label="Tom do Agente">
-                    <div className="flex gap-2">
-                      {(['formal', 'friendly'] as const).map(t => (
-                        <button key={t} onClick={() => setOrg(o => ({ ...o, agent_tone: t }))}
-                          className="px-3.5 py-1.5 rounded-xl text-xs font-semibold border-2 transition-all"
-                          style={org.agent_tone === t ? {
-                            borderColor: '#34d399',
-                            color: '#059669',
-                            background: '#ffffff',
-                            boxShadow: '0 1px 3px rgba(16,24,40,0.08)',
-                          } : {
-                            borderColor: '#e4e7ec',
-                            color: '#98a2b3',
-                          }}
-                        >
-                          {t === 'formal' ? 'Formal' : 'Amigável'}
-                        </button>
-                      ))}
-                    </div>
-                  </Field>
-                </div>
+                <Field label="Status">
+                  <div className="flex gap-2 flex-wrap">
+                    {statuses.map(s => (
+                      <button key={s} onClick={() => setOrg(o => ({ ...o, status: s }))}
+                        className="px-3.5 py-1.5 rounded-xl text-xs font-semibold border-2 transition-all"
+                        style={org.status === s ? {
+                          borderColor: s === 'active' ? '#34d399' : s === 'trial' ? '#fbbf24' : s === 'inactive' ? '#94a3b8' : '#f87171',
+                          color: s === 'active' ? '#059669' : s === 'trial' ? '#d97706' : s === 'inactive' ? '#475467' : '#dc2626',
+                          background: '#ffffff', boxShadow: '0 1px 3px rgba(16,24,40,0.08)',
+                        } : { borderColor: '#e4e7ec', color: '#98a2b3' }}
+                      >
+                        {statusLabel(s)}
+                      </button>
+                    ))}
+                  </div>
+                </Field>
               </Card>
 
-              {/* Criar usuário (novo) */}
+              {/* Acesso ao Dashboard (novo) */}
               {isNew && (
                 <Card title="Acesso ao Dashboard">
                   <div className="grid grid-cols-2 gap-4">
-                    <Field label="E-mail do cliente">
+                    <Field label="E-mail de login">
                       <TextInput type="email" value={newEmail} onChange={setNewEmail} placeholder="dono@clinica.com" />
                     </Field>
                     <Field label="Senha inicial">
-                      <TextInput type="password" value={newPassword} onChange={setNewPassword} placeholder="Senha provisória" />
+                      <TextInput type="password" value={newPassword} onChange={setNewPassword} placeholder="Mínimo 6 caracteres" />
                     </Field>
                   </div>
-                  <p className="text-xs" style={{ color: '#98a2b3' }}>O usuário pode alterar a senha após o primeiro acesso.</p>
+                  <p className="text-xs" style={{ color: '#98a2b3' }}>
+                    O usuário poderá alterar a senha após o primeiro acesso.
+                  </p>
+                </Card>
+              )}
+
+              {/* Configuração do Agente — visível na criação E na aba Geral */}
+              {isNew && (
+                <Card title="Agente">
+                  <Field label="Nome do Agente">
+                    <TextInput value={agentName} onChange={setAgentName} placeholder="Assistente" />
+                  </Field>
+                  <Field label="Tom de Voz">
+                    <ToggleGroup
+                      options={[{ value: 'friendly', label: 'Amigável' }, { value: 'formal', label: 'Formal' }]}
+                      value={agentTone}
+                      onChange={v => setAgentTone(v as 'friendly' | 'formal')}
+                    />
+                  </Field>
+                  <Field label="Saudação inicial">
+                    <textarea
+                      value={agentGreeting}
+                      onChange={e => setAgentGreeting(e.target.value)}
+                      placeholder={`Olá! Sou o assistente da ${org.name || 'Clínica'}. Como posso ajudar?`}
+                      rows={3}
+                      className="input-dark w-full px-3.5 py-2.5 text-sm resize-none"
+                    />
+                  </Field>
+                  <div className="flex items-start gap-2 p-3 rounded-xl" style={{ background: '#fffbeb', border: '1px solid #fde68a' }}>
+                    <Zap className="w-3.5 h-3.5 text-amber-500 mt-0.5 shrink-0" />
+                    <p className="text-xs" style={{ color: '#92400e' }}>
+                      O agente só ficará ativo após preencher os dados da Evolution API e rodar o setup.
+                    </p>
+                  </div>
                 </Card>
               )}
 
@@ -503,26 +628,19 @@ export default function AdminClientDetail() {
                     <p className="font-semibold text-sm uppercase tracking-wider" style={{ color: '#344054' }}>Redefinir Senha</p>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
-                    <input
-                      type="email"
-                      value={resetEmail}
+                    <input type="email" value={resetEmail}
                       onChange={e => { setResetEmail(e.target.value); setResetMsg(null) }}
                       placeholder="E-mail do usuário (se não vinculado)"
                       className="input-dark px-3.5 py-2.5 text-sm w-full"
                     />
-                    <input
-                      type="password"
-                      value={newPass}
+                    <input type="password" value={newPass}
                       onChange={e => { setNewPass(e.target.value); setResetMsg(null) }}
                       placeholder="Nova senha (mín. 6 caracteres)"
                       className="input-dark px-3.5 py-2.5 text-sm w-full"
                     />
                   </div>
-                  <button
-                    onClick={handleResetPassword}
-                    disabled={resetting || newPass.length < 6}
-                    className="btn-primary flex items-center gap-2 px-4 py-2.5 text-sm"
-                  >
+                  <button onClick={handleResetPassword} disabled={resetting || newPass.length < 6}
+                    className="btn-primary flex items-center gap-2 px-4 py-2.5 text-sm disabled:opacity-60">
                     {resetting ? <Loader2 className="w-4 h-4 animate-spin" /> : <KeyRound className="w-4 h-4" />}
                     {resetting ? 'Salvando...' : 'Redefinir Senha'}
                   </button>
@@ -540,7 +658,7 @@ export default function AdminClientDetail() {
             <div className="space-y-6">
               <Card
                 title="Evolution API"
-                extra={org.evolution_instance ? (
+                extra={!isNew && org.evolution_instance ? (
                   <button onClick={checkEvolutionConnection} disabled={checkingConn}
                     className="flex items-center gap-1.5 text-xs font-medium transition-colors disabled:opacity-50"
                     style={{ color: '#98a2b3' }}
@@ -548,7 +666,7 @@ export default function AdminClientDetail() {
                     onMouseLeave={e => (e.currentTarget.style.color = '#98a2b3')}
                   >
                     <RefreshCw className={`w-3.5 h-3.5 ${checkingConn ? 'animate-spin' : ''}`} />
-                    Verificar conexão
+                    Verificar
                   </button>
                 ) : undefined}
               >
@@ -560,34 +678,45 @@ export default function AdminClientDetail() {
                     <TextInput value={org.evolution_token ?? ''} onChange={v => setOrg(o => ({ ...o, evolution_token: v }))} placeholder="415C2136-..." type="password" />
                   </Field>
                 </div>
+                {isNew && (
+                  <div className="flex items-start gap-2 p-3 rounded-xl" style={{ background: '#f0fdf4', border: '1px solid #a7f3d0' }}>
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 mt-0.5 shrink-0" />
+                    <p className="text-xs" style={{ color: '#065f46' }}>
+                      Ao preencher e salvar, o sistema configura o webhook e cria a conta Chatwoot automaticamente.
+                    </p>
+                  </div>
+                )}
               </Card>
 
-              <Card title="Chatwoot">
-                <div className="grid grid-cols-2 gap-4">
-                  <Field label="Account ID">
-                    <TextInput
-                      value={org.chatwoot_account_id != null ? String(org.chatwoot_account_id) : ''}
-                      onChange={v => setOrg(o => ({ ...o, chatwoot_account_id: v ? Number(v) : undefined }))}
-                      placeholder="1"
-                    />
+              {/* Chatwoot — apenas em edição, para override manual */}
+              {!isNew && (
+                <Card title="Chatwoot">
+                  <div className="grid grid-cols-2 gap-4">
+                    <Field label="Account ID">
+                      <TextInput
+                        value={org.chatwoot_account_id != null ? String(org.chatwoot_account_id) : ''}
+                        onChange={v => setOrg(o => ({ ...o, chatwoot_account_id: v ? Number(v) : undefined }))}
+                        placeholder="1"
+                      />
+                    </Field>
+                    <Field label="Inbox ID">
+                      <TextInput
+                        value={org.chatwoot_inbox_id != null ? String(org.chatwoot_inbox_id) : ''}
+                        onChange={v => setOrg(o => ({ ...o, chatwoot_inbox_id: v ? Number(v) : undefined }))}
+                        placeholder="3"
+                      />
+                    </Field>
+                  </div>
+                  <Field label="Token do Agente">
+                    <TextInput value={org.chatwoot_token ?? ''} onChange={v => setOrg(o => ({ ...o, chatwoot_token: v }))} placeholder="token do inbox" type="password" />
                   </Field>
-                  <Field label="Inbox ID">
-                    <TextInput
-                      value={org.chatwoot_inbox_id != null ? String(org.chatwoot_inbox_id) : ''}
-                      onChange={v => setOrg(o => ({ ...o, chatwoot_inbox_id: v ? Number(v) : undefined }))}
-                      placeholder="3"
-                    />
-                  </Field>
-                </div>
-                <Field label="Token do Agente">
-                  <TextInput value={org.chatwoot_token ?? ''} onChange={v => setOrg(o => ({ ...o, chatwoot_token: v }))} placeholder="token do inbox" type="password" />
-                </Field>
-              </Card>
+                </Card>
+              )}
             </div>
           </div>
 
-          {/* Setup result */}
-          {(settingUp || setupResult) && (
+          {/* Setup result (edição) */}
+          {!isNew && (settingUp || setupResult) && (
             <div style={CARD_STYLE} className="p-6 space-y-4">
               <div className="flex items-center gap-2">
                 <Zap className={`w-4 h-4 ${settingUp ? 'text-amber-500 animate-pulse' : 'text-emerald-500'}`} />
@@ -598,7 +727,7 @@ export default function AdminClientDetail() {
               {settingUp && (
                 <div className="flex items-center gap-3 text-sm" style={{ color: '#98a2b3' }}>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  Configurando webhook, Chatwoot e agente...
+                  Criando conta Chatwoot, webhook e agente...
                 </div>
               )}
               {setupResult && (
@@ -617,28 +746,26 @@ export default function AdminClientDetail() {
                   {setupResult.webhookUrl && (
                     <p className="text-[11px] pt-1 font-mono break-all" style={{ color: '#98a2b3' }}>Webhook: {setupResult.webhookUrl}</p>
                   )}
-                  {!isNew && org.evolution_instance && (
-                    <button onClick={() => runSetup(id!)} disabled={settingUp}
-                      className="flex items-center gap-1.5 text-xs font-medium mt-2 transition-colors disabled:opacity-50"
-                      style={{ color: '#98a2b3' }}
-                      onMouseEnter={e => (e.currentTarget.style.color = '#344054')}
-                      onMouseLeave={e => (e.currentTarget.style.color = '#98a2b3')}
-                    >
-                      <RefreshCw className="w-3.5 h-3.5" />
-                      Rodar novamente
-                    </button>
-                  )}
+                  <button onClick={() => runSetup(id!)} disabled={settingUp}
+                    className="flex items-center gap-1.5 text-xs font-medium mt-2 transition-colors disabled:opacity-50"
+                    style={{ color: '#98a2b3' }}
+                    onMouseEnter={e => (e.currentTarget.style.color = '#344054')}
+                    onMouseLeave={e => (e.currentTarget.style.color = '#98a2b3')}
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" />
+                    Rodar novamente
+                  </button>
                 </div>
               )}
             </div>
           )}
 
-          {/* Ações Geral */}
+          {/* Ações */}
           <div className="flex items-center gap-3">
             <button onClick={handleSave} disabled={saving || settingUp}
               className="btn-primary flex items-center gap-2 px-5 py-2.5 text-sm disabled:opacity-60">
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-              {saving ? 'Salvando...' : settingUp ? 'Configurando...' : 'Salvar'}
+              {saving ? 'Criando...' : settingUp ? 'Configurando...' : isNew ? 'Criar Usuário' : 'Salvar'}
             </button>
 
             {!isNew && org.evolution_instance && !setupResult && (
@@ -666,43 +793,29 @@ export default function AdminClientDetail() {
                 }}
               >
                 <Trash2 className="w-4 h-4" />
-                Remover Usuário
+                Remover
               </button>
             )}
           </div>
         </>
       )}
 
-      {/* ══ ABA AGENTE ═════════════════════════════════════════════ */}
+      {/* ══ ABA AGENTE ═════════════════════════════════════════════════════════ */}
       {!isNew && activeTab === 'agente' && (
         <div className="space-y-6">
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
 
-            {/* Coluna esquerda */}
             <div className="space-y-6">
               <Card title="Perfil do Agente">
                 <Field label="Nome do Agente">
                   <TextInput value={agentName} onChange={setAgentName} placeholder="Assistente" />
                 </Field>
                 <Field label="Tom de Voz">
-                  <div className="flex gap-2">
-                    {(['friendly', 'formal'] as const).map(t => (
-                      <button key={t} onClick={() => setAgentTone(t)}
-                        className="px-3.5 py-1.5 rounded-xl text-xs font-semibold border-2 transition-all"
-                        style={agentTone === t ? {
-                          borderColor: '#34d399',
-                          color: '#059669',
-                          background: '#ffffff',
-                          boxShadow: '0 1px 3px rgba(16,24,40,0.08)',
-                        } : {
-                          borderColor: '#e4e7ec',
-                          color: '#98a2b3',
-                        }}
-                      >
-                        {t === 'friendly' ? 'Amigável' : 'Formal'}
-                      </button>
-                    ))}
-                  </div>
+                  <ToggleGroup
+                    options={[{ value: 'friendly', label: 'Amigável' }, { value: 'formal', label: 'Formal' }]}
+                    value={agentTone}
+                    onChange={v => setAgentTone(v as 'friendly' | 'formal')}
+                  />
                 </Field>
                 <Field label="Mensagem de Saudação">
                   <textarea
@@ -717,7 +830,7 @@ export default function AdminClientDetail() {
 
               <Card title="Instruções Personalizadas">
                 <p className="text-xs -mt-2" style={{ color: '#98a2b3' }}>
-                  Adicione conhecimento específico da clínica: convênios aceitos, horários, procedimentos, regras de atendimento, etc.
+                  Convênios aceitos, horários, procedimentos, regras de atendimento, etc.
                 </p>
                 <textarea
                   value={agentInstructions}
@@ -729,11 +842,11 @@ export default function AdminClientDetail() {
               </Card>
             </div>
 
-            {/* Coluna direita */}
             <div className="space-y-6">
               {/* Serviços */}
               <div style={{ ...CARD_STYLE, padding: 0 }} className="overflow-hidden">
-                <div className="flex items-center justify-between px-6 pt-6 pb-4" style={{ borderBottom: services.length > 0 || showAddService ? '1px solid #f2f4f7' : 'none' }}>
+                <div className="flex items-center justify-between px-6 pt-6 pb-4"
+                  style={{ borderBottom: services.length > 0 || showAddService ? '1px solid #f2f4f7' : 'none' }}>
                   <div>
                     <p className="font-semibold text-sm uppercase tracking-wider" style={{ color: '#344054' }}>Serviços</p>
                     <p className="text-xs mt-0.5" style={{ color: '#98a2b3' }}>PDF enviado automaticamente ao confirmar agendamento</p>
@@ -747,67 +860,50 @@ export default function AdminClientDetail() {
                   </button>
                 </div>
 
-                {/* Formulário inline */}
                 {showAddService && (
                   <div className="mx-6 my-4 rounded-2xl p-4 space-y-3" style={{ background: '#f9fafb', border: '1px solid #f2f4f7' }}>
                     <div className="grid grid-cols-2 gap-3">
                       <div>
                         <label className="block text-[10px] font-semibold uppercase tracking-wider mb-1.5" style={{ color: '#98a2b3' }}>Nome *</label>
-                        <input
-                          type="text"
-                          value={newService.name}
+                        <input type="text" value={newService.name}
                           onChange={e => setNewService(s => ({ ...s, name: e.target.value }))}
                           onKeyDown={e => e.key === 'Enter' && addService()}
                           placeholder="Consulta Cardiologia"
-                          className="input-dark w-full px-3 py-2.5 text-sm"
-                          autoFocus
+                          className="input-dark w-full px-3 py-2.5 text-sm" autoFocus
                         />
                       </div>
                       <div>
                         <label className="block text-[10px] font-semibold uppercase tracking-wider mb-1.5" style={{ color: '#98a2b3' }}>Preço</label>
                         <div className="relative">
                           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-medium pointer-events-none" style={{ color: '#98a2b3' }}>R$</span>
-                          <input
-                            type="text"
-                            value={newService.price}
+                          <input type="text" value={newService.price}
                             onChange={e => setNewService(s => ({ ...s, price: e.target.value }))}
-                            placeholder="150,00"
-                            className="input-dark w-full pl-8 pr-3 py-2.5 text-sm"
+                            placeholder="150,00" className="input-dark w-full pl-8 pr-3 py-2.5 text-sm"
                           />
                         </div>
                       </div>
                     </div>
                     <div>
                       <label className="block text-[10px] font-semibold uppercase tracking-wider mb-1.5" style={{ color: '#98a2b3' }}>Descrição</label>
-                      <input
-                        type="text"
-                        value={newService.description}
+                      <input type="text" value={newService.description}
                         onChange={e => setNewService(s => ({ ...s, description: e.target.value }))}
-                        placeholder="Detalhes do serviço para o agente informar ao paciente"
+                        placeholder="Detalhes para o agente informar ao paciente"
                         className="input-dark w-full px-3 py-2.5 text-sm"
                       />
                     </div>
                     <div className="flex gap-2">
-                      <button
-                        onClick={addService}
-                        disabled={!newService.name.trim()}
-                        className="btn-primary flex items-center gap-1.5 px-4 py-2 text-sm disabled:opacity-40"
-                      >
-                        <Plus className="w-3.5 h-3.5" />
-                        Adicionar
+                      <button onClick={addService} disabled={!newService.name.trim()}
+                        className="btn-primary flex items-center gap-1.5 px-4 py-2 text-sm disabled:opacity-40">
+                        <Plus className="w-3.5 h-3.5" /> Adicionar
                       </button>
-                      <button
-                        onClick={() => setShowAddService(false)}
-                        className="px-4 py-2 rounded-xl text-sm font-medium transition-colors"
-                        style={{ color: '#98a2b3' }}
-                      >
+                      <button onClick={() => setShowAddService(false)}
+                        className="px-4 py-2 rounded-xl text-sm font-medium transition-colors" style={{ color: '#98a2b3' }}>
                         Cancelar
                       </button>
                     </div>
                   </div>
                 )}
 
-                {/* Lista */}
                 {services.length > 0 ? (
                   <div>
                     {services.map(svc => {
@@ -823,32 +919,21 @@ export default function AdminClientDetail() {
                           >
                             <div className="flex-1 min-w-0 flex items-center gap-3">
                               <span className="text-sm font-semibold truncate" style={{ color: '#344054' }}>{svc.name}</span>
-                              {svc.price && (
-                                <span className="text-xs font-semibold shrink-0 text-emerald-600">R$ {svc.price}</span>
-                              )}
+                              {svc.price && <span className="text-xs font-semibold shrink-0 text-emerald-600">R$ {svc.price}</span>}
                             </div>
                             <div className="flex items-center gap-3 shrink-0">
-                              <div className={`flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full ${
-                                svc.pdf_url
-                                  ? 'bg-emerald-50 text-emerald-600'
-                                  : 'bg-slate-100 text-slate-500'
-                              }`}>
+                              <div className={`flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full ${svc.pdf_url ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-500'}`}>
                                 <FileText className="w-3 h-3" />
                                 {svc.pdf_url ? 'PDF' : 'Sem PDF'}
                               </div>
                               <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} style={{ color: '#d0d5dd' }} />
                             </div>
                           </button>
-
                           {isOpen && (
                             <div className="px-6 pb-5 pt-3" style={{ background: '#f9fafb', borderTop: '1px solid #f2f4f7' }}>
-                              {svc.description && (
-                                <p className="text-xs mb-4" style={{ color: '#667085' }}>{svc.description}</p>
-                              )}
+                              {svc.description && <p className="text-xs mb-4" style={{ color: '#667085' }}>{svc.description}</p>}
                               <div className="flex items-center gap-2">
-                                <button
-                                  onClick={() => triggerPdfUpload(svc.id)}
-                                  disabled={isUploading}
+                                <button onClick={() => triggerPdfUpload(svc.id)} disabled={isUploading}
                                   className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold transition-colors disabled:opacity-50"
                                   style={{ border: '1px solid #e4e7ec', color: '#667085', background: '#ffffff' }}
                                   onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = '#a7f3d0'; (e.currentTarget as HTMLElement).style.color = '#059669' }}
@@ -865,12 +950,9 @@ export default function AdminClientDetail() {
                                     </button>
                                   </>
                                 )}
-                                <button
-                                  onClick={() => removeService(svc.id)}
-                                  className="ml-auto flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-red-500 transition-colors hover:bg-red-50"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                  Remover
+                                <button onClick={() => removeService(svc.id)}
+                                  className="ml-auto flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-red-500 transition-colors hover:bg-red-50">
+                                  <Trash2 className="w-3.5 h-3.5" /> Remover
                                 </button>
                               </div>
                             </div>
@@ -893,7 +975,6 @@ export default function AdminClientDetail() {
             </div>
           </div>
 
-          {/* Ações Agente */}
           <div className="flex items-center gap-3">
             <button onClick={handleSaveAgent} disabled={savingAgent}
               className="btn-primary flex items-center gap-2 px-5 py-2.5 text-sm disabled:opacity-60">

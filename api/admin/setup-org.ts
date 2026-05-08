@@ -1,16 +1,16 @@
 /**
  * POST /api/admin/setup-org
- * Configura automaticamente webhook e Chatwoot na Evolution após o admin
- * preencher os dados da organização.
+ * Configura automaticamente webhook, cria conta Chatwoot (se necessário)
+ * e integra Evolution → Chatwoot ao salvar uma organização.
  *
  * Body: { orgId: string }
- * Returns: { steps: Step[] }
+ * Returns: { steps: Step[], webhookUrl: string }
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
 import { configureWebhook, getConnectionStatus } from '../services/evolutionService.js';
-import { configureChatwootOnEvolution } from '../services/chatwootService.js';
+import { configureChatwootOnEvolution, createChatwootAccount } from '../services/chatwootService.js';
 
 const supabase = createClient(
   process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || '',
@@ -38,7 +38,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const { orgId } = req.body as { orgId?: string };
   if (!orgId) return res.status(400).json({ error: 'orgId required' });
 
-  // Busca org
   const { data: org, error } = await supabase
     .from('organizations')
     .select('id, name, evolution_instance, evolution_token, chatwoot_account_id, chatwoot_token, chatwoot_inbox_id')
@@ -55,7 +54,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const steps: Step[] = [];
 
-  // ── 1. Verificar status da conexão ───────────────────────────────────────
+  // ── 1. Status da instância Evolution ────────────────────────────────────
   const state = await getConnectionStatus(org.evolution_instance, org.evolution_token);
   steps.push({
     id: 'connection',
@@ -63,10 +62,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     ok: state === 'open',
     detail: state === 'open'
       ? 'WhatsApp conectado'
-      : `Estado: ${state} — escaneie o QR code para conectar`,
+      : `Estado: ${state} — escaneie o QR code no Evolution para conectar`,
   });
 
-  // ── 2. Configurar Webhook ────────────────────────────────────────────────
+  // ── 2. Webhook ───────────────────────────────────────────────────────────
   const webhookOk = await configureWebhook(
     org.evolution_instance,
     WEBHOOK_URL,
@@ -81,34 +80,63 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       : 'Falha ao configurar webhook — verifique o token da instância',
   });
 
-  // ── 3. Configurar Chatwoot (se dados presentes) ──────────────────────────
-  if (org.chatwoot_account_id && org.chatwoot_token) {
+  // ── 3. Chatwoot — criar conta automaticamente se não existir ─────────────
+  let chatwootAccountId: number | null = org.chatwoot_account_id ?? null;
+  let chatwootToken: string | null = org.chatwoot_token ?? null;
+
+  if (!chatwootAccountId || !chatwootToken) {
+    const account = await createChatwootAccount(org.name);
+    if (account) {
+      chatwootAccountId = account.accountId;
+      chatwootToken = account.token;
+      await supabase.from('organizations').update({
+        chatwoot_account_id: account.accountId,
+        chatwoot_token: account.token,
+      }).eq('id', orgId);
+      steps.push({
+        id: 'chatwoot_create',
+        label: 'Conta Chatwoot criada',
+        ok: true,
+        detail: `Conta #${account.accountId} criada automaticamente`,
+      });
+    } else {
+      steps.push({
+        id: 'chatwoot_create',
+        label: 'Criar conta Chatwoot',
+        ok: false,
+        detail: 'Falha ao criar conta — verifique CHATWOOT_ADMIN_TOKEN nas variáveis de ambiente',
+      });
+    }
+  }
+
+  // ── 4. Integrar Chatwoot na Evolution ────────────────────────────────────
+  if (chatwootAccountId && chatwootToken) {
     const chatwootOk = await configureChatwootOnEvolution(
       org.evolution_instance,
       org.evolution_token || process.env.EVOLUTION_API_KEY || '',
-      org.chatwoot_account_id,
-      org.chatwoot_token,
+      chatwootAccountId,
+      chatwootToken,
       org.chatwoot_inbox_id ?? undefined,
       org.name,
     );
     steps.push({
       id: 'chatwoot',
-      label: 'Integração Chatwoot',
+      label: 'Integração Chatwoot ↔ Evolution',
       ok: chatwootOk,
       detail: chatwootOk
-        ? `Conta ${org.chatwoot_account_id} configurada na instância`
-        : 'Falha ao integrar Chatwoot — verifique account_id e token',
+        ? `Conta #${chatwootAccountId} integrada à instância ${org.evolution_instance}`
+        : 'Falha ao integrar — verifique CHATWOOT_URL e credenciais',
     });
   } else {
     steps.push({
       id: 'chatwoot',
       label: 'Integração Chatwoot',
       ok: false,
-      detail: 'Dados do Chatwoot não preenchidos — pulado',
+      detail: 'Dados do Chatwoot indisponíveis — configure manualmente',
     });
   }
 
-  // ── 4. Garantir agent_settings ───────────────────────────────────────────
+  // ── 5. Garantir agent_settings ───────────────────────────────────────────
   const { data: existing } = await supabase
     .from('agent_settings')
     .select('id')
@@ -122,22 +150,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       greeting_message: `Olá! Sou o assistente da ${org.name}. Como posso ajudar?`,
       tone: 'friendly',
       specialties: [],
-      working_hours: null,
+      services: [],
+      custom_instructions: '',
     });
     steps.push({
       id: 'agent_settings',
-      label: 'Configurações do Agente',
+      label: 'Perfil do Agente',
       ok: !settingsErr,
       detail: settingsErr
         ? `Erro ao criar: ${settingsErr.message}`
-        : 'Perfil do agente criado com valores padrão',
+        : 'Perfil criado com valores padrão',
     });
   } else {
     steps.push({
       id: 'agent_settings',
-      label: 'Configurações do Agente',
+      label: 'Perfil do Agente',
       ok: true,
-      detail: 'Perfil do agente já existe',
+      detail: 'Perfil do agente já configurado',
     });
   }
 
