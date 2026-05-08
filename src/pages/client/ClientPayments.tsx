@@ -224,7 +224,7 @@ export default function ClientPayments() {
               </div>
 
               {/* Description */}
-              <p className={cn('text-sm leading-relaxed mt-2 mb-4', plan.highlight ? 'text-slate-400' : 'text-slate-500')}>
+              <p className={cn('text-sm leading-relaxed mt-2 mb-7', plan.highlight ? 'text-slate-400' : 'text-slate-500')}>
                 {plan.description}
               </p>
 
