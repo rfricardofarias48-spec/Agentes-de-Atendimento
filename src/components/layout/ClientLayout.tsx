@@ -32,7 +32,7 @@ export default function ClientLayout({ children, orgName }: ClientLayoutProps) {
   }
 
   const Sidebar = () => (
-    <aside className="flex flex-col h-full w-64 bg-white border-r border-slate-100">
+    <aside className="flex flex-col h-full w-52 bg-white border-r border-slate-100">
 
       {/* Logo / brand */}
       <div className="flex items-center gap-3 px-5 py-5 border-b border-slate-100">

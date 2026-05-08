@@ -10,7 +10,7 @@ import { Button } from '../../components/ui/button'
 import { cn } from '../../lib/utils'
 
 // ── Calendar constants ─────────────────────────────────────────
-const HOUR_HEIGHT = 64
+const HOUR_HEIGHT = 80
 const DEFAULT_START = 8
 const END_HOUR = 20
 const TIME_COL_W = 60
@@ -164,7 +164,7 @@ export default function ClientAppointments() {
   })()
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col gap-3 h-full">
 
       {/* Top bar */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -232,7 +232,7 @@ export default function ClientAppointments() {
               <div className="w-6 h-6 border-4 border-primary border-t-transparent rounded-full animate-spin" />
             </div>
           ) : (
-            <div className="overflow-y-auto" style={{ maxHeight: '74vh' }}>
+            <div className="overflow-y-auto" style={{ maxHeight: 'calc(100vh - 160px)' }}>
               <div className="w-full">
 
                 {/* Day header row */}
