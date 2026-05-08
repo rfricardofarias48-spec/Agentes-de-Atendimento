@@ -97,7 +97,7 @@ export default function ClientDashboard() {
           {/* Avatar com offset sombra (Elevva style) */}
           <div className="relative shrink-0 group cursor-default">
             <div className="absolute inset-0 bg-emerald-400 rounded-lg translate-x-1 translate-y-1 transition-transform duration-300 group-hover:translate-x-1.5 group-hover:translate-y-1.5" />
-            <div className="w-9 h-9 bg-slate-600 rounded-lg relative flex items-center justify-center text-white text-sm font-bold border-2 border-slate-600 z-10 shadow-sm">
+            <div className="w-9 h-9 bg-gray-900 rounded-lg relative flex items-center justify-center text-white text-sm font-bold border-2 border-gray-900 z-10 shadow-sm">
               {avatarLetter}
             </div>
           </div>
@@ -115,7 +115,7 @@ export default function ClientDashboard() {
               className={cn(
                 'px-3 py-1.5 rounded-xl text-xs font-medium transition-all duration-150',
                 period === key
-                  ? 'bg-slate-600 text-white shadow-sm'
+                  ? 'bg-gray-900 text-white shadow-sm'
                   : 'text-slate-400 hover:text-slate-700'
               )}
             >
@@ -156,7 +156,7 @@ export default function ClientDashboard() {
         </div>
 
         {/* Cancelamentos — gray card */}
-        <div className="bg-slate-600 p-6 rounded-[2rem] border border-slate-500 shadow-[0px_4px_20px_rgba(0,0,0,0.02)] hover:shadow-[0px_4px_25px_rgba(0,0,0,0.05)] transition-all">
+        <div className="bg-gray-900 p-6 rounded-[2rem] border border-gray-800 shadow-[0px_4px_20px_rgba(0,0,0,0.02)] hover:shadow-[0px_4px_25px_rgba(0,0,0,0.05)] transition-all">
           <div className="flex items-center justify-between mb-4">
             <p className="text-xs font-medium text-slate-300">Cancelamentos</p>
             <XCircle className="w-5 h-5 text-slate-300" />
@@ -217,7 +217,7 @@ export default function ClientDashboard() {
         </div>
 
         {/* Meu Plano — gray card */}
-        <div className="bg-slate-700 p-6 rounded-[2rem] relative overflow-hidden flex flex-col justify-between shadow-[0px_4px_20px_rgba(0,0,0,0.08)] lg:col-span-1">
+        <div className="bg-gray-900 p-6 rounded-[2rem] relative overflow-hidden flex flex-col justify-between shadow-[0px_4px_20px_rgba(0,0,0,0.08)] lg:col-span-1">
           <div className="relative z-10">
             <p className="text-xs font-medium text-slate-400 mb-3">Plano atual</p>
             <h3 className="text-3xl font-bold text-white mb-2">{planName}</h3>
@@ -228,7 +228,7 @@ export default function ClientDashboard() {
 
           {/* Barra de uso */}
           <div className="relative z-10 mt-5">
-            <div className="w-full h-1.5 bg-slate-500 rounded-full overflow-hidden mb-4">
+            <div className="w-full h-1.5 bg-gray-700 rounded-full overflow-hidden mb-4">
               <div
                 className="h-full rounded-full transition-all duration-700"
                 style={{
