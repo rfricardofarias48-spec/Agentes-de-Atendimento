@@ -8,12 +8,7 @@
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { createClient } from '@supabase/supabase-js';
-
-const supabase = createClient(
-  process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || '',
-  process.env.SUPABASE_SERVICE_ROLE_KEY || '',
-);
+import { supabaseAdmin } from '../lib/supabaseAdmin.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'DELETE' && req.method !== 'POST') {
@@ -24,7 +19,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!orgId) return res.status(400).json({ error: 'orgId required' });
 
   // Verificar que a org existe
-  const { data: org } = await supabase
+  const { data: org } = await supabaseAdmin
     .from('organizations')
     .select('id, name')
     .eq('id', orgId)
@@ -35,7 +30,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const errors: string[] = [];
 
   // ── 1. Buscar auth user(s) vinculados ────────────────────────────────────
-  const { data: profiles } = await supabase
+  const { data: profiles } = await supabaseAdmin
     .from('user_profiles')
     .select('user_id')
     .eq('org_id', orgId);
@@ -43,28 +38,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const userIds = profiles?.map(p => p.user_id) ?? [];
 
   // ── 2. Deletar conversas ─────────────────────────────────────────────────
-  const { error: convErr } = await supabase
+  const { error: convErr } = await supabaseAdmin
     .from('conversations')
     .delete()
     .eq('org_id', orgId);
   if (convErr) errors.push(`conversations: ${convErr.message}`);
 
   // ── 3. Deletar agendamentos ──────────────────────────────────────────────
-  const { error: apptErr } = await supabase
+  const { error: apptErr } = await supabaseAdmin
     .from('appointments')
     .delete()
     .eq('org_id', orgId);
   if (apptErr) errors.push(`appointments: ${apptErr.message}`);
 
   // ── 4. Deletar configurações do agente ───────────────────────────────────
-  const { error: agentErr } = await supabase
+  const { error: agentErr } = await supabaseAdmin
     .from('agent_settings')
     .delete()
     .eq('org_id', orgId);
   if (agentErr) errors.push(`agent_settings: ${agentErr.message}`);
 
   // ── 5. Deletar itens de conhecimento ─────────────────────────────────────
-  const { error: knowledgeErr } = await supabase
+  const { error: knowledgeErr } = await supabaseAdmin
     .from('knowledge_items')
     .delete()
     .eq('org_id', orgId);
@@ -73,7 +68,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   // ── 6. Deletar vendas ────────────────────────────────────────────────────
-  const { error: salesErr } = await supabase
+  const { error: salesErr } = await supabaseAdmin
     .from('sales')
     .delete()
     .eq('org_id', orgId);
@@ -82,20 +77,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   // ── 7. Deletar user_profiles ─────────────────────────────────────────────
-  const { error: profileErr } = await supabase
+  const { error: profileErr } = await supabaseAdmin
     .from('user_profiles')
     .delete()
     .eq('org_id', orgId);
   if (profileErr) errors.push(`user_profiles: ${profileErr.message}`);
 
   // ── 8. Deletar arquivos do Storage (PDFs) ────────────────────────────────
-  const { data: storageFiles } = await supabase.storage
+  const { data: storageFiles } = await supabaseAdmin.storage
     .from('specialty-pdfs')
     .list(orgId);
 
   if (storageFiles && storageFiles.length > 0) {
     const paths = storageFiles.map(f => `${orgId}/${f.name}`);
-    const { error: storageErr } = await supabase.storage
+    const { error: storageErr } = await supabaseAdmin.storage
       .from('specialty-pdfs')
       .remove(paths);
     if (storageErr) errors.push(`storage: ${storageErr.message}`);
@@ -103,12 +98,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   // ── 9. Deletar usuários do Supabase Auth ─────────────────────────────────
   for (const userId of userIds) {
-    const { error: authErr } = await supabase.auth.admin.deleteUser(userId);
+    const { error: authErr } = await supabaseAdmin.auth.admin.deleteUser(userId);
     if (authErr) errors.push(`auth user ${userId}: ${authErr.message}`);
   }
 
   // ── 10. Deletar a organização ────────────────────────────────────────────
-  const { error: orgErr } = await supabase
+  const { error: orgErr } = await supabaseAdmin
     .from('organizations')
     .delete()
     .eq('id', orgId);

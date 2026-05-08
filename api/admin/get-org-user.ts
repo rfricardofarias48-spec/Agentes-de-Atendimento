@@ -4,12 +4,7 @@
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { createClient } from '@supabase/supabase-js';
-
-const supabase = createClient(
-  process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || '',
-  process.env.SUPABASE_SERVICE_ROLE_KEY || '',
-);
+import { supabaseAdmin } from '../lib/supabaseAdmin.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
@@ -17,7 +12,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const orgId = req.query.orgId as string;
   if (!orgId) return res.status(400).json({ error: 'orgId required' });
 
-  const { data: profile } = await supabase
+  const { data: profile } = await supabaseAdmin
     .from('user_profiles')
     .select('user_id')
     .eq('org_id', orgId)
@@ -25,7 +20,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (!profile?.user_id) return res.status(200).json({ email: null });
 
-  const { data: { user }, error } = await supabase.auth.admin.getUserById(profile.user_id);
+  const { data: { user }, error } = await supabaseAdmin.auth.admin.getUserById(profile.user_id);
 
   if (error || !user) return res.status(200).json({ email: null });
 

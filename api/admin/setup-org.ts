@@ -8,14 +8,9 @@
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { createClient } from '@supabase/supabase-js';
+import { supabaseAdmin } from '../lib/supabaseAdmin.js';
 import { configureWebhook, getConnectionStatus } from '../services/evolutionService.js';
 import { configureChatwootOnEvolution } from '../services/chatwootService.js';
-
-const supabase = createClient(
-  process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || '',
-  process.env.SUPABASE_SERVICE_ROLE_KEY || '',
-);
 
 const VERCEL_URL = process.env.VERCEL_URL
   ? `https://${process.env.VERCEL_URL}`
@@ -38,7 +33,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const { orgId } = req.body as { orgId?: string };
   if (!orgId) return res.status(400).json({ error: 'orgId required' });
 
-  const { data: org, error } = await supabase
+  const { data: org, error } = await supabaseAdmin
     .from('organizations')
     .select('id, name, evolution_instance, evolution_token, chatwoot_account_id, chatwoot_token, chatwoot_inbox_id')
     .eq('id', orgId)
@@ -107,15 +102,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
   }
 
-  // ── 5. Garantir agent_settings ───────────────────────────────────────────
-  const { data: existing } = await supabase
+  // ── 4. Garantir agent_settings ───────────────────────────────────────────
+  const { data: existing } = await supabaseAdmin
     .from('agent_settings')
     .select('id')
     .eq('org_id', orgId)
     .single();
 
   if (!existing) {
-    const { error: settingsErr } = await supabase.from('agent_settings').insert({
+    const { error: settingsErr } = await supabaseAdmin.from('agent_settings').insert({
       org_id: orgId,
       agent_name: 'Assistente',
       greeting_message: `Olá! Sou o assistente da ${org.name}. Como posso ajudar?`,
