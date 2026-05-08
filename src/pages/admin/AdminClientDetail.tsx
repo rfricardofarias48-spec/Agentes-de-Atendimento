@@ -787,8 +787,18 @@ export default function AdminClientDetail() {
                 onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#fef2f2' }}
                 onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent' }}
                 onClick={async () => {
-                  if (!confirm(`Remover "${org.name}"? Ação irreversível.`)) return
-                  await supabase.from('organizations').delete().eq('id', id!)
+                  if (!confirm(`Remover "${org.name}"?\n\nTodos os dados serão deletados permanentemente: conversas, agendamentos, arquivos e o acesso do usuário. Esta ação é irreversível.`)) return
+                  const { data: { session } } = await supabase.auth.getSession()
+                  const res = await fetch('/api/admin/delete-org', {
+                    method: 'DELETE',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+                    },
+                    body: JSON.stringify({ orgId: id }),
+                  })
+                  const result = await res.json() as { ok?: boolean; errors?: string[] }
+                  if (!result.ok) { alert('Erro ao remover: ' + (result.errors?.join(', ') ?? 'desconhecido')); return }
                   navigate('/admin/clients')
                 }}
               >
