@@ -15,8 +15,6 @@ const START_HOUR = 7
 const END_HOUR = 20
 const TOTAL_HEIGHT = (END_HOUR - START_HOUR) * HOUR_HEIGHT
 const TIME_COL_W = 60
-const DAY_COL_7 = 140
-const DAY_COL_15 = 110
 const HOURS = Array.from({ length: END_HOUR - START_HOUR }, (_, i) => START_HOUR + i)
 const DAY_PT = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
 
@@ -69,7 +67,6 @@ const EMPTY: FormData = {
 }
 
 type ViewMode = 'calendar' | 'list'
-type CalDays = 7 | 15
 
 // ── Component ──────────────────────────────────────────────────
 export default function ClientAppointments() {
@@ -78,7 +75,6 @@ export default function ClientAppointments() {
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
   const [view, setView] = useState<ViewMode>('calendar')
-  const [calDays, setCalDays] = useState<CalDays>(7)
   const [startDate, setStartDate] = useState<Date>(() => weekStart(new Date()))
   const [showModal, setShowModal] = useState(false)
   const [form, setForm] = useState<FormData>(EMPTY)
@@ -96,8 +92,8 @@ export default function ClientAppointments() {
   useEffect(() => { fetchAppointments() }, [orgId])
 
   const days = useMemo(
-    () => Array.from({ length: calDays }, (_, i) => addDays(startDate, i)),
-    [startDate, calDays],
+    () => Array.from({ length: 7 }, (_, i) => addDays(startDate, i)),
+    [startDate],
   )
 
   const apptsByDay = useMemo(() => {
@@ -119,8 +115,8 @@ export default function ClientAppointments() {
     )
   }, [search, appointments])
 
-  function prev() { setStartDate(d => addDays(d, -calDays)) }
-  function next() { setStartDate(d => addDays(d, calDays)) }
+  function prev() { setStartDate(d => addDays(d, -7)) }
+  function next() { setStartDate(d => addDays(d, 7)) }
   function goToday() { setStartDate(weekStart(new Date())) }
 
   function openModal() { setForm(EMPTY); setFormError(''); setShowModal(true) }
@@ -150,7 +146,6 @@ export default function ClientAppointments() {
   }
 
   const todayKey = dayKey(new Date())
-  const DAY_W = calDays === 7 ? DAY_COL_7 : DAY_COL_15
   const rangeLabel = (() => {
     const end = addDays(startDate, calDays - 1)
     const f = (d: Date) => d.toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' })
@@ -190,17 +185,6 @@ export default function ClientAppointments() {
 
         {view === 'calendar' && (
           <>
-            {/* Days toggle */}
-            <div className="flex bg-white border border-slate-200 rounded-xl p-1">
-              {([7, 15] as CalDays[]).map(n => (
-                <button key={n} onClick={() => setCalDays(n)}
-                  className={cn('px-3 py-1.5 rounded-lg text-xs font-medium transition-all',
-                    calDays === n ? 'bg-gray-900 text-white' : 'text-slate-500 hover:text-slate-800')}>
-                  {n} dias
-                </button>
-              ))}
-            </div>
-
             {/* Navigation */}
             <div className="flex items-center gap-1">
               <button onClick={prev}
@@ -237,20 +221,18 @@ export default function ClientAppointments() {
               <div className="w-6 h-6 border-4 border-primary border-t-transparent rounded-full animate-spin" />
             </div>
           ) : (
-            <div className="overflow-auto" style={{ maxHeight: '74vh' }}>
-              <div style={{ minWidth: TIME_COL_W + days.length * DAY_W }}>
+            <div className="overflow-y-auto" style={{ maxHeight: '74vh' }}>
+              <div className="w-full">
 
                 {/* Day header row */}
-                <div className="sticky top-0 z-30 flex bg-white border-b border-slate-100"
-                  style={{ minWidth: TIME_COL_W + days.length * DAY_W }}>
+                <div className="sticky top-0 z-30 flex bg-white border-b border-slate-100 w-full">
                   <div style={{ width: TIME_COL_W, minWidth: TIME_COL_W }}
-                    className="sticky left-0 z-40 bg-white" />
+                    className="shrink-0" />
                   {days.map((day, i) => {
                     const isToday = dayKey(day) === todayKey
                     return (
                       <div key={i}
-                        style={{ width: DAY_W, minWidth: DAY_W }}
-                        className="border-l border-slate-100 py-3 text-center shrink-0">
+                        className="flex-1 border-l border-slate-100 py-3 text-center min-w-0">
                         <p className={cn('text-[11px] font-medium uppercase tracking-wider',
                           isToday ? 'text-emerald-500' : 'text-slate-400')}>
                           {DAY_PT[day.getDay()]}
@@ -265,10 +247,10 @@ export default function ClientAppointments() {
                 </div>
 
                 {/* Time grid */}
-                <div className="flex relative" style={{ height: TOTAL_HEIGHT }}>
+                <div className="flex w-full relative" style={{ height: TOTAL_HEIGHT }}>
 
                   {/* Time labels column */}
-                  <div className="sticky left-0 z-20 bg-white border-r border-slate-100 shrink-0"
+                  <div className="shrink-0 bg-white border-r border-slate-100"
                     style={{ width: TIME_COL_W, minWidth: TIME_COL_W }}>
                     {HOURS.map(h => (
                       <div key={h} className="absolute right-3 flex items-start justify-end"
@@ -285,9 +267,9 @@ export default function ClientAppointments() {
                     const isToday = dayKey(day) === todayKey
                     const dayAppts = apptsByDay[dayKey(day)] ?? []
                     return (
-                      <div key={i} className={cn('relative shrink-0 border-l border-slate-100',
+                      <div key={i} className={cn('relative flex-1 min-w-0 border-l border-slate-100',
                         isToday && 'bg-emerald-50/30')}
-                        style={{ width: DAY_W, minWidth: DAY_W, height: TOTAL_HEIGHT }}>
+                        style={{ height: TOTAL_HEIGHT }}>
 
                         {/* Grid lines */}
                         {HOURS.map(h => (
