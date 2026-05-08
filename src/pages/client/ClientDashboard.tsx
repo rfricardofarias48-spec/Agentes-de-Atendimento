@@ -113,7 +113,7 @@ export default function ClientDashboard() {
               key={key}
               onClick={() => setPeriod(key)}
               className={cn(
-                'px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all duration-150',
+                'px-3 py-1.5 rounded-xl text-xs font-medium transition-all duration-150',
                 period === key
                   ? 'bg-slate-600 text-white shadow-sm'
                   : 'text-slate-400 hover:text-slate-700'
@@ -131,38 +131,38 @@ export default function ClientDashboard() {
         {/* Conversas — white */}
         <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-[0px_4px_20px_rgba(0,0,0,0.02)] hover:shadow-[0px_4px_25px_rgba(0,0,0,0.05)] transition-all">
           <div className="flex items-center justify-between mb-4">
-            <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Conversas</p>
+            <p className="text-xs font-medium text-slate-500">Conversas</p>
             <MessageSquare className="w-5 h-5 text-slate-300" />
           </div>
-          <span className="text-5xl font-black text-[#0f172a] tracking-tighter leading-none">{filtered.conversations}</span>
+          <span className="text-4xl font-bold text-gray-900 leading-none">{filtered.conversations}</span>
         </div>
 
         {/* Agendamentos — white */}
         <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-[0px_4px_20px_rgba(0,0,0,0.02)] hover:shadow-[0px_4px_25px_rgba(0,0,0,0.05)] transition-all">
           <div className="flex items-center justify-between mb-4">
-            <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Agendamentos</p>
+            <p className="text-xs font-medium text-slate-500">Agendamentos</p>
             <Calendar className="w-5 h-5 text-slate-300" />
           </div>
-          <span className="text-5xl font-black text-[#0f172a] tracking-tighter leading-none">{filtered.appointments}</span>
+          <span className="text-4xl font-bold text-gray-900 leading-none">{filtered.appointments}</span>
         </div>
 
         {/* Consultas Realizadas — white */}
         <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-[0px_4px_20px_rgba(0,0,0,0.02)] hover:shadow-[0px_4px_25px_rgba(0,0,0,0.05)] transition-all">
           <div className="flex items-center justify-between mb-4">
-            <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Consultas Realizadas</p>
+            <p className="text-xs font-medium text-slate-500">Consultas Realizadas</p>
             <CheckCircle className="w-5 h-5 text-slate-300" />
           </div>
-          <span className="text-5xl font-black text-[#0f172a] tracking-tighter leading-none">{filtered.completed}</span>
+          <span className="text-4xl font-bold text-gray-900 leading-none">{filtered.completed}</span>
         </div>
 
         {/* Cancelamentos — gray card */}
         <div className="bg-slate-600 p-6 rounded-[2rem] border border-slate-500 shadow-[0px_4px_20px_rgba(0,0,0,0.02)] hover:shadow-[0px_4px_25px_rgba(0,0,0,0.05)] transition-all">
           <div className="flex items-center justify-between mb-4">
-            <p className="text-[11px] font-black text-slate-300 uppercase tracking-widest">Cancelamentos</p>
+            <p className="text-xs font-medium text-slate-300">Cancelamentos</p>
             <XCircle className="w-5 h-5 text-slate-300" />
           </div>
           <div className="flex items-baseline gap-1">
-            <span className="text-5xl font-black text-white tracking-tighter leading-none">{filtered.cancelled}</span>
+            <span className="text-4xl font-bold text-white leading-none">{filtered.cancelled}</span>
           </div>
         </div>
       </div>
@@ -173,11 +173,11 @@ export default function ClientDashboard() {
         {/* Agendamentos Recentes — 2 colunas */}
         <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-[0px_4px_20px_rgba(0,0,0,0.02)] lg:col-span-2">
           <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-black text-slate-900 tracking-tighter flex items-center gap-2">
+            <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
               <Calendar className="w-5 h-5 text-emerald-500" />
               Agendamentos Recentes
             </h3>
-            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+            <span className="text-xs font-medium text-slate-400">
               {period === 'day' ? 'hoje' : period === 'week' ? 'esta semana' : 'este mês'}
             </span>
           </div>
@@ -192,11 +192,11 @@ export default function ClientDashboard() {
               {filtered.recentAppts.map(appt => (
                 <div key={appt.id} className="flex items-center justify-between p-4 rounded-2xl border border-slate-100 hover:bg-slate-50 transition-colors">
                   <div className="flex items-center gap-4 min-w-0">
-                    <div className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 font-black text-sm shrink-0">
+                    <div className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 font-semibold text-sm shrink-0">
                       {appt.patient_name.charAt(0).toUpperCase()}
                     </div>
                     <div className="min-w-0">
-                      <p className="font-black text-slate-900 text-sm truncate">{appt.patient_name}</p>
+                      <p className="font-semibold text-gray-900 text-sm truncate">{appt.patient_name}</p>
                       <p className="text-xs text-slate-500 font-medium truncate">
                         {appt.specialty}{appt.doctor_name ? ` · ${appt.doctor_name}` : ''}
                       </p>
@@ -219,8 +219,8 @@ export default function ClientDashboard() {
         {/* Meu Plano — gray card */}
         <div className="bg-slate-700 p-6 rounded-[2rem] relative overflow-hidden flex flex-col justify-between shadow-[0px_4px_20px_rgba(0,0,0,0.08)] lg:col-span-1">
           <div className="relative z-10">
-            <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-3">PLANO ATUAL</p>
-            <h3 className="text-4xl font-black text-white mb-2 tracking-tighter">{planName}</h3>
+            <p className="text-xs font-medium text-slate-400 mb-3">Plano atual</p>
+            <h3 className="text-3xl font-bold text-white mb-2">{planName}</h3>
             <p className="text-slate-300 text-sm font-medium">
               {org?.conversations_used ?? 0} de {org?.max_conversations_month ?? 0} conversas utilizadas
             </p>
@@ -237,7 +237,7 @@ export default function ClientDashboard() {
                 }}
               />
             </div>
-            <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest text-right">{usagePct.toFixed(0)}% usado</p>
+            <p className="text-xs font-medium text-zinc-400 text-right">{usagePct.toFixed(0)}% usado</p>
           </div>
 
           {/* Glow decorativo */}
