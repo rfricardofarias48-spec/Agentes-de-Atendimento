@@ -66,6 +66,22 @@ const EMPTY: FormData = {
 
 type ViewMode = 'calendar' | 'list'
 
+function useNowLine(startHour: number) {
+  const [pct, setPct] = useState<number | null>(null)
+  useEffect(() => {
+    function calc() {
+      const now = new Date()
+      const h = now.getHours(), m = now.getMinutes()
+      if (h < startHour || h >= END_HOUR) { setPct(null); return }
+      setPct(((h - startHour) * 60 + m) / 60 * HOUR_HEIGHT)
+    }
+    calc()
+    const id = setInterval(calc, 60_000)
+    return () => clearInterval(id)
+  }, [startHour])
+  return pct
+}
+
 // ── Component ──────────────────────────────────────────────────
 export default function ClientAppointments() {
   const { orgId } = useAuth()
@@ -116,6 +132,7 @@ export default function ClientAppointments() {
 
   const totalHeight = (END_HOUR - startHour) * HOUR_HEIGHT
   const hours = Array.from({ length: END_HOUR - startHour }, (_, i) => startHour + i)
+  const nowLine = useNowLine(startHour)
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase()
@@ -226,7 +243,7 @@ export default function ClientAppointments() {
 
       {/* ── Calendar ─────────────────────────────────────────── */}
       {view === 'calendar' && (
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-[0px_4px_20px_rgba(0,0,0,0.02)] overflow-hidden">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-[0px_4px_24px_rgba(0,0,0,0.04)] overflow-hidden">
           {loading ? (
             <div className="flex justify-center py-20">
               <div className="w-6 h-6 border-4 border-primary border-t-transparent rounded-full animate-spin" />
@@ -236,20 +253,24 @@ export default function ClientAppointments() {
               <div className="w-full">
 
                 {/* Day header row */}
-                <div className="sticky top-0 z-30 flex bg-white border-b border-slate-100 w-full">
+                <div className="sticky top-0 z-30 flex bg-white border-b border-slate-200 w-full">
                   <div style={{ width: TIME_COL_W, minWidth: TIME_COL_W }}
                     className="shrink-0" />
                   {days.map((day, i) => {
                     const isToday = dayKey(day) === todayKey
+                    const isWeekend = day.getDay() === 0 || day.getDay() === 6
                     return (
                       <div key={i}
-                        className="flex-1 border-l border-slate-100 py-3 text-center min-w-0">
-                        <p className={cn('text-[11px] font-medium uppercase tracking-wider',
-                          isToday ? 'text-emerald-500' : 'text-slate-400')}>
+                        className={cn(
+                          'flex-1 border-l border-slate-200 py-3 text-center min-w-0',
+                          isWeekend && !isToday && 'bg-slate-50/60',
+                        )}>
+                        <p className={cn('text-[11px] font-semibold uppercase tracking-widest',
+                          isToday ? 'text-emerald-500' : isWeekend ? 'text-slate-400' : 'text-slate-400')}>
                           {DAY_PT[day.getDay()]}
                         </p>
-                        <div className={cn('mt-1 mx-auto w-8 h-8 flex items-center justify-center rounded-full text-sm font-bold',
-                          isToday ? 'bg-gray-900 text-white' : 'text-slate-700')}>
+                        <div className={cn('mt-1 mx-auto w-8 h-8 flex items-center justify-center rounded-full text-sm font-bold transition-colors',
+                          isToday ? 'bg-gray-900 text-white' : 'text-slate-600 hover:bg-slate-100')}>
                           {day.getDate()}
                         </div>
                       </div>
@@ -261,12 +282,12 @@ export default function ClientAppointments() {
                 <div className="flex w-full relative" style={{ height: totalHeight }}>
 
                   {/* Time labels column */}
-                  <div className="relative shrink-0 bg-white border-r border-slate-100"
+                  <div className="relative shrink-0 bg-white border-r border-slate-200"
                     style={{ width: TIME_COL_W, minWidth: TIME_COL_W }}>
                     {hours.map(h => (
                       <div key={h} className="absolute right-3 flex items-start justify-end"
                         style={{ top: (h - startHour) * HOUR_HEIGHT, height: HOUR_HEIGHT }}>
-                        <span className="text-[11px] text-slate-400 font-medium pt-1.5">
+                        <span className="text-[11px] text-slate-400 font-medium pt-1.5 tabular-nums">
                           {String(h).padStart(2, '0')}:00
                         </span>
                       </div>
@@ -276,21 +297,33 @@ export default function ClientAppointments() {
                   {/* Day columns */}
                   {days.map((day, i) => {
                     const isToday = dayKey(day) === todayKey
+                    const isWeekend = day.getDay() === 0 || day.getDay() === 6
                     const dayAppts = apptsByDay[dayKey(day)] ?? []
                     return (
-                      <div key={i} className={cn('relative flex-1 min-w-0 border-l border-slate-100',
-                        isToday && 'bg-emerald-50/30')}
+                      <div key={i} className={cn(
+                          'relative flex-1 min-w-0 border-l border-slate-200',
+                          isToday ? 'bg-emerald-50/40' : isWeekend ? 'bg-slate-50/50' : '',
+                        )}
                         style={{ height: totalHeight }}>
 
                         {/* Grid lines */}
                         {hours.map(h => (
                           <div key={h}>
-                            <div className="absolute left-0 right-0 border-t border-slate-100"
+                            <div className="absolute left-0 right-0 border-t border-slate-200"
                               style={{ top: (h - startHour) * HOUR_HEIGHT }} />
-                            <div className="absolute left-0 right-0 border-t border-slate-50"
+                            <div className="absolute left-0 right-0 border-t border-dashed border-slate-100"
                               style={{ top: (h - startHour) * HOUR_HEIGHT + HOUR_HEIGHT / 2 }} />
                           </div>
                         ))}
+
+                        {/* Current time indicator */}
+                        {isToday && nowLine !== null && (
+                          <div className="absolute left-0 right-0 z-20 pointer-events-none"
+                            style={{ top: nowLine }}>
+                            <div className="absolute -left-1 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-emerald-500" />
+                            <div className="h-[2px] bg-emerald-400 ml-1" />
+                          </div>
+                        )}
 
                         {/* Appointments */}
                         {dayAppts.map(appt => {
@@ -308,10 +341,10 @@ export default function ClientAppointments() {
                               )}
                               style={{ top: top + 1, minHeight: HOUR_HEIGHT / 2 - 2 }}>
                               <p className="text-[11px] font-semibold truncate leading-tight">
-                                {appt.patient_name} | {time}
+                                {appt.patient_name} · {time}
                               </p>
                               <p className="text-[10px] truncate opacity-60 leading-tight mt-0.5">
-                                {appt.specialty}{appt.doctor_name ? ` | ${appt.doctor_name}` : ''}
+                                {appt.specialty}{appt.doctor_name ? ` · ${appt.doctor_name}` : ''}
                               </p>
                             </div>
                           )
