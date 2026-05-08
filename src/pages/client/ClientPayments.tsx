@@ -17,7 +17,7 @@ const PLANS = [
     key: 'starter',
     name: 'Essencial',
     price_monthly: 299.90,
-    description: 'Focado no profissional autônomo que precisa automatizar a agenda e o preparo do paciente.',
+    description: 'Para o profissional autônomo automatizar agenda e atendimento.',
     highlight: false,
     badge: null,
     features: [
@@ -33,7 +33,7 @@ const PLANS = [
     key: 'pro',
     name: 'Pro',
     price_monthly: 449.90,
-    description: 'Para clínicas em crescimento que precisam de mais volume e mais atendentes simultâneos.',
+    description: 'Mais volume e atendentes para clínicas em crescimento.',
     highlight: true,
     badge: 'Mais Popular',
     features: [
@@ -49,7 +49,7 @@ const PLANS = [
     key: 'clinic',
     name: 'Max',
     price_monthly: 849.90,
-    description: 'Para clínicas de alto volume que exigem capacidade máxima e suporte ampliado.',
+    description: 'Alta capacidade e suporte ampliado para clínicas de grande volume.',
     highlight: false,
     badge: null,
     features: [
@@ -98,31 +98,19 @@ export default function ClientPayments() {
 
           {/* Top row */}
           <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-3">
-              <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">
-                Plano Ativo
-              </span>
-              <span className="text-xs text-slate-500 font-medium bg-slate-800 px-2.5 py-1 rounded-full">
-                {org.conversations_used} de {org.max_conversations_month} conversas usadas
-              </span>
-            </div>
+            <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">
+              Plano Ativo
+            </span>
             <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center">
               <Zap className="w-4 h-4 text-emerald-400" />
             </div>
           </div>
 
-          {/* Plan name + price */}
+          {/* Plan name + usage */}
           <div className="flex items-end justify-between gap-4 flex-wrap">
-            <div>
-              <h2 className="text-4xl font-black text-white uppercase tracking-tight leading-none mb-2">
-                {planMeta.label}
-              </h2>
-              <div className="flex items-baseline gap-1">
-                <span className="text-white font-bold text-base">R$</span>
-                <span className="text-white font-black text-2xl">{fmt(planMeta.price)}</span>
-                <span className="text-slate-500 text-sm font-medium">/mês</span>
-              </div>
-            </div>
+            <h2 className="text-4xl font-black text-white uppercase tracking-tight leading-none">
+              {planMeta.label}
+            </h2>
 
             {/* Usage counter */}
             <div className="text-right">
@@ -197,9 +185,9 @@ export default function ClientPayments() {
             <div
               key={plan.key}
               className={cn(
-                'relative flex flex-col rounded-[2rem] p-6',
+                'relative flex flex-col rounded-[2rem] px-6 py-8',
                 plan.highlight
-                  ? 'bg-[#111111] text-white shadow-2xl md:-mx-1 md:py-8 z-10'
+                  ? 'bg-[#111111] text-white shadow-2xl md:-mx-1 md:py-10 z-10'
                   : 'bg-white border border-slate-100 shadow-[0px_4px_24px_rgba(0,0,0,0.05)]',
               )}
             >
