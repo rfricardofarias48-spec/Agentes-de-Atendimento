@@ -147,7 +147,7 @@ export default function ClientAppointments() {
 
   const todayKey = dayKey(new Date())
   const rangeLabel = (() => {
-    const end = addDays(startDate, calDays - 1)
+    const end = addDays(startDate, 6)
     const f = (d: Date) => d.toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' })
     return `${f(startDate)} – ${f(end)}`
   })()
