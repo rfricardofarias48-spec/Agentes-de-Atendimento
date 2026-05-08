@@ -250,7 +250,7 @@ export default function ClientAppointments() {
                 <div className="flex w-full relative" style={{ height: TOTAL_HEIGHT }}>
 
                   {/* Time labels column */}
-                  <div className="shrink-0 bg-white border-r border-slate-100"
+                  <div className="relative shrink-0 bg-white border-r border-slate-100"
                     style={{ width: TIME_COL_W, minWidth: TIME_COL_W }}>
                     {HOURS.map(h => (
                       <div key={h} className="absolute right-3 flex items-start justify-end"
