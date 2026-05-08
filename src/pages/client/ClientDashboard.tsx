@@ -86,7 +86,7 @@ export default function ClientDashboard() {
       {/* ── Header ──────────────────────────────────────────────────────────── */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">Olá, {org?.name ?? '—'}</h1>
+          <h1 className="text-xl font-bold text-gray-900">Olá, {org?.name ?? '—'} ✦</h1>
           <p className="text-sm text-gray-400 mt-0.5">Veja o que está acontecendo na sua clínica</p>
         </div>
 
@@ -196,7 +196,9 @@ export default function ClientDashboard() {
         {/* Plan Progress */}
         <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm flex flex-col gap-5">
           <div>
-            <p className="text-sm font-semibold text-gray-700">Plano de Conversas</p>
+            <p className="text-sm font-semibold text-gray-700">
+              Meu Plano{org?.plan ? ` (${org.plan.charAt(0).toUpperCase() + org.plan.slice(1)})` : ''}
+            </p>
             <p className="text-xs text-gray-400 mt-0.5">
               {org?.conversations_used ?? 0} de {org?.max_conversations_month ?? 0} utilizadas
             </p>
