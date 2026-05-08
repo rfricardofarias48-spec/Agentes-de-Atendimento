@@ -36,7 +36,7 @@ export default function ClientLayout({ children, orgName }: ClientLayoutProps) {
 
       {/* Logo / brand */}
       <div className="flex items-center gap-3 px-5 py-5 border-b border-slate-100">
-        <div className="w-8 h-8 bg-black rounded-xl flex items-center justify-center shadow-sm">
+        <div className="w-8 h-8 bg-slate-600 rounded-xl flex items-center justify-center shadow-sm">
           <Bot className="w-4 h-4 text-emerald-400" />
         </div>
         <div className="min-w-0">
@@ -57,7 +57,7 @@ export default function ClientLayout({ children, orgName }: ClientLayoutProps) {
               className={cn(
                 'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all duration-150',
                 active
-                  ? 'bg-slate-900 text-white shadow-sm'
+                  ? 'bg-slate-600 text-white shadow-sm'
                   : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
               )}
             >

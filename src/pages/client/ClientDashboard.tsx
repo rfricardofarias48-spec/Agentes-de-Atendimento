@@ -96,8 +96,8 @@ export default function ClientDashboard() {
         <div className="flex items-center gap-4">
           {/* Avatar com offset sombra (Elevva style) */}
           <div className="relative shrink-0 group cursor-default">
-            <div className="absolute inset-0 bg-emerald-500 rounded-lg translate-x-1 translate-y-1 transition-transform duration-300 group-hover:translate-x-1.5 group-hover:translate-y-1.5" />
-            <div className="w-9 h-9 bg-black rounded-lg relative flex items-center justify-center text-white text-sm font-black border-2 border-black z-10 shadow-sm">
+            <div className="absolute inset-0 bg-emerald-400 rounded-lg translate-x-1 translate-y-1 transition-transform duration-300 group-hover:translate-x-1.5 group-hover:translate-y-1.5" />
+            <div className="w-9 h-9 bg-slate-600 rounded-lg relative flex items-center justify-center text-white text-sm font-black border-2 border-slate-600 z-10 shadow-sm">
               {avatarLetter}
             </div>
           </div>
@@ -117,7 +117,7 @@ export default function ClientDashboard() {
               className={cn(
                 'px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all duration-150',
                 period === key
-                  ? 'bg-slate-900 text-white shadow-sm'
+                  ? 'bg-slate-600 text-white shadow-sm'
                   : 'text-slate-400 hover:text-slate-700'
               )}
             >
@@ -157,11 +157,11 @@ export default function ClientDashboard() {
           <span className="text-5xl font-black text-[#0f172a] tracking-tighter leading-none">{filtered.completed}</span>
         </div>
 
-        {/* Cancelamentos — dark card (Elevva "Horas Salvas" style) */}
-        <div className="bg-zinc-900 p-6 rounded-[2rem] border border-zinc-800 shadow-[0px_4px_20px_rgba(0,0,0,0.02)] hover:shadow-[0px_4px_25px_rgba(0,0,0,0.05)] transition-all">
+        {/* Cancelamentos — gray card */}
+        <div className="bg-slate-600 p-6 rounded-[2rem] border border-slate-500 shadow-[0px_4px_20px_rgba(0,0,0,0.02)] hover:shadow-[0px_4px_25px_rgba(0,0,0,0.05)] transition-all">
           <div className="flex items-center justify-between mb-4">
-            <p className="text-[11px] font-black text-zinc-400 uppercase tracking-widest">Cancelamentos</p>
-            <XCircle className="w-5 h-5 text-emerald-500" />
+            <p className="text-[11px] font-black text-slate-300 uppercase tracking-widest">Cancelamentos</p>
+            <XCircle className="w-5 h-5 text-slate-300" />
           </div>
           <div className="flex items-baseline gap-1">
             <span className="text-5xl font-black text-white tracking-tighter leading-none">{filtered.cancelled}</span>
@@ -218,19 +218,19 @@ export default function ClientDashboard() {
           )}
         </div>
 
-        {/* Meu Plano — dark card (Elevva "Plano Atual" style) */}
-        <div className="bg-[#0a0a0a] p-6 rounded-[2rem] relative overflow-hidden flex flex-col justify-between shadow-xl lg:col-span-1">
+        {/* Meu Plano — gray card */}
+        <div className="bg-slate-700 p-6 rounded-[2rem] relative overflow-hidden flex flex-col justify-between shadow-[0px_4px_20px_rgba(0,0,0,0.08)] lg:col-span-1">
           <div className="relative z-10">
-            <p className="text-[11px] font-black text-zinc-500 uppercase tracking-widest mb-3">PLANO ATUAL</p>
+            <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-3">PLANO ATUAL</p>
             <h3 className="text-4xl font-black text-white mb-2 tracking-tighter">{planName}</h3>
-            <p className="text-zinc-400 text-sm font-medium">
+            <p className="text-slate-300 text-sm font-medium">
               {org?.conversations_used ?? 0} de {org?.max_conversations_month ?? 0} conversas utilizadas
             </p>
           </div>
 
           {/* Barra de uso */}
           <div className="relative z-10 mt-5">
-            <div className="w-full h-1.5 bg-zinc-800 rounded-full overflow-hidden mb-4">
+            <div className="w-full h-1.5 bg-slate-500 rounded-full overflow-hidden mb-4">
               <div
                 className="h-full rounded-full transition-all duration-700"
                 style={{
