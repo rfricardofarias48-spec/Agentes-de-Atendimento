@@ -96,16 +96,15 @@ export default function ClientDashboard() {
         <div className="flex items-center gap-4">
           {/* Avatar com offset sombra (Elevva style) */}
           <div className="relative shrink-0 group cursor-default">
-            <div className="absolute inset-0 bg-emerald-500 rounded-xl translate-x-1 translate-y-1 transition-transform duration-300 group-hover:translate-x-1.5 group-hover:translate-y-1.5" />
-            <div className="w-12 h-12 bg-black rounded-xl relative flex items-center justify-center text-white text-lg font-black border-2 border-black z-10 shadow-sm">
+            <div className="absolute inset-0 bg-emerald-500 rounded-lg translate-x-1 translate-y-1 transition-transform duration-300 group-hover:translate-x-1.5 group-hover:translate-y-1.5" />
+            <div className="w-9 h-9 bg-black rounded-lg relative flex items-center justify-center text-white text-sm font-black border-2 border-black z-10 shadow-sm">
               {avatarLetter}
             </div>
           </div>
           <div>
-            <h1 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tighter leading-none">
-              Olá, {firstName} ✦
+            <h1 className="text-xl font-black text-slate-900 tracking-tighter leading-none">
+              Olá, {firstName}
             </h1>
-            <p className="text-sm text-slate-400 font-medium mt-0.5">Veja o resumo da sua clínica</p>
           </div>
         </div>
 
