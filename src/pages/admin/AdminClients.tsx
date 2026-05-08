@@ -21,7 +21,7 @@ const planFilter = ['todos', 'starter', 'pro', 'clinic'] as const
 type PlanFilter = typeof planFilter[number]
 
 const PLAN_LABELS: Record<PlanFilter, string> = {
-  todos: 'Todos', starter: 'Starter', pro: 'Pro', clinic: 'Clinic',
+  todos: 'Todos', starter: 'Essencial', pro: 'Pro', clinic: 'Max',
 }
 
 const CARD: React.CSSProperties = {

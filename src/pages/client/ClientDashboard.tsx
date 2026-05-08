@@ -20,9 +20,9 @@ const statusColors: Record<string, 'success' | 'secondary' | 'warning' | 'destru
 }
 
 const PLAN_LABEL: Record<string, string> = {
-  starter: 'Starter',
+  starter: 'Essencial',
   pro:     'Pro',
-  clinic:  'Clinic',
+  clinic:  'Max',
 }
 
 function getPeriodStart(period: Period): Date {

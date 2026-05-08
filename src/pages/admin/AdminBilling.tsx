@@ -3,7 +3,7 @@ import { Wallet, CreditCard, PieChart, TrendingUp, Activity } from 'lucide-react
 import { supabase } from '../../lib/supabase'
 import { type Organization } from '../../types'
 
-const PLAN_PRICES: Record<string, number> = { starter: 397, pro: 797, clinic: 1497 }
+const PLAN_PRICES: Record<string, number> = { starter: 299.90, pro: 449.90, clinic: 849.90 }
 const MONTHS = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez']
 
 type FinanceTab = 'geral' | 'historico'
@@ -245,9 +245,9 @@ export default function AdminBilling() {
               </div>
               <div className="space-y-3">
                 {[
-                  { label: 'Starter',  count: starterCount, color: '#94a3b8' },
+                  { label: 'Essencial', count: starterCount, color: '#94a3b8' },
                   { label: 'Pro',      count: proCount,     color: '#3b82f6' },
-                  { label: 'Clinic',   count: clinicCount,  color: '#10b981' },
+                  { label: 'Max',      count: clinicCount,  color: '#10b981' },
                 ].map(p => (
                   <div key={p.label} className="flex items-center gap-3">
                     <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: p.color }} />
@@ -410,9 +410,9 @@ export default function AdminBilling() {
               </h3>
               <div className="space-y-5">
                 {[
-                  { label: 'Starter', price: 'R$ 397,00/mês', count: histSales.filter(s => s.plan === 'starter').length, color: '#94a3b8' },
-                  { label: 'Pro',     price: 'R$ 797,00/mês', count: histSales.filter(s => s.plan === 'pro').length,     color: '#3b82f6' },
-                  { label: 'Clinic',  price: 'R$ 1.497,00/mês', count: histSales.filter(s => s.plan === 'clinic').length, color: '#10b981' },
+                  { label: 'Essencial', price: 'R$ 299,90/mês', count: histSales.filter(s => s.plan === 'starter').length, color: '#94a3b8' },
+                  { label: 'Pro',       price: 'R$ 449,90/mês', count: histSales.filter(s => s.plan === 'pro').length,     color: '#3b82f6' },
+                  { label: 'Max',       price: 'R$ 849,90/mês', count: histSales.filter(s => s.plan === 'clinic').length,  color: '#10b981' },
                 ].map(p => (
                   <div key={p.label}>
                     <div className="flex justify-between items-end mb-2">

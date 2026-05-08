@@ -16,7 +16,7 @@ const statusBadge: Record<string, string> = {
   inactive:  'bg-slate-100 text-slate-500',
   suspended: 'bg-red-50 text-red-600',
 }
-const PLAN_MRR: Record<string, number> = { starter: 397, pro: 797, clinic: 1497 }
+const PLAN_MRR: Record<string, number> = { starter: 299.90, pro: 449.90, clinic: 849.90 }
 
 const CARD: React.CSSProperties = {
   background: '#ffffff',
@@ -130,9 +130,9 @@ export default function AdminDashboard() {
           </div>
           <div className="mt-4 space-y-2.5">
             {[
-              { label: 'Starter', count: starterCount, color: '#94a3b8' },
+              { label: 'Essencial', count: starterCount, color: '#94a3b8' },
               { label: 'Pro',     count: proCount,     color: '#3b82f6' },
-              { label: 'Clinic',  count: clinicCount,  color: '#10b981' },
+              { label: 'Max',     count: clinicCount,  color: '#10b981' },
             ].map(({ label, count, color }) => (
               <div key={label} className="flex items-center justify-between">
                 <div className="flex items-center gap-2">

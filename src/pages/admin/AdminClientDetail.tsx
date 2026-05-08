@@ -23,7 +23,7 @@ interface Service {
 const plans: OrgPlan[] = ['starter', 'pro', 'clinic']
 const statuses: OrgStatus[] = ['active', 'trial', 'inactive', 'suspended']
 const maxConvByPlan: Record<OrgPlan, number> = { starter: 600, pro: 2000, clinic: 999999 }
-const PLAN_PRICES: Record<OrgPlan, number> = { starter: 397, pro: 797, clinic: 1497 }
+const PLAN_PRICES: Record<OrgPlan, number> = { starter: 299.90, pro: 449.90, clinic: 849.90 }
 
 const CARD_STYLE: React.CSSProperties = {
   background: '#ffffff',

@@ -25,9 +25,9 @@ export function formatDateShort(date: string) {
 
 export function planLabel(plan: string) {
   const labels: Record<string, string> = {
-    starter: 'Starter',
+    starter: 'Essencial',
     pro: 'Pro',
-    clinic: 'Clínica',
+    clinic: 'Max',
   }
   return labels[plan] ?? plan
 }
