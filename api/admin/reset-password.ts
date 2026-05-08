@@ -26,8 +26,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (profile?.user_id) {
     userId = profile.user_id;
   } else if (email) {
-    const { data: { users } } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
-    const found = users.find(u => u.email?.toLowerCase() === email.toLowerCase());
+    const { data: usersData } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
+    const found = (usersData?.users ?? []).find((u: { email?: string; id: string }) => u.email?.toLowerCase() === email.toLowerCase());
     if (found) userId = found.id;
   }
 

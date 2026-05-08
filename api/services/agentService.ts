@@ -312,7 +312,7 @@ Responda sempre em português brasileiro. Seja conciso — máximo 3 parágrafos
 
     for (const tc of toolCalls) {
       if (tc.type !== 'function') continue;
-      const fn = (tc as OpenAI.Chat.ChatCompletionMessageToolCall).function;
+      const fn = (tc as { type: 'function'; function: { name: string; arguments: string } }).function;
       const args = JSON.parse(fn.arguments) as Record<string, unknown>;
       const result = await executeTool(fn.name, args, org.id, phone, conv as Conversation, org, settings);
 
