@@ -10,7 +10,7 @@ const navItems = [
   { href: '/dashboard',              label: 'Visão Geral',   icon: LayoutDashboard },
   { href: '/dashboard/appointments', label: 'Agendamentos',  icon: Calendar },
   { href: '/dashboard/training',     label: 'Treinamento',   icon: BookOpen },
-  { href: '/dashboard/payments',     label: 'Pagamentos',    icon: CreditCard },
+  { href: '/dashboard/payments',     label: 'Minha Assinatura', icon: CreditCard },
   { href: '/dashboard/settings',     label: 'Configurações', icon: Settings },
 ]
 
