@@ -31,72 +31,6 @@ function getPeriodStart(period: Period): Date {
   return new Date(now.getFullYear(), now.getMonth(), 1)
 }
 
-// ── SVG Area Chart ────────────────────────────────────────────────────────────
-function ActivityChart({ bins, labels }: { bins: number[]; labels: string[] }) {
-  const max = Math.max(...bins, 1)
-  const W = 500, H = 120, PAD = 8
-
-  const pts = bins.map((v, i) => ({
-    x: bins.length < 2 ? W / 2 : PAD + (i / (bins.length - 1)) * (W - PAD * 2),
-    y: PAD + (1 - v / max) * (H - PAD * 2),
-  }))
-
-  const linePath = pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ')
-  const areaPath = `${linePath} L${pts[pts.length - 1].x.toFixed(1)},${H} L${pts[0].x.toFixed(1)},${H} Z`
-
-  // Show only ~6 labels evenly spaced
-  const stride = Math.max(1, Math.ceil(labels.length / 6))
-  const visibleLabels = labels.map((l, i) => ({ l, i, show: i % stride === 0 || i === labels.length - 1 }))
-
-  return (
-    <div className="w-full">
-      <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-28" preserveAspectRatio="none">
-        <defs>
-          <linearGradient id="chartFill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#10b981" stopOpacity="0.18" />
-            <stop offset="100%" stopColor="#10b981" stopOpacity="0" />
-          </linearGradient>
-        </defs>
-        <path d={areaPath} fill="url(#chartFill)" />
-        <path d={linePath} fill="none" stroke="#10b981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
-        {pts.map((p, i) => (
-          <circle key={i} cx={p.x} cy={p.y} r="3" fill="white" stroke="#10b981" strokeWidth="2" vectorEffect="non-scaling-stroke" />
-        ))}
-      </svg>
-      <div className="flex justify-between mt-1 px-1">
-        {visibleLabels.filter(v => v.show).map(({ l, i }) => (
-          <span key={i} className="text-[10px] text-gray-400">{l}</span>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-// ── SVG Donut Chart ───────────────────────────────────────────────────────────
-function DonutChart({ slices }: { slices: { value: number; color: string }[] }) {
-  const total = slices.reduce((s, d) => s + d.value, 0) || 1
-  const R = 38, CX = 50, CY = 50, C = 2 * Math.PI * R
-  let offset = 0
-  return (
-    <svg viewBox="0 0 100 100" className="w-28 h-28 -rotate-90">
-      <circle cx={CX} cy={CY} r={R} fill="none" stroke="#f3f4f6" strokeWidth="14" />
-      {slices.map(({ value, color }, i) => {
-        const dash = (value / total) * C
-        const el = (
-          <circle key={i} cx={CX} cy={CY} r={R} fill="none"
-            stroke={color} strokeWidth="14"
-            strokeDasharray={`${dash} ${C - dash}`}
-            strokeDashoffset={-offset}
-            strokeLinecap="butt"
-          />
-        )
-        offset += dash
-        return el
-      })}
-    </svg>
-  )
-}
-
 // ── Main Component ────────────────────────────────────────────────────────────
 export default function ClientDashboard() {
   const { orgId } = useAuth()
@@ -133,31 +67,9 @@ export default function ClientDashboard() {
       appointments: appts.length,
       completed: appts.filter(a => a.status === 'completed').length,
       cancelled: appts.filter(a => a.status === 'cancelled').length,
-      scheduled: appts.filter(a => a.status === 'scheduled' || a.status === 'confirmed').length,
       recentAppts: appts.slice(0, 6),
-      convsList: convs,
     }
   }, [appointments, conversations, period])
-
-  // Build daily bins for the activity chart
-  const chartData = useMemo(() => {
-    const start = getPeriodStart(period)
-    const days = period === 'day' ? 1 : period === 'week' ? 7 : 30
-    const bins: number[] = []
-    const labels: string[] = []
-    for (let i = 0; i < days; i++) {
-      const d = new Date(start)
-      d.setDate(d.getDate() + i)
-      const next = new Date(d)
-      next.setDate(next.getDate() + 1)
-      bins.push(filtered.convsList.filter(c => {
-        const t = new Date(c.started_at)
-        return t >= d && t < next
-      }).length)
-      labels.push(String(d.getDate()))
-    }
-    return { bins, labels }
-  }, [filtered.convsList, period])
 
   const usagePct = org ? Math.min(100, (org.conversations_used / org.max_conversations_month) * 100) : 0
   const periodLabel = period === 'day' ? 'hoje' : period === 'week' ? 'últimos 7 dias' : 'este mês'
@@ -236,59 +148,6 @@ export default function ClientDashboard() {
             <p className="text-xs text-gray-400 mt-1.5 leading-tight">{label}</p>
           </div>
         ))}
-      </div>
-
-      {/* ── Activity Chart + Status ──────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
-
-        {/* Activity area chart */}
-        <div className="lg:col-span-2 bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
-          <div className="flex items-start justify-between mb-1">
-            <div>
-              <p className="text-sm font-semibold text-gray-700">Atividade de Conversas</p>
-              <p className="text-3xl font-bold text-gray-900 mt-0.5 tabular-nums">{filtered.conversations}</p>
-            </div>
-            <span className="text-xs text-gray-400 bg-gray-50 px-2.5 py-1 rounded-lg">{periodLabel}</span>
-          </div>
-          <div className="mt-5">
-            <ActivityChart bins={chartData.bins} labels={chartData.labels} />
-          </div>
-        </div>
-
-        {/* Status breakdown */}
-        <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm flex flex-col">
-          <p className="text-sm font-semibold text-gray-700 mb-4">Status dos Agendamentos</p>
-
-          <div className="flex flex-col items-center gap-5 flex-1 justify-center">
-            <div className="relative">
-              <DonutChart slices={[
-                { value: filtered.completed, color: '#10b981' },
-                { value: filtered.cancelled, color: '#fb7185' },
-                { value: filtered.scheduled, color: '#818cf8' },
-              ]} />
-              <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className="text-xl font-bold text-gray-900 tabular-nums">{filtered.appointments}</span>
-                <span className="text-[9px] text-gray-400 font-medium uppercase tracking-wide">total</span>
-              </div>
-            </div>
-
-            <div className="w-full space-y-2.5">
-              {[
-                { label: 'Realizadas', value: filtered.completed,  color: 'bg-emerald-500' },
-                { label: 'Cancelados', value: filtered.cancelled,  color: 'bg-rose-400' },
-                { label: 'Agendados',  value: filtered.scheduled,  color: 'bg-indigo-400' },
-              ].map(({ label, value, color }) => (
-                <div key={label} className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className={cn('w-2 h-2 rounded-full', color)} />
-                    <span className="text-xs text-gray-500">{label}</span>
-                  </div>
-                  <span className="text-xs font-bold text-gray-800 tabular-nums">{value}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
       </div>
 
       {/* ── Appointments Table + Plan ────────────────────────────────────────── */}
