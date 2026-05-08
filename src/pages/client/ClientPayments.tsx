@@ -220,20 +220,19 @@ export default function ClientPayments() {
 
               {/* Price */}
               <div className="mb-1">
-                <div className="flex items-baseline gap-0.5">
-                  <span className={cn('text-lg font-bold', plan.highlight ? 'text-white' : 'text-gray-900')}>
-                    R$&nbsp;
-                  </span>
+                <div className="flex items-baseline gap-1">
                   <span className={cn('text-5xl font-black tracking-tighter', plan.highlight ? 'text-white' : 'text-gray-900')}>
-                    {fmt(price)}
+                    R$ {fmt(price)}
+                  </span>
+                  <span className={cn('text-base font-medium', plan.highlight ? 'text-slate-400' : 'text-slate-400')}>
+                    /mês
                   </span>
                 </div>
-                <div className="flex items-center gap-2 mt-0.5">
-                  <span className={cn('text-sm', plan.highlight ? 'text-slate-400' : 'text-slate-400')}>/mês</span>
-                  {annual && (
-                    <span className="text-xs text-slate-400 line-through">R$ {fmt(plan.price_monthly)}</span>
-                  )}
-                </div>
+                {annual && (
+                  <p className="text-sm font-medium text-emerald-500 mt-0.5">
+                    Cobrado como R$ {fmt(price * 12)}/ano
+                  </p>
+                )}
               </div>
 
               {/* Description */}
