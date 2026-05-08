@@ -259,17 +259,20 @@ export default function AdminClientDetail() {
         .from('organizations').insert(payload).select().single()
       if (error) { alert('Erro ao criar usuário: ' + error.message); setSaving(false); return }
 
-      // 2. Criar usuário no Auth
+      // 2. Criar usuário no Auth (server-side — requer service role)
       if (newEmail && newPassword && newOrg) {
-        const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-          email: newEmail, password: newPassword, email_confirm: true,
+        const { data: { session } } = await supabase.auth.getSession()
+        const userRes = await fetch('/api/admin/create-user', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+          },
+          body: JSON.stringify({ orgId: newOrg.id, email: newEmail, password: newPassword }),
         })
-        if (authError) {
-          alert('Aviso: Organização criada, mas erro ao criar acesso: ' + authError.message)
-        } else if (authData.user) {
-          await supabase.from('user_profiles').insert({
-            user_id: authData.user.id, org_id: newOrg.id, role: 'client',
-          })
+        const userData = await userRes.json() as { ok?: boolean; error?: string }
+        if (!userData.ok) {
+          alert('Aviso: Organização criada, mas erro ao criar acesso: ' + (userData.error ?? 'desconhecido'))
         }
       }
 

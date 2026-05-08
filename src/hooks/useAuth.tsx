@@ -30,6 +30,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (data) {
       setRole(data.role)
       setOrgId(data.org_id)
+    } else {
+      // Sem perfil vinculado — mantém role null, ProtectedRoute vai redirecionar ao login
+      setRole(null)
+      setOrgId(null)
     }
   }
 

@@ -12,14 +12,19 @@ export default function ProtectedRoute({ children, requiredRole }: ProtectedRout
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+      <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--c-bg)' }}>
+        <div className="w-6 h-6 border-2 border-slate-200 border-t-emerald-500 rounded-full animate-spin" />
       </div>
     )
   }
 
+  // Sem sessão → login
   if (!session) return <Navigate to="/login" replace />
 
+  // Sessão existe mas sem perfil vinculado → volta ao login com aviso
+  if (!role) return <Navigate to="/login" replace />
+
+  // Role errada → redireciona para a área correta
   if (requiredRole && role !== requiredRole) {
     return <Navigate to={role === 'admin' ? '/admin' : '/dashboard'} replace />
   }
