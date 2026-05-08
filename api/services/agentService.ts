@@ -32,10 +32,13 @@ interface Organization {
   agent_tone: 'formal' | 'friendly';
 }
 
-interface SpecialtyPdf {
-  specialty: string;
-  pdf_url: string;
-  pdf_name: string;
+interface Service {
+  id: string;
+  name: string;
+  description: string;
+  price: string;
+  pdf_url: string | null;
+  pdf_name: string | null;
 }
 
 interface AgentSettings {
@@ -45,7 +48,7 @@ interface AgentSettings {
   specialties: string[];
   working_hours: Record<string, unknown> | null;
   custom_instructions: string | null;
-  specialty_pdfs: SpecialtyPdf[] | null;
+  services: Service[] | null;
 }
 
 interface Conversation {
@@ -154,18 +157,18 @@ async function executeTool(
 
       if (error) return 'Não foi possível registrar o agendamento no momento. Tente novamente.';
 
-      // Envia PDF de orientações da especialidade (fire-and-forget)
+      // Envia PDF do serviço correspondente (fire-and-forget)
       const specialty = String(args.specialty || '');
-      const pdfEntry = settings.specialty_pdfs?.find(
-        p => p.specialty.toLowerCase() === specialty.toLowerCase(),
+      const svcEntry = settings.services?.find(
+        s => s.name.toLowerCase() === specialty.toLowerCase(),
       );
-      if (pdfEntry?.pdf_url) {
+      if (svcEntry?.pdf_url) {
         sendDocument(
           org.evolution_instance,
           phone,
-          pdfEntry.pdf_url,
-          pdfEntry.pdf_name || 'orientacoes-pre-consulta.pdf',
-          `📋 Orientações pré-consulta — ${pdfEntry.specialty}`,
+          svcEntry.pdf_url,
+          svcEntry.pdf_name || 'orientacoes-pre-consulta.pdf',
+          `📋 Orientações pré-consulta — ${svcEntry.name}`,
           org.evolution_token,
         ).catch(() => { /* best-effort */ });
       }
@@ -267,9 +270,11 @@ export async function processMessage(
 
   // 3. Monta system prompt
   const tone = settings.tone === 'formal' ? 'formal e profissional' : 'amigável e acolhedor';
-  const specialtiesStr = settings.specialties?.length
-    ? `Especialidades disponíveis: ${settings.specialties.join(', ')}.`
-    : '';
+  const servicesStr = settings.services?.length
+    ? `Serviços disponíveis:\n${settings.services.map(s => `- ${s.name}${s.price ? ` (R$ ${s.price})` : ''}${s.description ? `: ${s.description}` : ''}`).join('\n')}`
+    : settings.specialties?.length
+      ? `Especialidades disponíveis: ${settings.specialties.join(', ')}.`
+      : '';
   const memoriesStr = memories.length
     ? `\n\nInformações que você sabe sobre este paciente:\n${memories.map(m => `- ${m}`).join('\n')}`
     : '';
@@ -279,7 +284,7 @@ export async function processMessage(
     : '';
 
   const systemPrompt = `Você é ${settings.agent_name}, assistente de atendimento da clínica.
-Seu tom é ${tone}. ${specialtiesStr}
+Seu tom é ${tone}. ${servicesStr}
 Você ajuda pacientes a: agendar consultas, consultar agendamentos, cancelar consultas e esclarecer dúvidas.
 Quando não conseguir resolver, escale para um atendente humano.
 Responda sempre em português brasileiro. Seja conciso — máximo 3 parágrafos curtos.${customInstructions}${memoriesStr}`;
@@ -393,7 +398,7 @@ export async function getOrgByInstance(instanceName: string): Promise<{
 
   const { data: settings } = await supabase
     .from('agent_settings')
-    .select('agent_name, greeting_message, tone, specialties, working_hours, custom_instructions, specialty_pdfs')
+    .select('agent_name, greeting_message, tone, specialties, working_hours, custom_instructions, services')
     .eq('org_id', org.id)
     .single();
 
@@ -406,7 +411,7 @@ export async function getOrgByInstance(instanceName: string): Promise<{
       specialties: [],
       working_hours: null,
       custom_instructions: null,
-      specialty_pdfs: null,
+      services: null,
     },
   };
 }

@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft, Save, Trash2, Wifi, WifiOff, RefreshCw,
   CheckCircle2, XCircle, Loader2, Zap, KeyRound,
-  Bot, Settings2, Upload, Plus, X, FileText,
+  Bot, Settings2, Upload, Plus, X, FileText, DollarSign,
 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { type Organization, type OrgPlan, type OrgStatus } from '../../types'
@@ -11,7 +11,14 @@ import { planLabel, statusLabel, formatDate } from '../../lib/utils'
 
 interface SetupStep { id: string; label: string; ok: boolean; detail: string }
 interface SetupResult { steps: SetupStep[]; webhookUrl?: string }
-interface SpecialtyPdf { specialty: string; pdf_url: string; pdf_name: string }
+interface Service {
+  id: string
+  name: string
+  description: string
+  price: string
+  pdf_url: string | null
+  pdf_name: string | null
+}
 
 const plans: OrgPlan[] = ['starter', 'pro', 'clinic']
 const statuses: OrgStatus[] = ['active', 'trial', 'inactive', 'suspended']
@@ -106,9 +113,9 @@ export default function AdminClientDetail() {
   const [agentGreeting, setAgentGreeting] = useState('')
   const [agentTone, setAgentTone] = useState<'friendly' | 'formal'>('friendly')
   const [agentInstructions, setAgentInstructions] = useState('')
-  const [specialties, setSpecialties] = useState<string[]>([])
-  const [specialtyPdfs, setSpecialtyPdfs] = useState<SpecialtyPdf[]>([])
-  const [newSpecialty, setNewSpecialty] = useState('')
+  const [services, setServices] = useState<Service[]>([])
+  const [showAddService, setShowAddService] = useState(false)
+  const [newService, setNewService] = useState({ name: '', description: '', price: '' })
   const [savingAgent, setSavingAgent] = useState(false)
   const [agentMsg, setAgentMsg] = useState<{ ok: boolean; text: string } | null>(null)
   const [uploadingPdf, setUploadingPdf] = useState<string | null>(null)
@@ -129,8 +136,7 @@ export default function AdminClientDetail() {
           setAgentGreeting(settings.greeting_message || '')
           setAgentTone(settings.tone === 'formal' ? 'formal' : 'friendly')
           setAgentInstructions(settings.custom_instructions || '')
-          setSpecialties(settings.specialties || [])
-          setSpecialtyPdfs(settings.specialty_pdfs || [])
+          setServices(settings.services || [])
         }
         setLoading(false)
       })
@@ -259,9 +265,9 @@ export default function AdminClientDetail() {
       agent_name: agentName,
       greeting_message: agentGreeting,
       tone: agentTone,
-      specialties,
+      specialties: services.map(s => s.name),
       custom_instructions: agentInstructions,
-      specialty_pdfs: specialtyPdfs,
+      services,
     }
     const { error } = agentId
       ? await supabase.from('agent_settings').update(payload).eq('id', agentId)
@@ -278,20 +284,26 @@ export default function AdminClientDetail() {
     setSavingAgent(false)
   }
 
-  function addSpecialty() {
-    const s = newSpecialty.trim()
-    if (!s || specialties.includes(s)) return
-    setSpecialties(prev => [...prev, s])
-    setNewSpecialty('')
+  function addService() {
+    if (!newService.name.trim()) return
+    setServices(prev => [...prev, {
+      id: crypto.randomUUID(),
+      name: newService.name.trim(),
+      description: newService.description.trim(),
+      price: newService.price.trim(),
+      pdf_url: null,
+      pdf_name: null,
+    }])
+    setNewService({ name: '', description: '', price: '' })
+    setShowAddService(false)
   }
 
-  function removeSpecialty(s: string) {
-    setSpecialties(prev => prev.filter(x => x !== s))
-    setSpecialtyPdfs(prev => prev.filter(x => x.specialty !== s))
+  function removeService(serviceId: string) {
+    setServices(prev => prev.filter(s => s.id !== serviceId))
   }
 
-  function triggerPdfUpload(specialty: string) {
-    setUploadTarget(specialty)
+  function triggerPdfUpload(serviceId: string) {
+    setUploadTarget(serviceId)
     fileInputRef.current?.click()
   }
 
@@ -302,7 +314,7 @@ export default function AdminClientDetail() {
 
     setUploadingPdf(uploadTarget)
     try {
-      const slug = uploadTarget.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
+      const slug = uploadTarget
       const path = `${id}/${slug}.pdf`
       const { error: upErr } = await supabase.storage
         .from('specialty-pdfs')
@@ -312,19 +324,17 @@ export default function AdminClientDetail() {
 
       const { data: { publicUrl } } = supabase.storage.from('specialty-pdfs').getPublicUrl(path)
 
-      setSpecialtyPdfs(prev => {
-        const existing = prev.find(p => p.specialty === uploadTarget)
-        if (existing) return prev.map(p => p.specialty === uploadTarget ? { ...p, pdf_url: publicUrl, pdf_name: file.name } : p)
-        return [...prev, { specialty: uploadTarget, pdf_url: publicUrl, pdf_name: file.name }]
-      })
+      setServices(prev => prev.map(s =>
+        s.id === uploadTarget ? { ...s, pdf_url: publicUrl, pdf_name: file.name } : s
+      ))
     } finally {
       setUploadingPdf(null)
       setUploadTarget(null)
     }
   }
 
-  function removePdf(specialty: string) {
-    setSpecialtyPdfs(prev => prev.filter(p => p.specialty !== specialty))
+  function removePdf(serviceId: string) {
+    setServices(prev => prev.map(s => s.id === serviceId ? { ...s, pdf_url: null, pdf_name: null } : s))
   }
 
   // ── Render helpers ────────────────────────────────────────────
@@ -683,80 +693,144 @@ export default function AdminClientDetail() {
 
             {/* Coluna direita */}
             <div className="space-y-6">
-              <Card title="Orientações Pré-Consulta por Especialidade">
-                <p className="text-xs text-zinc-400 -mt-2">
-                  Ao confirmar um agendamento, o PDF da especialidade é enviado automaticamente ao paciente via WhatsApp.
-                </p>
+              {/* Serviços */}
+              <div className="bg-white rounded-[1.75rem] border border-zinc-100 shadow-sm p-6 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-black text-zinc-900 text-sm uppercase tracking-wider">Serviços</p>
+                    <p className="text-xs text-zinc-400 mt-0.5">Ao confirmar um agendamento, o PDF do serviço é enviado automaticamente ao paciente.</p>
+                  </div>
+                  <button
+                    onClick={() => { setShowAddService(true); setNewService({ name: '', description: '', price: '' }) }}
+                    className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-zinc-900 text-white text-xs font-bold hover:bg-zinc-800 transition-colors shrink-0"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    Novo Serviço
+                  </button>
+                </div>
 
-                {/* Lista de especialidades */}
-                {specialties.length > 0 ? (
+                {/* Formulário inline */}
+                {showAddService && (
+                  <div className="border-2 border-dashed border-zinc-200 rounded-2xl p-4 space-y-3 bg-zinc-50/50">
+                    <p className="text-xs font-black text-zinc-500 uppercase tracking-wider">Novo Serviço</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[10px] font-black text-zinc-400 uppercase tracking-wider mb-1">Nome *</label>
+                        <input
+                          type="text"
+                          value={newService.name}
+                          onChange={e => setNewService(s => ({ ...s, name: e.target.value }))}
+                          placeholder="Consulta Cardiologia"
+                          className="w-full px-3 py-2 rounded-xl border border-zinc-200 text-sm bg-white text-zinc-800 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
+                          autoFocus
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-black text-zinc-400 uppercase tracking-wider mb-1">Preço</label>
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-zinc-400 font-bold">R$</span>
+                          <input
+                            type="text"
+                            value={newService.price}
+                            onChange={e => setNewService(s => ({ ...s, price: e.target.value }))}
+                            placeholder="150,00"
+                            className="w-full pl-8 pr-3 py-2 rounded-xl border border-zinc-200 text-sm bg-white text-zinc-800 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-black text-zinc-400 uppercase tracking-wider mb-1">Descrição</label>
+                      <input
+                        type="text"
+                        value={newService.description}
+                        onChange={e => setNewService(s => ({ ...s, description: e.target.value }))}
+                        placeholder="Consulta com cardiologista, inclui eletrocardiograma"
+                        className="w-full px-3 py-2 rounded-xl border border-zinc-200 text-sm bg-white text-zinc-800 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
+                      />
+                    </div>
+                    <div className="flex gap-2 pt-1">
+                      <button
+                        onClick={addService}
+                        disabled={!newService.name.trim()}
+                        className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-zinc-900 text-white text-sm font-bold hover:bg-zinc-800 disabled:opacity-50 transition-colors"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        Adicionar
+                      </button>
+                      <button
+                        onClick={() => setShowAddService(false)}
+                        className="px-4 py-2 rounded-xl border border-zinc-200 text-sm font-bold text-zinc-500 hover:bg-zinc-50 transition-colors"
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Lista de serviços */}
+                {services.length > 0 ? (
                   <div className="space-y-2">
-                    {specialties.map(s => {
-                      const pdf = specialtyPdfs.find(p => p.specialty === s)
-                      const isUploading = uploadingPdf === s
+                    {services.map(svc => {
+                      const isUploading = uploadingPdf === svc.id
                       return (
-                        <div key={s} className="flex items-center gap-3 p-3 rounded-xl bg-zinc-50 border border-zinc-100">
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-bold text-zinc-800">{s}</p>
-                            {pdf ? (
-                              <div className="flex items-center gap-1.5 mt-0.5">
-                                <FileText className="w-3 h-3 text-green-500 shrink-0" />
-                                <p className="text-[11px] text-green-600 font-medium truncate">{pdf.pdf_name}</p>
+                        <div key={svc.id} className="rounded-2xl border border-zinc-100 bg-zinc-50/50 overflow-hidden">
+                          <div className="flex items-start gap-3 p-4">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <p className="text-sm font-bold text-zinc-900">{svc.name}</p>
+                                {svc.price && (
+                                  <span className="flex items-center gap-0.5 text-[11px] font-black text-green-700 bg-green-50 px-2 py-0.5 rounded-full">
+                                    <DollarSign className="w-2.5 h-2.5" />
+                                    R$ {svc.price}
+                                  </span>
+                                )}
                               </div>
-                            ) : (
-                              <p className="text-[11px] text-zinc-400 mt-0.5">Nenhum PDF</p>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-2 shrink-0">
-                            <button
-                              onClick={() => triggerPdfUpload(s)}
-                              disabled={isUploading}
-                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-zinc-200 text-xs font-bold text-zinc-600 hover:bg-white transition-colors disabled:opacity-50"
-                            >
-                              {isUploading
-                                ? <Loader2 className="w-3 h-3 animate-spin" />
-                                : <Upload className="w-3 h-3" />}
-                              {isUploading ? 'Enviando...' : pdf ? 'Trocar' : 'Upload PDF'}
-                            </button>
-                            {pdf && (
-                              <button onClick={() => removePdf(s)} className="p-1.5 rounded-lg text-zinc-400 hover:text-red-500 hover:bg-red-50 transition-colors">
-                                <X className="w-3.5 h-3.5" />
+                              {svc.description && (
+                                <p className="text-xs text-zinc-500 mt-0.5">{svc.description}</p>
+                              )}
+                              <div className="flex items-center gap-1.5 mt-2">
+                                {svc.pdf_url ? (
+                                  <div className="flex items-center gap-1.5">
+                                    <FileText className="w-3 h-3 text-green-500 shrink-0" />
+                                    <span className="text-[11px] text-green-600 font-medium truncate max-w-[180px]">{svc.pdf_name}</span>
+                                  </div>
+                                ) : (
+                                  <span className="text-[11px] text-zinc-400">Sem PDF</span>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <button
+                                onClick={() => triggerPdfUpload(svc.id)}
+                                disabled={isUploading}
+                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-zinc-200 text-xs font-bold text-zinc-600 bg-white hover:border-zinc-300 transition-colors disabled:opacity-50"
+                              >
+                                {isUploading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}
+                                {isUploading ? 'Enviando...' : svc.pdf_url ? 'Trocar PDF' : 'Anexar PDF'}
                               </button>
-                            )}
-                            <button onClick={() => removeSpecialty(s)} className="p-1.5 rounded-lg text-zinc-300 hover:text-red-400 hover:bg-red-50 transition-colors">
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
+                              {svc.pdf_url && (
+                                <button onClick={() => removePdf(svc.id)} title="Remover PDF" className="p-1.5 rounded-lg text-zinc-400 hover:text-orange-500 hover:bg-orange-50 transition-colors">
+                                  <X className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                              <button onClick={() => removeService(svc.id)} title="Remover serviço" className="p-1.5 rounded-lg text-zinc-300 hover:text-red-500 hover:bg-red-50 transition-colors">
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
                           </div>
                         </div>
                       )
                     })}
                   </div>
-                ) : (
-                  <div className="text-center py-6 border-2 border-dashed border-zinc-200 rounded-2xl">
+                ) : !showAddService && (
+                  <div className="text-center py-8 border-2 border-dashed border-zinc-200 rounded-2xl">
                     <FileText className="w-8 h-8 mx-auto mb-2 text-zinc-300" />
-                    <p className="text-sm text-zinc-400 font-medium">Nenhuma especialidade cadastrada</p>
+                    <p className="text-sm text-zinc-400 font-medium">Nenhum serviço cadastrado</p>
+                    <p className="text-xs text-zinc-300 mt-1">Clique em "Novo Serviço" para começar</p>
                   </div>
                 )}
-
-                {/* Adicionar especialidade */}
-                <div className="flex gap-2 pt-1">
-                  <input
-                    type="text"
-                    value={newSpecialty}
-                    onChange={e => setNewSpecialty(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && addSpecialty()}
-                    placeholder="Ex: Cardiologia, Ortopedia..."
-                    className="flex-1 px-3.5 py-2 rounded-xl border border-zinc-200 text-sm bg-white text-zinc-800 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
-                  />
-                  <button
-                    onClick={addSpecialty}
-                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-zinc-900 text-white text-sm font-bold hover:bg-zinc-800 transition-colors"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Adicionar
-                  </button>
-                </div>
-              </Card>
+              </div>
             </div>
           </div>
 
