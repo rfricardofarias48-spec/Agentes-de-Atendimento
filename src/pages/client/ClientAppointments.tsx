@@ -145,7 +145,7 @@ export default function ClientAppointments() {
       status: form.status,
     })
     setSaving(false)
-    if (error) { setFormError('Erro ao salvar. Tente novamente.'); return }
+    if (error) { console.error('appointments insert error:', error); setFormError(`Erro: ${error.message}`); return }
     closeModal(); fetchAppointments()
   }
 
