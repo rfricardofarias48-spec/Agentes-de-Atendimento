@@ -1,10 +1,20 @@
-import { useState } from 'react'
-import { Check } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Check, Zap } from 'lucide-react'
+import { supabase } from '../../lib/supabase'
+import { useAuth } from '../../hooks/useAuth'
+import { type Organization } from '../../types'
 import { cn } from '../../lib/utils'
+
+// ── Plan metadata ──────────────────────────────────────────────
+const PLAN_META: Record<string, { label: string; price: number }> = {
+  starter: { label: 'Essencial', price: 299.90 },
+  pro:     { label: 'Pro',       price: 449.90 },
+  clinic:  { label: 'Max',       price: 849.90 },
+}
 
 const PLANS = [
   {
-    key: 'essencial',
+    key: 'starter',
     name: 'Essencial',
     price_monthly: 299.90,
     description: 'Focado no profissional autônomo que precisa automatizar a agenda e o preparo do paciente.',
@@ -36,7 +46,7 @@ const PLANS = [
     cta: 'Assinar Pro',
   },
   {
-    key: 'max',
+    key: 'clinic',
     name: 'Max',
     price_monthly: 849.90,
     description: 'Para clínicas de alto volume que exigem capacidade máxima e suporte ampliado.',
@@ -55,12 +65,23 @@ const PLANS = [
 
 const DISCOUNT = 0.20
 
-function fmt(value: number) {
-  return value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+function fmt(v: number) {
+  return v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
 export default function ClientPayments() {
+  const { orgId } = useAuth()
+  const [org, setOrg] = useState<Organization | null>(null)
   const [annual, setAnnual] = useState(false)
+
+  useEffect(() => {
+    if (!orgId) return
+    supabase.from('organizations').select('*').eq('id', orgId).single()
+      .then(({ data }) => { if (data) setOrg(data) })
+  }, [orgId])
+
+  const planMeta = org ? (PLAN_META[org.plan] ?? { label: org.plan, price: 0 }) : null
+  const usagePct = org ? Math.min(100, (org.conversations_used / org.max_conversations_month) * 100) : 0
 
   return (
     <div className="space-y-8">
@@ -71,7 +92,75 @@ export default function ClientPayments() {
         <p className="text-sm text-gray-500">Escolha o plano ideal para a sua clínica</p>
       </div>
 
-      {/* Billing toggle — equal ao da referência */}
+      {/* ── Active Plan Banner ──────────────────────────────────── */}
+      {org && planMeta && (
+        <div className="bg-[#111111] rounded-[1.75rem] px-8 py-7 relative overflow-hidden">
+
+          {/* Top row */}
+          <div className="flex items-center justify-between mb-5">
+            <div className="flex items-center gap-3">
+              <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">
+                Plano Ativo
+              </span>
+              <span className="text-xs text-slate-500 font-medium bg-slate-800 px-2.5 py-1 rounded-full">
+                {org.conversations_used} de {org.max_conversations_month} conversas usadas
+              </span>
+            </div>
+            <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center">
+              <Zap className="w-4 h-4 text-emerald-400" />
+            </div>
+          </div>
+
+          {/* Plan name + price */}
+          <div className="flex items-end justify-between gap-4 flex-wrap">
+            <div>
+              <h2 className="text-4xl font-black text-white uppercase tracking-tight leading-none mb-2">
+                {planMeta.label}
+              </h2>
+              <div className="flex items-baseline gap-1">
+                <span className="text-white font-bold text-base">R$</span>
+                <span className="text-white font-black text-2xl">{fmt(planMeta.price)}</span>
+                <span className="text-slate-500 text-sm font-medium">/mês</span>
+              </div>
+            </div>
+
+            {/* Usage counter */}
+            <div className="text-right">
+              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">
+                Conversas este mês
+              </p>
+              <p className="text-2xl font-black text-white">
+                {org.conversations_used}
+                <span className="text-slate-500 text-base font-medium"> / {org.max_conversations_month}</span>
+              </p>
+            </div>
+          </div>
+
+          {/* Progress bar */}
+          <div className="mt-5">
+            <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+              <div
+                className="h-full rounded-full transition-all duration-700"
+                style={{
+                  width: `${usagePct}%`,
+                  background: usagePct > 80 ? '#f43f5e' : '#4ade80',
+                }}
+              />
+            </div>
+          </div>
+
+          {/* Decorative glow */}
+          <div className="absolute -right-16 -bottom-16 w-48 h-48 bg-emerald-500 rounded-full blur-[80px] opacity-10 pointer-events-none" />
+        </div>
+      )}
+
+      {/* ── Plans Available ─────────────────────────────────────── */}
+      <div className="flex items-center gap-2">
+        <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Planos Disponíveis</span>
+        <div className="flex-1 h-px bg-slate-100" />
+      </div>
+
+      {/* Billing toggle */}
       <div className="flex justify-center">
         <div className="flex items-center bg-white border border-slate-200 rounded-2xl p-1 shadow-sm">
           <button
@@ -98,11 +187,11 @@ export default function ClientPayments() {
         </div>
       </div>
 
-      {/* Plans */}
+      {/* Plans grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5 items-center">
         {PLANS.map(plan => {
-          const monthly = plan.price_monthly
-          const price = annual ? monthly * (1 - DISCOUNT) : monthly
+          const price = annual ? plan.price_monthly * (1 - DISCOUNT) : plan.price_monthly
+          const isCurrent = org?.plan === plan.key
 
           return (
             <div
@@ -133,20 +222,16 @@ export default function ClientPayments() {
               <div className="mb-1">
                 <div className="flex items-baseline gap-0.5">
                   <span className={cn('text-lg font-bold', plan.highlight ? 'text-white' : 'text-gray-900')}>
-                    R$
+                    R$&nbsp;
                   </span>
                   <span className={cn('text-5xl font-black tracking-tighter', plan.highlight ? 'text-white' : 'text-gray-900')}>
-                    &nbsp;{fmt(price)}
+                    {fmt(price)}
                   </span>
                 </div>
                 <div className="flex items-center gap-2 mt-0.5">
-                  <span className={cn('text-sm', plan.highlight ? 'text-slate-400' : 'text-slate-400')}>
-                    /mês
-                  </span>
+                  <span className={cn('text-sm', plan.highlight ? 'text-slate-400' : 'text-slate-400')}>/mês</span>
                   {annual && (
-                    <span className="text-xs text-slate-400 line-through">
-                      R$ {fmt(monthly)}
-                    </span>
+                    <span className="text-xs text-slate-400 line-through">R$ {fmt(plan.price_monthly)}</span>
                   )}
                 </div>
               </div>
@@ -160,10 +245,7 @@ export default function ClientPayments() {
               <ul className="space-y-3 flex-1 mb-8">
                 {plan.features.map((f, i) => (
                   <li key={i} className="flex items-start gap-3">
-                    <span className={cn(
-                      'mt-0.5 w-[18px] h-[18px] shrink-0 rounded-md flex items-center justify-center',
-                      plan.highlight ? 'bg-emerald-400' : 'bg-emerald-400',
-                    )}>
+                    <span className="mt-0.5 w-[18px] h-[18px] shrink-0 rounded-md bg-emerald-400 flex items-center justify-center">
                       <Check className="w-3 h-3 text-gray-900" strokeWidth={3} />
                     </span>
                     <span className={cn('text-sm leading-snug', plan.highlight ? 'text-slate-200' : 'text-slate-600')}>
@@ -173,14 +255,19 @@ export default function ClientPayments() {
                 ))}
               </ul>
 
-              {/* CTA button */}
-              <button className={cn(
-                'w-full py-3.5 rounded-2xl font-bold text-sm transition-all',
-                plan.highlight
-                  ? 'bg-emerald-400 text-gray-900 hover:bg-emerald-300 active:bg-emerald-500'
-                  : 'border border-slate-200 text-gray-900 bg-white hover:bg-slate-50 hover:border-slate-300',
-              )}>
-                {plan.cta}
+              {/* CTA */}
+              <button
+                disabled={isCurrent}
+                className={cn(
+                  'w-full py-3.5 rounded-2xl font-bold text-sm transition-all',
+                  isCurrent
+                    ? 'bg-emerald-400/20 text-emerald-600 cursor-default border border-emerald-400/30'
+                    : plan.highlight
+                      ? 'bg-emerald-400 text-gray-900 hover:bg-emerald-300 active:bg-emerald-500'
+                      : 'border border-slate-200 text-gray-900 bg-white hover:bg-slate-50 hover:border-slate-300',
+                )}
+              >
+                {isCurrent ? 'Plano Atual' : plan.cta}
               </button>
             </div>
           )
