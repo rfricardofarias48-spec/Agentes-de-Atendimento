@@ -114,6 +114,9 @@ export default function AdminClientDetail() {
   const [newEmail, setNewEmail] = useState('')
   const [newPassword, setNewPassword] = useState('')
 
+  // Email do usuário vinculado (edição)
+  const [linkedEmail, setLinkedEmail] = useState<string | null>(null)
+
   // Evolution connection
   const [connectionStatus, setConnectionStatus] = useState<'unknown' | 'open' | 'connecting' | 'close'>('unknown')
   const [checkingConn, setCheckingConn] = useState(false)
@@ -150,7 +153,8 @@ export default function AdminClientDetail() {
       Promise.all([
         supabase.from('organizations').select('*').eq('id', id).single(),
         supabase.from('agent_settings').select('*').eq('org_id', id).single(),
-      ]).then(([{ data: orgData }, { data: settings }]) => {
+        fetch(`/api/admin/get-org-user?orgId=${id}`).then(r => r.json()),
+      ]).then(([{ data: orgData }, { data: settings }, userInfo]) => {
         if (orgData) setOrg(orgData)
         if (settings) {
           setAgentId(settings.id)
@@ -160,6 +164,7 @@ export default function AdminClientDetail() {
           setAgentInstructions(settings.custom_instructions || '')
           setServices(settings.services || [])
         }
+        setLinkedEmail((userInfo as { email?: string }).email ?? null)
         setLoading(false)
       })
     }
@@ -527,6 +532,16 @@ export default function AdminClientDetail() {
             <div className="space-y-6">
 
               <Card title="Dados da Clínica">
+                {!isNew && (
+                  <Field label="E-mail de acesso">
+                    <div
+                      className="flex items-center gap-2 px-3.5 py-2.5 rounded-[0.625rem] text-sm"
+                      style={{ background: '#f9fafb', border: '1px solid #e4e7ec', color: linkedEmail ? '#344054' : '#98a2b3' }}
+                    >
+                      {linkedEmail ?? 'Nenhum usuário vinculado'}
+                    </div>
+                  </Field>
+                )}
                 <div className="grid grid-cols-2 gap-4">
                   <Field label="Nome da Clínica">
                     <TextInput value={org.name ?? ''} onChange={v => setOrg(o => ({ ...o, name: v }))} placeholder="Clínica São Lucas" />
