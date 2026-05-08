@@ -10,7 +10,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
 import { configureWebhook, getConnectionStatus } from '../services/evolutionService.js';
-import { configureChatwootOnEvolution, createChatwootAccount } from '../services/chatwootService.js';
+import { configureChatwootOnEvolution } from '../services/chatwootService.js';
 
 const supabase = createClient(
   process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || '',
@@ -80,42 +80,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       : 'Falha ao configurar webhook — verifique o token da instância',
   });
 
-  // ── 3. Chatwoot — criar conta automaticamente se não existir ─────────────
-  let chatwootAccountId: number | null = org.chatwoot_account_id ?? null;
-  let chatwootToken: string | null = org.chatwoot_token ?? null;
-
-  if (!chatwootAccountId || !chatwootToken) {
-    const account = await createChatwootAccount(org.name);
-    if (account) {
-      chatwootAccountId = account.accountId;
-      chatwootToken = account.token;
-      await supabase.from('organizations').update({
-        chatwoot_account_id: account.accountId,
-        chatwoot_token: account.token,
-      }).eq('id', orgId);
-      steps.push({
-        id: 'chatwoot_create',
-        label: 'Conta Chatwoot criada',
-        ok: true,
-        detail: `Conta #${account.accountId} criada automaticamente`,
-      });
-    } else {
-      steps.push({
-        id: 'chatwoot_create',
-        label: 'Criar conta Chatwoot',
-        ok: false,
-        detail: 'Falha ao criar conta — verifique CHATWOOT_ADMIN_TOKEN nas variáveis de ambiente',
-      });
-    }
-  }
-
-  // ── 4. Integrar Chatwoot na Evolution ────────────────────────────────────
-  if (chatwootAccountId && chatwootToken) {
+  // ── 3. Integrar Chatwoot na Evolution (se dados preenchidos) ────────────
+  if (org.chatwoot_account_id && org.chatwoot_token) {
     const chatwootOk = await configureChatwootOnEvolution(
       org.evolution_instance,
       org.evolution_token || process.env.EVOLUTION_API_KEY || '',
-      chatwootAccountId,
-      chatwootToken,
+      org.chatwoot_account_id,
+      org.chatwoot_token,
       org.chatwoot_inbox_id ?? undefined,
       org.name,
     );
@@ -124,7 +95,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       label: 'Integração Chatwoot ↔ Evolution',
       ok: chatwootOk,
       detail: chatwootOk
-        ? `Conta #${chatwootAccountId} integrada à instância ${org.evolution_instance}`
+        ? `Conta #${org.chatwoot_account_id} integrada à instância ${org.evolution_instance}`
         : 'Falha ao integrar — verifique CHATWOOT_URL e credenciais',
     });
   } else {
@@ -132,7 +103,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       id: 'chatwoot',
       label: 'Integração Chatwoot',
       ok: false,
-      detail: 'Dados do Chatwoot indisponíveis — configure manualmente',
+      detail: 'Dados do Chatwoot não preenchidos — preencha Account ID e Token e rode o setup novamente',
     });
   }
 
