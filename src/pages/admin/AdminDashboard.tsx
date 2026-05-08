@@ -6,28 +6,23 @@ import { type Organization } from '../../types'
 import { planLabel, statusLabel, formatDateShort } from '../../lib/utils'
 
 const planBadge: Record<string, string> = {
-  starter: 'bg-slate-800 text-slate-400',
-  pro:     'bg-blue-500/[0.12] text-blue-400',
-  clinic:  'bg-emerald-500/[0.12] text-emerald-400',
+  starter: 'bg-slate-100 text-slate-600',
+  pro:     'bg-blue-50 text-blue-600',
+  clinic:  'bg-emerald-50 text-emerald-700',
 }
 const statusBadge: Record<string, string> = {
-  active:    'bg-emerald-500/[0.12] text-emerald-400',
-  trial:     'bg-amber-500/[0.12] text-amber-400',
-  inactive:  'bg-slate-800 text-slate-500',
-  suspended: 'bg-red-500/[0.12] text-red-400',
+  active:    'bg-emerald-50 text-emerald-700',
+  trial:     'bg-amber-50 text-amber-700',
+  inactive:  'bg-slate-100 text-slate-500',
+  suspended: 'bg-red-50 text-red-600',
 }
 const PLAN_MRR: Record<string, number> = { starter: 397, pro: 797, clinic: 1497 }
 
-const S = {
-  card: {
-    background: '#0c0e1a',
-    border: '1px solid rgba(255,255,255,0.06)',
-    borderRadius: '1.125rem',
-  } as React.CSSProperties,
-  row: {
-    borderBottom: '1px solid rgba(255,255,255,0.03)',
-  } as React.CSSProperties,
-  th: 'text-left py-3 px-5 text-[10px] font-bold text-slate-600 uppercase tracking-widest font-body',
+const CARD: React.CSSProperties = {
+  background: '#ffffff',
+  border: '1px solid #e4e7ec',
+  borderRadius: '1rem',
+  boxShadow: '0 1px 3px rgba(16,24,40,0.06)',
 }
 
 export default function AdminDashboard() {
@@ -39,23 +34,23 @@ export default function AdminDashboard() {
       .then(({ data }) => { setOrgs(data ?? []); setLoading(false) })
   }, [])
 
-  const activeOrgs  = orgs.filter(o => o.status === 'active')
-  const mrr         = activeOrgs.reduce((s, o) => s + (PLAN_MRR[o.plan] ?? 0), 0)
-  const totalConvs  = orgs.reduce((s, o) => s + (o.conversations_used ?? 0), 0)
+  const activeOrgs   = orgs.filter(o => o.status === 'active')
+  const mrr          = activeOrgs.reduce((s, o) => s + (PLAN_MRR[o.plan] ?? 0), 0)
+  const totalConvs   = orgs.reduce((s, o) => s + (o.conversations_used ?? 0), 0)
   const starterCount = orgs.filter(o => o.plan === 'starter').length
-  const proCount    = orgs.filter(o => o.plan === 'pro').length
-  const clinicCount = orgs.filter(o => o.plan === 'clinic').length
+  const proCount     = orgs.filter(o => o.plan === 'pro').length
+  const clinicCount  = orgs.filter(o => o.plan === 'clinic').length
 
   return (
-    <div className="space-y-7 animate-fade-up pb-8">
+    <div className="space-y-6 animate-fade-up pb-8">
 
       {/* Header */}
       <div className="flex items-end justify-between">
         <div>
-          <h1 className="font-display text-[2rem] font-bold text-white tracking-tight leading-none">
+          <h1 className="text-2xl font-bold tracking-tight" style={{ color: '#101828' }}>
             Visão Geral
           </h1>
-          <p className="text-slate-500 text-sm font-body mt-2 capitalize">
+          <p className="text-sm mt-1 capitalize" style={{ color: '#98a2b3' }}>
             {new Date().toLocaleDateString('pt-BR', { weekday:'long', day:'numeric', month:'long', year:'numeric' })}
           </p>
         </div>
@@ -72,77 +67,79 @@ export default function AdminDashboard() {
 
         {/* MRR */}
         <div
-          className="col-span-2 lg:col-span-1 relative overflow-hidden rounded-[1.125rem] p-6 animate-fade-up"
+          className="col-span-2 lg:col-span-1 relative overflow-hidden rounded-2xl p-6 animate-fade-up"
           style={{
-            background: 'linear-gradient(135deg,#091f18 0%,#061610 100%)',
-            border: '1px solid rgba(16,185,129,0.15)',
-            boxShadow: '0 0 36px rgba(16,185,129,0.07)',
+            background: 'linear-gradient(135deg,#065f46 0%,#047857 100%)',
+            border: '1px solid #059669',
+            boxShadow: '0 4px 16px rgba(5,150,105,0.25)',
           }}
         >
-          <div className="absolute -top-6 -right-6 w-28 h-28 rounded-full pointer-events-none"
-            style={{ background: 'radial-gradient(circle, rgba(16,185,129,0.18) 0%, transparent 70%)' }} />
+          <div className="absolute -top-6 -right-6 w-28 h-28 rounded-full pointer-events-none opacity-20"
+            style={{ background: 'radial-gradient(circle,#ffffff 0%,transparent 70%)' }} />
           <div className="relative">
             <div className="flex items-center gap-2 mb-3">
-              <TrendingUp className="w-3.5 h-3.5 text-emerald-500" />
-              <p className="text-[10px] font-bold text-emerald-700 uppercase tracking-widest font-body">MRR Estimado</p>
+              <TrendingUp className="w-3.5 h-3.5 text-emerald-200" />
+              <p className="text-[10px] font-bold text-emerald-200 uppercase tracking-widest">MRR Estimado</p>
             </div>
-            <p className="font-display text-[1.85rem] font-bold text-white leading-none">
+            <p className="text-[1.75rem] font-bold text-white leading-none">
               R$ {mrr.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
             </p>
             <div className="mt-3 pt-3 flex items-center justify-between"
-              style={{ borderTop: '1px solid rgba(16,185,129,0.1)' }}>
-              <span className="text-[10px] text-emerald-800 font-bold uppercase font-body">ARR</span>
-              <span className="text-sm font-bold text-emerald-400 font-body">
-                R$ {(mrr * 12 / 1000).toFixed(1)}k
-              </span>
+              style={{ borderTop: '1px solid rgba(255,255,255,0.15)' }}>
+              <span className="text-[10px] text-emerald-300 font-semibold uppercase">ARR</span>
+              <span className="text-sm font-bold text-white">R$ {(mrr * 12 / 1000).toFixed(1)}k</span>
             </div>
           </div>
         </div>
 
         {/* Ativos */}
-        <div className="rounded-[1.125rem] p-6 flex flex-col justify-between animate-fade-up" style={S.card}>
+        <div className="rounded-2xl p-6 flex flex-col justify-between animate-fade-up" style={CARD}>
           <div className="flex items-center justify-between">
-            <p className="text-[10px] font-bold text-slate-600 uppercase tracking-widest font-body">Ativos</p>
-            <Users className="w-3.5 h-3.5 text-slate-700" />
+            <p className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: '#98a2b3' }}>Ativos</p>
+            <div className="w-7 h-7 rounded-lg bg-slate-50 flex items-center justify-center">
+              <Users className="w-3.5 h-3.5 text-slate-400" />
+            </div>
           </div>
           <div className="mt-4">
-            <p className="font-display text-[2.2rem] font-bold text-white leading-none">{activeOrgs.length}</p>
-            <p className="text-[11px] text-slate-600 font-body mt-1.5">{orgs.length} total</p>
+            <p className="text-[2.1rem] font-bold leading-none" style={{ color: '#101828' }}>{activeOrgs.length}</p>
+            <p className="text-xs mt-1.5 font-medium" style={{ color: '#98a2b3' }}>{orgs.length} total</p>
           </div>
         </div>
 
         {/* Conversas */}
-        <div className="rounded-[1.125rem] p-6 flex flex-col justify-between animate-fade-up" style={S.card}>
+        <div className="rounded-2xl p-6 flex flex-col justify-between animate-fade-up" style={CARD}>
           <div className="flex items-center justify-between">
-            <p className="text-[10px] font-bold text-slate-600 uppercase tracking-widest font-body">Conversas</p>
-            <MessageSquare className="w-3.5 h-3.5 text-slate-700" />
+            <p className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: '#98a2b3' }}>Conversas</p>
+            <div className="w-7 h-7 rounded-lg bg-slate-50 flex items-center justify-center">
+              <MessageSquare className="w-3.5 h-3.5 text-slate-400" />
+            </div>
           </div>
           <div className="mt-4">
-            <p className="font-display text-[2.2rem] font-bold text-white leading-none">
-              {totalConvs.toLocaleString('pt-BR')}
-            </p>
-            <p className="text-[11px] text-slate-600 font-body mt-1.5">este mês</p>
+            <p className="text-[2.1rem] font-bold leading-none" style={{ color: '#101828' }}>{totalConvs.toLocaleString('pt-BR')}</p>
+            <p className="text-xs mt-1.5 font-medium" style={{ color: '#98a2b3' }}>este mês</p>
           </div>
         </div>
 
         {/* Planos */}
-        <div className="rounded-[1.125rem] p-6 flex flex-col justify-between animate-fade-up" style={S.card}>
+        <div className="rounded-2xl p-6 flex flex-col justify-between animate-fade-up" style={CARD}>
           <div className="flex items-center justify-between">
-            <p className="text-[10px] font-bold text-slate-600 uppercase tracking-widest font-body">Planos</p>
-            <BarChart3 className="w-3.5 h-3.5 text-slate-700" />
+            <p className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: '#98a2b3' }}>Planos</p>
+            <div className="w-7 h-7 rounded-lg bg-slate-50 flex items-center justify-center">
+              <BarChart3 className="w-3.5 h-3.5 text-slate-400" />
+            </div>
           </div>
           <div className="mt-4 space-y-2.5">
             {[
-              { label: 'Starter', count: starterCount, color: '#64748b' },
+              { label: 'Starter', count: starterCount, color: '#94a3b8' },
               { label: 'Pro',     count: proCount,     color: '#3b82f6' },
               { label: 'Clinic',  count: clinicCount,  color: '#10b981' },
             ].map(({ label, count, color }) => (
               <div key={label} className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: color }} />
-                  <span className="text-xs text-slate-500 font-body">{label}</span>
+                  <span className="text-xs" style={{ color: '#667085' }}>{label}</span>
                 </div>
-                <span className="text-xs font-bold text-slate-300 font-body tabular-nums">{count}</span>
+                <span className="text-xs font-semibold tabular-nums" style={{ color: '#344054' }}>{count}</span>
               </div>
             ))}
           </div>
@@ -150,15 +147,17 @@ export default function AdminDashboard() {
       </div>
 
       {/* Tabela */}
-      <div className="rounded-[1.125rem] overflow-hidden animate-fade-up" style={S.card}>
-        <div className="px-6 py-5 flex items-center justify-between"
-          style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+      <div className="rounded-2xl overflow-hidden animate-fade-up" style={CARD}>
+        <div
+          className="px-6 py-5 flex items-center justify-between"
+          style={{ borderBottom: '1px solid #f2f4f7' }}
+        >
           <div>
-            <p className="font-display font-bold text-white text-[15px]">Usuários Recentes</p>
-            <p className="text-xs text-slate-600 font-body mt-0.5">{orgs.length} cadastrados</p>
+            <p className="font-semibold text-[15px]" style={{ color: '#101828' }}>Usuários Recentes</p>
+            <p className="text-xs mt-0.5" style={{ color: '#98a2b3' }}>{orgs.length} cadastrados</p>
           </div>
           <Link to="/admin/clients">
-            <button className="flex items-center gap-1.5 text-xs font-semibold text-emerald-500 hover:text-emerald-400 transition-colors font-body">
+            <button className="flex items-center gap-1.5 text-xs font-semibold text-emerald-600 hover:text-emerald-700 transition-colors">
               Ver todos <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </Link>
@@ -166,31 +165,23 @@ export default function AdminDashboard() {
 
         {loading ? (
           <div className="flex justify-center py-14">
-            <div className="w-5 h-5 border-2 rounded-full animate-spin"
-              style={{ borderColor: 'rgba(255,255,255,0.08)', borderTopColor: '#10b981' }} />
+            <div className="w-5 h-5 border-2 border-slate-200 border-t-emerald-500 rounded-full animate-spin" />
           </div>
         ) : orgs.length === 0 ? (
           <div className="text-center py-14">
-            <Users className="w-9 h-9 mx-auto mb-3 text-slate-800" />
-            <p className="font-body text-slate-500 text-sm font-medium">Nenhum usuário ainda</p>
-            <Link to="/admin/clients/new">
-              <button className="btn-primary inline-flex items-center gap-2 px-4 py-2 text-sm mt-4">
-                <Plus className="w-3.5 h-3.5" />
-                Adicionar
-              </button>
-            </Link>
+            <Users className="w-9 h-9 mx-auto mb-3 text-slate-300" />
+            <p className="text-sm font-medium text-slate-400">Nenhum usuário ainda</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-                  <th className={S.th}>Clínica</th>
-                  <th className={S.th}>Plano</th>
-                  <th className={S.th}>Status</th>
-                  <th className={S.th}>Conversas</th>
-                  <th className={S.th}>Cadastro</th>
-                  <th className="py-3 px-5" />
+                <tr style={{ borderBottom: '1px solid #f2f4f7' }}>
+                  {['Clínica','Plano','Status','Conversas','Cadastro',''].map(h => (
+                    <th key={h} className="text-left py-3 px-5 text-[10px] font-semibold uppercase tracking-widest" style={{ color: '#98a2b3' }}>
+                      {h}
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
@@ -198,34 +189,35 @@ export default function AdminDashboard() {
                   <tr
                     key={org.id}
                     className="transition-colors duration-100 cursor-default"
-                    style={S.row}
-                    onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.018)')}
+                    style={{ borderBottom: '1px solid #f9fafb' }}
+                    onMouseEnter={e => (e.currentTarget.style.background = '#f9fafb')}
                     onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                   >
                     <td className="py-3.5 px-5">
-                      <p className="text-sm font-semibold text-slate-200 font-body">{org.name}</p>
-                      <p className="text-xs text-slate-600 font-body mt-0.5">{org.evolution_instance || org.slug}</p>
+                      <p className="text-sm font-semibold" style={{ color: '#344054' }}>{org.name}</p>
+                      <p className="text-xs mt-0.5" style={{ color: '#98a2b3' }}>{org.evolution_instance || org.slug}</p>
                     </td>
                     <td className="py-3.5 px-5">
-                      <span className={`inline-flex items-center px-2.5 py-[3px] rounded-full text-[10px] font-bold uppercase font-body ${planBadge[org.plan] ?? 'bg-slate-800 text-slate-500'}`}>
+                      <span className={`inline-flex items-center px-2.5 py-[3px] rounded-full text-[10px] font-semibold uppercase ${planBadge[org.plan] ?? 'bg-slate-100 text-slate-500'}`}>
                         {planLabel(org.plan)}
                       </span>
                     </td>
                     <td className="py-3.5 px-5">
-                      <span className={`inline-flex items-center px-2.5 py-[3px] rounded-full text-[10px] font-bold font-body ${statusBadge[org.status] ?? 'bg-slate-800 text-slate-500'}`}>
+                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-[3px] rounded-full text-[10px] font-semibold ${statusBadge[org.status] ?? 'bg-slate-100 text-slate-500'}`}>
+                        {org.status === 'active' && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />}
                         {statusLabel(org.status)}
                       </span>
                     </td>
-                    <td className="py-3.5 px-5 text-xs text-slate-500 font-body tabular-nums">
-                      <span className={((org.conversations_used ?? 0) / (org.max_conversations_month || 1)) > 0.8 ? 'text-red-400 font-bold' : 'text-slate-400'}>
+                    <td className="py-3.5 px-5 text-xs tabular-nums" style={{ color: '#667085' }}>
+                      <span className={((org.conversations_used ?? 0) / (org.max_conversations_month || 1)) > 0.8 ? 'text-red-500 font-semibold' : ''}>
                         {org.conversations_used ?? 0}
                       </span>
-                      <span className="text-slate-700">/{org.max_conversations_month}</span>
+                      <span style={{ color: '#d0d5dd' }}>/{org.max_conversations_month}</span>
                     </td>
-                    <td className="py-3.5 px-5 text-xs text-slate-600 font-body">{formatDateShort(org.created_at)}</td>
+                    <td className="py-3.5 px-5 text-xs" style={{ color: '#98a2b3' }}>{formatDateShort(org.created_at)}</td>
                     <td className="py-3.5 px-5">
                       <Link to={`/admin/clients/${org.id}`}>
-                        <button className="text-xs font-semibold text-slate-600 hover:text-emerald-400 transition-colors font-body">
+                        <button className="text-xs font-semibold text-slate-400 hover:text-emerald-600 transition-colors">
                           Detalhes →
                         </button>
                       </Link>

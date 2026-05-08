@@ -6,15 +6,15 @@ import { type Organization } from '../../types'
 import { planLabel, statusLabel, formatDateShort } from '../../lib/utils'
 
 const planBadge: Record<string, string> = {
-  starter: 'bg-slate-800 text-slate-400',
-  pro:     'bg-blue-500/[0.12] text-blue-400',
-  clinic:  'bg-emerald-500/[0.12] text-emerald-400',
+  starter: 'bg-slate-100 text-slate-600',
+  pro:     'bg-blue-50 text-blue-600',
+  clinic:  'bg-emerald-50 text-emerald-700',
 }
 const statusBadge: Record<string, string> = {
-  active:    'bg-emerald-500/[0.12] text-emerald-400',
-  trial:     'bg-amber-500/[0.12] text-amber-400',
-  inactive:  'bg-slate-800 text-slate-500',
-  suspended: 'bg-red-500/[0.12] text-red-400',
+  active:    'bg-emerald-50 text-emerald-700',
+  trial:     'bg-amber-50 text-amber-700',
+  inactive:  'bg-slate-100 text-slate-500',
+  suspended: 'bg-red-50 text-red-600',
 }
 
 const planFilter = ['todos', 'starter', 'pro', 'clinic'] as const
@@ -24,14 +24,11 @@ const PLAN_LABELS: Record<PlanFilter, string> = {
   todos: 'Todos', starter: 'Starter', pro: 'Pro', clinic: 'Clinic',
 }
 
-const S = {
-  card: {
-    background: '#0c0e1a',
-    border: '1px solid rgba(255,255,255,0.06)',
-    borderRadius: '1.125rem',
-  } as React.CSSProperties,
-  th: 'text-left py-3 px-5 text-[10px] font-bold text-slate-600 uppercase tracking-widest font-body',
-  row: { borderBottom: '1px solid rgba(255,255,255,0.03)' } as React.CSSProperties,
+const CARD: React.CSSProperties = {
+  background: '#ffffff',
+  border: '1px solid #e4e7ec',
+  borderRadius: '1.125rem',
+  boxShadow: '0 1px 3px rgba(16,24,40,0.06)',
 }
 
 export default function AdminClients() {
@@ -67,10 +64,10 @@ export default function AdminClients() {
       {/* Header */}
       <div className="flex items-end justify-between">
         <div>
-          <h1 className="font-display text-[2rem] font-bold text-white tracking-tight leading-none">
+          <h1 className="text-2xl font-bold tracking-tight" style={{ color: '#101828' }}>
             Usuários
           </h1>
-          <p className="text-slate-500 text-sm font-body mt-2">
+          <p className="text-sm mt-1" style={{ color: '#98a2b3' }}>
             Gerencie os clientes da plataforma
           </p>
         </div>
@@ -85,28 +82,31 @@ export default function AdminClients() {
       {/* Filtros */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
         {/* Plan tabs */}
-        <div className="flex items-center gap-1.5 p-1 rounded-xl"
-          style={{ background: '#0c0e1a', border: '1px solid rgba(255,255,255,0.06)' }}>
+        <div
+          className="flex items-center gap-1 p-1 rounded-xl"
+          style={{ background: '#f0f2f5', border: '1px solid #e4e7ec' }}
+        >
           {planFilter.map(p => (
             <button
               key={p}
               onClick={() => setPlanTab(p)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold font-body transition-all duration-150"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-150"
               style={planTab === p ? {
-                background: 'rgba(16,185,129,0.1)',
-                color: '#34d399',
-                border: '1px solid rgba(16,185,129,0.15)',
+                background: '#ffffff',
+                color: '#344054',
+                boxShadow: '0 1px 3px rgba(16,24,40,0.08)',
+                border: '1px solid #e4e7ec',
               } : {
-                color: '#475569',
+                color: '#98a2b3',
                 border: '1px solid transparent',
               }}
             >
               {PLAN_LABELS[p]}
               <span
-                className="inline-flex items-center justify-center w-4 h-4 rounded-md text-[10px] font-bold font-body tabular-nums"
+                className="inline-flex items-center justify-center w-4 h-4 rounded-md text-[10px] font-bold tabular-nums"
                 style={planTab === p
-                  ? { background: 'rgba(16,185,129,0.15)', color: '#34d399' }
-                  : { background: 'rgba(255,255,255,0.06)', color: '#475569' }
+                  ? { background: '#f0f2f5', color: '#344054' }
+                  : { background: 'rgba(0,0,0,0.04)', color: '#98a2b3' }
                 }
               >
                 {counts[p]}
@@ -117,7 +117,7 @@ export default function AdminClients() {
 
         {/* Search */}
         <div className="relative sm:ml-auto">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-600" />
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
           <input
             type="text"
             placeholder="Buscar clínica ou instância..."
@@ -129,29 +129,26 @@ export default function AdminClients() {
       </div>
 
       {/* Tabela */}
-      <div className="rounded-[1.125rem] overflow-hidden" style={S.card}>
+      <div className="rounded-[1.125rem] overflow-hidden" style={CARD}>
         {loading ? (
           <div className="flex justify-center py-14">
-            <div className="w-5 h-5 border-2 rounded-full animate-spin"
-              style={{ borderColor: 'rgba(255,255,255,0.08)', borderTopColor: '#10b981' }} />
+            <div className="w-5 h-5 border-2 border-slate-200 border-t-emerald-500 rounded-full animate-spin" />
           </div>
         ) : filtered.length === 0 ? (
           <div className="text-center py-16">
-            <Users className="w-9 h-9 mx-auto mb-3 text-slate-800" />
-            <p className="text-slate-500 font-body font-medium text-sm">Nenhum usuário encontrado</p>
+            <Users className="w-9 h-9 mx-auto mb-3 text-slate-300" />
+            <p className="text-sm font-medium text-slate-400">Nenhum usuário encontrado</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-                  <th className={S.th}>Clínica</th>
-                  <th className={S.th}>Plano</th>
-                  <th className={S.th}>Status</th>
-                  <th className={S.th}>WhatsApp</th>
-                  <th className={S.th}>Conversas</th>
-                  <th className={S.th}>Cadastro</th>
-                  <th className="py-3 px-5 text-[10px] font-bold text-slate-600 uppercase tracking-widest font-body">Ações</th>
+                <tr style={{ borderBottom: '1px solid #f2f4f7' }}>
+                  {['Clínica','Plano','Status','WhatsApp','Conversas','Cadastro','Ações'].map(h => (
+                    <th key={h} className="text-left py-3 px-5 text-[10px] font-semibold uppercase tracking-widest" style={{ color: '#98a2b3' }}>
+                      {h}
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
@@ -159,57 +156,58 @@ export default function AdminClients() {
                   <tr
                     key={org.id}
                     className="transition-colors duration-100"
-                    style={S.row}
-                    onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.018)')}
+                    style={{ borderBottom: '1px solid #f9fafb' }}
+                    onMouseEnter={e => (e.currentTarget.style.background = '#f9fafb')}
                     onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                   >
                     <td className="py-3.5 px-5">
-                      <p className="text-sm font-semibold text-slate-200 font-body">{org.name}</p>
-                      <p className="text-xs text-slate-600 font-body mt-0.5">{org.evolution_instance || org.slug}</p>
+                      <p className="text-sm font-semibold" style={{ color: '#344054' }}>{org.name}</p>
+                      <p className="text-xs mt-0.5" style={{ color: '#98a2b3' }}>{org.evolution_instance || org.slug}</p>
                     </td>
                     <td className="py-3.5 px-5">
-                      <span className={`inline-flex items-center px-2.5 py-[3px] rounded-full text-[10px] font-bold uppercase font-body ${planBadge[org.plan] ?? 'bg-slate-800 text-slate-500'}`}>
+                      <span className={`inline-flex items-center px-2.5 py-[3px] rounded-full text-[10px] font-semibold uppercase ${planBadge[org.plan] ?? 'bg-slate-100 text-slate-500'}`}>
                         {planLabel(org.plan)}
                       </span>
                     </td>
                     <td className="py-3.5 px-5">
-                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-[3px] rounded-full text-[10px] font-bold font-body ${statusBadge[org.status] ?? 'bg-slate-800 text-slate-500'}`}>
+                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-[3px] rounded-full text-[10px] font-semibold ${statusBadge[org.status] ?? 'bg-slate-100 text-slate-500'}`}>
                         {org.status === 'active' && (
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0"
-                            style={{ boxShadow: '0 0 5px rgba(52,211,153,0.8)' }} />
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
                         )}
                         {statusLabel(org.status)}
                       </span>
                     </td>
-                    <td className="py-3.5 px-5 text-xs font-body">
+                    <td className="py-3.5 px-5 text-xs">
                       {org.evolution_instance ? (
-                        <span className="flex items-center gap-1.5 text-slate-400">
+                        <span className="flex items-center gap-1.5" style={{ color: '#667085' }}>
                           <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
                           {org.evolution_instance}
                         </span>
                       ) : (
-                        <span className="text-slate-700">—</span>
+                        <span style={{ color: '#d0d5dd' }}>—</span>
                       )}
                     </td>
-                    <td className="py-3.5 px-5 text-xs font-body tabular-nums">
-                      <span className={((org.conversations_used ?? 0) / (org.max_conversations_month || 1)) > 0.8 ? 'text-red-400 font-bold' : 'text-slate-400'}>
+                    <td className="py-3.5 px-5 text-xs tabular-nums" style={{ color: '#667085' }}>
+                      <span className={((org.conversations_used ?? 0) / (org.max_conversations_month || 1)) > 0.8 ? 'text-red-500 font-semibold' : ''}>
                         {org.conversations_used ?? 0}
                       </span>
-                      <span className="text-slate-700">/{org.max_conversations_month}</span>
+                      <span style={{ color: '#d0d5dd' }}>/{org.max_conversations_month}</span>
                     </td>
-                    <td className="py-3.5 px-5 text-xs text-slate-600 font-body">{formatDateShort(org.created_at)}</td>
+                    <td className="py-3.5 px-5 text-xs" style={{ color: '#98a2b3' }}>{formatDateShort(org.created_at)}</td>
                     <td className="py-3.5 px-5">
                       <Link to={`/admin/clients/${org.id}`}>
                         <button
-                          className="px-3 py-1.5 rounded-lg text-xs font-semibold font-body text-slate-500 transition-all duration-150 hover:text-emerald-300"
-                          style={{ border: '1px solid rgba(255,255,255,0.07)' }}
+                          className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-150"
+                          style={{ border: '1px solid #e4e7ec', color: '#98a2b3' }}
                           onMouseEnter={e => {
-                            (e.currentTarget as HTMLElement).style.background = 'rgba(16,185,129,0.07)'
-                            ;(e.currentTarget as HTMLElement).style.borderColor = 'rgba(16,185,129,0.15)'
+                            (e.currentTarget as HTMLElement).style.background = '#f0fdf4'
+                            ;(e.currentTarget as HTMLElement).style.borderColor = '#a7f3d0'
+                            ;(e.currentTarget as HTMLElement).style.color = '#059669'
                           }}
                           onMouseLeave={e => {
                             (e.currentTarget as HTMLElement).style.background = 'transparent'
-                            ;(e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.07)'
+                            ;(e.currentTarget as HTMLElement).style.borderColor = '#e4e7ec'
+                            ;(e.currentTarget as HTMLElement).style.color = '#98a2b3'
                           }}
                         >
                           Gerenciar
