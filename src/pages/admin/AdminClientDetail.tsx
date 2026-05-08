@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft, Save, Trash2, Wifi, WifiOff, RefreshCw,
   CheckCircle2, XCircle, Loader2, Zap, KeyRound,
-  Bot, Settings2, Upload, Plus, X, FileText, DollarSign,
+  Bot, Settings2, Upload, Plus, X, FileText, ChevronDown,
 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { type Organization, type OrgPlan, type OrgStatus } from '../../types'
@@ -116,6 +116,7 @@ export default function AdminClientDetail() {
   const [services, setServices] = useState<Service[]>([])
   const [showAddService, setShowAddService] = useState(false)
   const [newService, setNewService] = useState({ name: '', description: '', price: '' })
+  const [expandedService, setExpandedService] = useState<string | null>(null)
   const [savingAgent, setSavingAgent] = useState(false)
   const [agentMsg, setAgentMsg] = useState<{ ok: boolean; text: string } | null>(null)
   const [uploadingPdf, setUploadingPdf] = useState<string | null>(null)
@@ -694,15 +695,16 @@ export default function AdminClientDetail() {
             {/* Coluna direita */}
             <div className="space-y-6">
               {/* Serviços */}
-              <div className="bg-white rounded-[1.75rem] border border-zinc-100 shadow-sm p-6 space-y-4">
-                <div className="flex items-center justify-between">
+              <div className="bg-white rounded-[1.75rem] border border-zinc-100 shadow-sm overflow-hidden">
+                {/* Header */}
+                <div className="flex items-center justify-between px-6 pt-6 pb-4">
                   <div>
                     <p className="font-black text-zinc-900 text-sm uppercase tracking-wider">Serviços</p>
-                    <p className="text-xs text-zinc-400 mt-0.5">Ao confirmar um agendamento, o PDF do serviço é enviado automaticamente ao paciente.</p>
+                    <p className="text-xs text-zinc-400 mt-0.5">PDF enviado automaticamente ao confirmar agendamento</p>
                   </div>
                   <button
-                    onClick={() => { setShowAddService(true); setNewService({ name: '', description: '', price: '' }) }}
-                    className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-zinc-900 text-white text-xs font-bold hover:bg-zinc-800 transition-colors shrink-0"
+                    onClick={() => { setShowAddService(v => !v); setNewService({ name: '', description: '', price: '' }) }}
+                    className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-zinc-900 text-white text-xs font-bold hover:bg-zinc-800 transition-colors shrink-0"
                   >
                     <Plus className="w-3.5 h-3.5" />
                     Novo Serviço
@@ -711,56 +713,56 @@ export default function AdminClientDetail() {
 
                 {/* Formulário inline */}
                 {showAddService && (
-                  <div className="border-2 border-dashed border-zinc-200 rounded-2xl p-4 space-y-3 bg-zinc-50/50">
-                    <p className="text-xs font-black text-zinc-500 uppercase tracking-wider">Novo Serviço</p>
+                  <div className="mx-6 mb-4 rounded-2xl border border-zinc-200 bg-zinc-50 p-4 space-y-3">
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="block text-[10px] font-black text-zinc-400 uppercase tracking-wider mb-1">Nome *</label>
+                        <label className="block text-[10px] font-black text-zinc-400 uppercase tracking-wider mb-1.5">Nome *</label>
                         <input
                           type="text"
                           value={newService.name}
                           onChange={e => setNewService(s => ({ ...s, name: e.target.value }))}
+                          onKeyDown={e => e.key === 'Enter' && addService()}
                           placeholder="Consulta Cardiologia"
-                          className="w-full px-3 py-2 rounded-xl border border-zinc-200 text-sm bg-white text-zinc-800 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
+                          className="w-full px-3 py-2.5 rounded-xl border border-zinc-200 text-sm bg-white text-zinc-800 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
                           autoFocus
                         />
                       </div>
                       <div>
-                        <label className="block text-[10px] font-black text-zinc-400 uppercase tracking-wider mb-1">Preço</label>
+                        <label className="block text-[10px] font-black text-zinc-400 uppercase tracking-wider mb-1.5">Preço</label>
                         <div className="relative">
-                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-zinc-400 font-bold">R$</span>
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-zinc-400 font-bold pointer-events-none">R$</span>
                           <input
                             type="text"
                             value={newService.price}
                             onChange={e => setNewService(s => ({ ...s, price: e.target.value }))}
                             placeholder="150,00"
-                            className="w-full pl-8 pr-3 py-2 rounded-xl border border-zinc-200 text-sm bg-white text-zinc-800 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
+                            className="w-full pl-8 pr-3 py-2.5 rounded-xl border border-zinc-200 text-sm bg-white text-zinc-800 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
                           />
                         </div>
                       </div>
                     </div>
                     <div>
-                      <label className="block text-[10px] font-black text-zinc-400 uppercase tracking-wider mb-1">Descrição</label>
+                      <label className="block text-[10px] font-black text-zinc-400 uppercase tracking-wider mb-1.5">Descrição</label>
                       <input
                         type="text"
                         value={newService.description}
                         onChange={e => setNewService(s => ({ ...s, description: e.target.value }))}
-                        placeholder="Consulta com cardiologista, inclui eletrocardiograma"
-                        className="w-full px-3 py-2 rounded-xl border border-zinc-200 text-sm bg-white text-zinc-800 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
+                        placeholder="Detalhes do serviço para o agente informar ao paciente"
+                        className="w-full px-3 py-2.5 rounded-xl border border-zinc-200 text-sm bg-white text-zinc-800 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
                       />
                     </div>
-                    <div className="flex gap-2 pt-1">
+                    <div className="flex gap-2">
                       <button
                         onClick={addService}
                         disabled={!newService.name.trim()}
-                        className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-zinc-900 text-white text-sm font-bold hover:bg-zinc-800 disabled:opacity-50 transition-colors"
+                        className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-zinc-900 text-white text-sm font-bold hover:bg-zinc-800 disabled:opacity-40 transition-colors"
                       >
                         <Plus className="w-3.5 h-3.5" />
                         Adicionar
                       </button>
                       <button
                         onClick={() => setShowAddService(false)}
-                        className="px-4 py-2 rounded-xl border border-zinc-200 text-sm font-bold text-zinc-500 hover:bg-zinc-50 transition-colors"
+                        className="px-4 py-2 rounded-xl text-sm font-bold text-zinc-400 hover:text-zinc-600 transition-colors"
                       >
                         Cancelar
                       </button>
@@ -768,68 +770,87 @@ export default function AdminClientDetail() {
                   </div>
                 )}
 
-                {/* Lista de serviços */}
+                {/* Lista */}
                 {services.length > 0 ? (
-                  <div className="space-y-2">
+                  <div className="divide-y divide-zinc-50">
                     {services.map(svc => {
+                      const isOpen = expandedService === svc.id
                       const isUploading = uploadingPdf === svc.id
                       return (
-                        <div key={svc.id} className="rounded-2xl border border-zinc-100 bg-zinc-50/50 overflow-hidden">
-                          <div className="flex items-start gap-3 p-4">
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <p className="text-sm font-bold text-zinc-900">{svc.name}</p>
-                                {svc.price && (
-                                  <span className="flex items-center gap-0.5 text-[11px] font-black text-green-700 bg-green-50 px-2 py-0.5 rounded-full">
-                                    <DollarSign className="w-2.5 h-2.5" />
-                                    R$ {svc.price}
-                                  </span>
-                                )}
+                        <div key={svc.id}>
+                          {/* Linha colapsada */}
+                          <button
+                            onClick={() => setExpandedService(isOpen ? null : svc.id)}
+                            className="w-full flex items-center gap-4 px-6 py-4 hover:bg-zinc-50/80 transition-colors text-left"
+                          >
+                            <div className="flex-1 min-w-0 flex items-center gap-3">
+                              <span className="text-sm font-bold text-zinc-900 truncate">{svc.name}</span>
+                              {svc.price && (
+                                <span className="text-xs font-black text-emerald-600 shrink-0">R$ {svc.price}</span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-3 shrink-0">
+                              {/* Indicador PDF */}
+                              <div className={`flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1 rounded-full ${
+                                svc.pdf_url
+                                  ? 'bg-emerald-50 text-emerald-600'
+                                  : 'bg-zinc-100 text-zinc-400'
+                              }`}>
+                                <FileText className="w-3 h-3" />
+                                {svc.pdf_url ? 'PDF' : 'Sem PDF'}
                               </div>
+                              <ChevronDown className={`w-4 h-4 text-zinc-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+                            </div>
+                          </button>
+
+                          {/* Painel expandido */}
+                          {isOpen && (
+                            <div className="px-6 pb-5 pt-1 bg-zinc-50/60 border-t border-zinc-100">
                               {svc.description && (
-                                <p className="text-xs text-zinc-500 mt-0.5">{svc.description}</p>
+                                <p className="text-xs text-zinc-500 mb-4">{svc.description}</p>
                               )}
-                              <div className="flex items-center gap-1.5 mt-2">
-                                {svc.pdf_url ? (
-                                  <div className="flex items-center gap-1.5">
-                                    <FileText className="w-3 h-3 text-green-500 shrink-0" />
-                                    <span className="text-[11px] text-green-600 font-medium truncate max-w-[180px]">{svc.pdf_name}</span>
-                                  </div>
-                                ) : (
-                                  <span className="text-[11px] text-zinc-400">Sem PDF</span>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={() => triggerPdfUpload(svc.id)}
+                                  disabled={isUploading}
+                                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-zinc-200 bg-white text-xs font-bold text-zinc-700 hover:border-zinc-300 hover:bg-zinc-50 transition-colors disabled:opacity-50"
+                                >
+                                  {isUploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+                                  {isUploading ? 'Enviando...' : svc.pdf_url ? 'Trocar PDF' : 'Anexar PDF'}
+                                </button>
+                                {svc.pdf_url && (
+                                  <>
+                                    <span className="text-xs text-zinc-400 truncate max-w-[160px]">{svc.pdf_name}</span>
+                                    <button onClick={() => removePdf(svc.id)} className="p-1.5 rounded-lg text-zinc-300 hover:text-red-400 transition-colors">
+                                      <X className="w-3.5 h-3.5" />
+                                    </button>
+                                  </>
                                 )}
+                                <button
+                                  onClick={() => removeService(svc.id)}
+                                  className="ml-auto flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-red-400 hover:bg-red-50 transition-colors"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                  Remover
+                                </button>
                               </div>
                             </div>
-                            <div className="flex items-center gap-1.5 shrink-0">
-                              <button
-                                onClick={() => triggerPdfUpload(svc.id)}
-                                disabled={isUploading}
-                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-zinc-200 text-xs font-bold text-zinc-600 bg-white hover:border-zinc-300 transition-colors disabled:opacity-50"
-                              >
-                                {isUploading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}
-                                {isUploading ? 'Enviando...' : svc.pdf_url ? 'Trocar PDF' : 'Anexar PDF'}
-                              </button>
-                              {svc.pdf_url && (
-                                <button onClick={() => removePdf(svc.id)} title="Remover PDF" className="p-1.5 rounded-lg text-zinc-400 hover:text-orange-500 hover:bg-orange-50 transition-colors">
-                                  <X className="w-3.5 h-3.5" />
-                                </button>
-                              )}
-                              <button onClick={() => removeService(svc.id)} title="Remover serviço" className="p-1.5 rounded-lg text-zinc-300 hover:text-red-500 hover:bg-red-50 transition-colors">
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          </div>
+                          )}
                         </div>
                       )
                     })}
                   </div>
                 ) : !showAddService && (
-                  <div className="text-center py-8 border-2 border-dashed border-zinc-200 rounded-2xl">
-                    <FileText className="w-8 h-8 mx-auto mb-2 text-zinc-300" />
-                    <p className="text-sm text-zinc-400 font-medium">Nenhum serviço cadastrado</p>
-                    <p className="text-xs text-zinc-300 mt-1">Clique em "Novo Serviço" para começar</p>
+                  <div className="text-center py-10 px-6 mb-2">
+                    <div className="w-12 h-12 rounded-2xl bg-zinc-100 flex items-center justify-center mx-auto mb-3">
+                      <FileText className="w-5 h-5 text-zinc-400" />
+                    </div>
+                    <p className="text-sm font-bold text-zinc-500">Nenhum serviço cadastrado</p>
+                    <p className="text-xs text-zinc-400 mt-1">Adicione os serviços oferecidos pela clínica</p>
                   </div>
                 )}
+
+                {services.length > 0 && <div className="h-2" />}
               </div>
             </div>
           </div>
