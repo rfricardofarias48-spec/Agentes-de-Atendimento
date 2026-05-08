@@ -116,19 +116,19 @@ export default function AdminBilling() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-black text-zinc-900 tracking-tight">Faturamento</h1>
-          <p className="text-zinc-400 text-sm font-medium mt-0.5">Gestão financeira e métricas de receita.</p>
+          <h1 className="text-3xl font-black text-slate-100 tracking-tight">Faturamento</h1>
+          <p className="text-slate-600 text-sm font-medium mt-0.5">Gestão financeira e métricas de receita.</p>
         </div>
-        <div className="flex items-center gap-1 bg-zinc-100 rounded-2xl p-1.5">
+        <div className="flex items-center gap-1 bg-white/[0.04] rounded-2xl p-1.5">
           <button
             onClick={() => setTab('geral')}
-            className={`px-6 py-2 rounded-xl text-sm font-black transition-all ${tab === 'geral' ? 'bg-white text-zinc-900 shadow-sm' : 'text-zinc-400 hover:text-zinc-600'}`}
+            className={`px-6 py-2 rounded-xl text-sm font-black transition-all ${tab === 'geral' ? 'bg-[#0c0e1a] text-slate-100 shadow-sm' : 'text-slate-600 hover:text-slate-400'}`}
           >
             Geral
           </button>
           <button
             onClick={() => setTab('historico')}
-            className={`px-6 py-2 rounded-xl text-sm font-black transition-all ${tab === 'historico' ? 'bg-white text-zinc-900 shadow-sm' : 'text-zinc-400 hover:text-zinc-600'}`}
+            className={`px-6 py-2 rounded-xl text-sm font-black transition-all ${tab === 'historico' ? 'bg-[#0c0e1a] text-slate-100 shadow-sm' : 'text-slate-600 hover:text-slate-400'}`}
           >
             Histórico
           </button>
@@ -140,15 +140,15 @@ export default function AdminBilling() {
         <div className="space-y-8">
           {/* Seletor de ano */}
           <div className="flex items-center gap-3">
-            <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Ano:</span>
+            <span className="text-xs font-bold text-slate-600 uppercase tracking-wider">Ano:</span>
             {Array.from({ length: 5 }, (_, i) => now.getFullYear() - i).map(y => (
               <button
                 key={y}
                 onClick={() => setYear(String(y))}
                 className={`px-4 py-1.5 rounded-xl text-sm font-black transition-all border ${
                   year === String(y)
-                    ? 'bg-zinc-900 text-white border-zinc-900'
-                    : 'border-zinc-200 text-zinc-400 hover:border-zinc-400 hover:text-zinc-700'
+                    ? 'bg-emerald-600 text-white border-zinc-900'
+                    : 'border-white/[0.08] text-slate-600 hover:border-zinc-400 hover:text-slate-300'
                 }`}
               >
                 {y}
@@ -163,16 +163,16 @@ export default function AdminBilling() {
               <div className="absolute top-0 right-0 w-64 h-64 bg-zinc-800/30 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none" />
               <div className="relative z-10">
                 <div className="flex justify-between items-start mb-6">
-                  <div className="p-3 bg-zinc-900 rounded-2xl border border-zinc-800">
+                  <div className="p-3 bg-emerald-600 rounded-2xl border border-zinc-800">
                     <Wallet className="w-6 h-6 text-green-400" />
                   </div>
                   <span className="text-green-400 bg-green-400/10 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border border-green-400/20">MRR</span>
                 </div>
-                <p className="text-zinc-500 text-[10px] font-black uppercase tracking-widest mb-1">Receita Recorrente Mensal</p>
+                <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-1">Receita Recorrente Mensal</p>
                 <h3 className="text-5xl font-black text-white tracking-tighter mb-2">
                   R$ {mrr.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                 </h3>
-                <div className="flex items-center gap-2 text-zinc-400 text-xs font-bold mt-4">
+                <div className="flex items-center gap-2 text-slate-600 text-xs font-bold mt-4">
                   <TrendingUp className="w-4 h-4 text-green-400" />
                   <span className="text-green-400">Projeção {year}:</span>
                   R$ {arr.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
@@ -181,46 +181,46 @@ export default function AdminBilling() {
             </div>
 
             {/* Assinantes Ativos */}
-            <div className="bg-white p-8 rounded-[2.5rem] border border-zinc-200 shadow-sm flex flex-col justify-between">
+            <div className="bg-[#0c0e1a] p-8 rounded-[2.5rem] border border-white/[0.08] shadow-sm flex flex-col justify-between">
               <div>
-                <div className="p-3 bg-zinc-50 rounded-2xl border border-zinc-100 w-fit mb-6">
-                  <CreditCard className="w-6 h-6 text-zinc-900" />
+                <div className="p-3 bg-[#0d0f1c] rounded-2xl border border-white/[0.06] w-fit mb-6">
+                  <CreditCard className="w-6 h-6 text-slate-100" />
                 </div>
-                <p className="text-zinc-400 text-[10px] font-black uppercase tracking-widest mb-1">Assinantes Ativos</p>
-                <h3 className="text-5xl font-black text-zinc-900 tracking-tighter">{payingCount}</h3>
+                <p className="text-slate-600 text-[10px] font-black uppercase tracking-widest mb-1">Assinantes Ativos</p>
+                <h3 className="text-5xl font-black text-slate-100 tracking-tighter">{payingCount}</h3>
               </div>
               <div>
-                <div className="w-full bg-zinc-100 h-2 rounded-full overflow-hidden mt-6">
+                <div className="w-full bg-white/[0.04] h-2 rounded-full overflow-hidden mt-6">
                   <div
-                    className="bg-zinc-900 h-full rounded-full transition-all duration-700"
+                    className="bg-emerald-600 h-full rounded-full transition-all duration-700"
                     style={{ width: `${Math.min(100, (payingCount / (totalCount || 1)) * 100)}%` }}
                   />
                 </div>
-                <p className="text-[10px] font-bold text-zinc-400 mt-2 text-right">
+                <p className="text-[10px] font-bold text-slate-600 mt-2 text-right">
                   {((payingCount / (totalCount || 1)) * 100).toFixed(1)}% da base
                 </p>
               </div>
             </div>
 
             {/* Distribuição de Receita */}
-            <div className="bg-white p-8 rounded-[2.5rem] border border-zinc-200 shadow-sm flex flex-col justify-between">
+            <div className="bg-[#0c0e1a] p-8 rounded-[2.5rem] border border-white/[0.08] shadow-sm flex flex-col justify-between">
               <div>
-                <div className="p-3 bg-zinc-50 rounded-2xl border border-zinc-100 w-fit mb-6">
-                  <PieChart className="w-6 h-6 text-zinc-900" />
+                <div className="p-3 bg-[#0d0f1c] rounded-2xl border border-white/[0.06] w-fit mb-6">
+                  <PieChart className="w-6 h-6 text-slate-100" />
                 </div>
-                <p className="text-zinc-400 text-[10px] font-black uppercase tracking-widest mb-3">Distribuição de Receita</p>
+                <p className="text-slate-600 text-[10px] font-black uppercase tracking-widest mb-3">Distribuição de Receita</p>
               </div>
               <div className="space-y-3">
                 {[
-                  { label: 'Starter',  count: starterCount, color: 'bg-zinc-900' },
+                  { label: 'Starter',  count: starterCount, color: 'bg-emerald-600' },
                   { label: 'Pro',      count: proCount,     color: 'bg-green-600' },
                   { label: 'Clinic',   count: clinicCount,  color: 'bg-purple-600' },
                 ].map(p => (
                   <div key={p.label} className="flex items-center gap-3">
                     <div className={`w-2.5 h-2.5 rounded-full ${p.color} shrink-0`} />
-                    <span className="text-xs font-bold text-zinc-600 flex-1">{p.label}</span>
-                    <span className="text-sm font-black text-zinc-900">{p.count}</span>
-                    <div className="w-20 bg-zinc-100 h-1.5 rounded-full overflow-hidden">
+                    <span className="text-xs font-bold text-slate-400 flex-1">{p.label}</span>
+                    <span className="text-sm font-black text-slate-100">{p.count}</span>
+                    <div className="w-20 bg-white/[0.04] h-1.5 rounded-full overflow-hidden">
                       <div
                         className={`${p.color} h-full rounded-full`}
                         style={{ width: `${(p.count / (payingCount || 1)) * 100}%` }}
@@ -237,16 +237,16 @@ export default function AdminBilling() {
             <div className="flex items-center justify-between mb-6">
               <div>
                 <h3 className="text-lg font-black text-white">Crescimento {year}</h3>
-                <p className="text-zinc-500 text-xs font-medium mt-0.5">MRR e novos clientes mês a mês</p>
+                <p className="text-slate-500 text-xs font-medium mt-0.5">MRR e novos clientes mês a mês</p>
               </div>
               <div className="flex items-center gap-5">
                 <div className="flex items-center gap-2">
                   <div className="w-3 h-3 rounded-full bg-green-400" />
-                  <span className="text-xs font-bold text-zinc-400">MRR (R$)</span>
+                  <span className="text-xs font-bold text-slate-600">MRR (R$)</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-3 h-3 rounded-full bg-sky-400" />
-                  <span className="text-xs font-bold text-zinc-400">Clientes</span>
+                  <span className="text-xs font-bold text-slate-600">Clientes</span>
                 </div>
               </div>
             </div>
@@ -320,15 +320,15 @@ export default function AdminBilling() {
       {tab === 'historico' && (
         <div className="space-y-8">
           {/* Seletor de mês */}
-          <div className="flex items-center gap-4 bg-white border border-zinc-200 rounded-2xl p-4 shadow-sm">
-            <span className="text-sm font-bold text-zinc-600">Período:</span>
+          <div className="flex items-center gap-4 bg-[#0c0e1a] border border-white/[0.08] rounded-2xl p-4 shadow-sm">
+            <span className="text-sm font-bold text-slate-400">Período:</span>
             <input
               type="month"
               value={histMonth}
               onChange={e => setHistMonth(e.target.value)}
-              className="px-3 py-1.5 rounded-xl border border-zinc-200 text-sm font-bold text-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
+              className="px-3 py-1.5 rounded-xl border border-white/[0.08] text-sm font-bold text-slate-200 focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
             />
-            <span className="ml-auto text-sm font-bold text-zinc-900 capitalize">
+            <span className="ml-auto text-sm font-bold text-slate-100 capitalize">
               {new Date(histMonth + '-02').toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
             </span>
           </div>
@@ -338,30 +338,30 @@ export default function AdminBilling() {
             <div className="bg-black text-white p-8 rounded-[2.5rem] border border-zinc-800 shadow-xl relative overflow-hidden">
               <div className="absolute top-0 right-0 w-64 h-64 bg-zinc-800/30 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none" />
               <div className="relative z-10">
-                <div className="p-3 bg-zinc-900 rounded-2xl border border-zinc-800 w-fit mb-6">
+                <div className="p-3 bg-emerald-600 rounded-2xl border border-zinc-800 w-fit mb-6">
                   <Wallet className="w-6 h-6 text-green-400" />
                 </div>
-                <p className="text-zinc-500 text-[10px] font-black uppercase tracking-widest mb-1">Receita do Período</p>
+                <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-1">Receita do Período</p>
                 <h3 className="text-5xl font-black text-white tracking-tighter">
                   R$ {histMrr.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                 </h3>
               </div>
             </div>
 
-            <div className="bg-white p-8 rounded-[2.5rem] border border-zinc-200 shadow-sm">
-              <div className="p-3 bg-zinc-50 rounded-2xl border border-zinc-100 w-fit mb-6">
-                <CreditCard className="w-6 h-6 text-zinc-900" />
+            <div className="bg-[#0c0e1a] p-8 rounded-[2.5rem] border border-white/[0.08] shadow-sm">
+              <div className="p-3 bg-[#0d0f1c] rounded-2xl border border-white/[0.06] w-fit mb-6">
+                <CreditCard className="w-6 h-6 text-slate-100" />
               </div>
-              <p className="text-zinc-400 text-[10px] font-black uppercase tracking-widest mb-1">Vendas no Período</p>
-              <h3 className="text-5xl font-black text-zinc-900 tracking-tighter">{histSales.length}</h3>
+              <p className="text-slate-600 text-[10px] font-black uppercase tracking-widest mb-1">Vendas no Período</p>
+              <h3 className="text-5xl font-black text-slate-100 tracking-tighter">{histSales.length}</h3>
             </div>
 
-            <div className="bg-white p-8 rounded-[2.5rem] border border-zinc-200 shadow-sm">
-              <div className="p-3 bg-zinc-50 rounded-2xl border border-zinc-100 w-fit mb-6">
-                <Activity className="w-6 h-6 text-zinc-900" />
+            <div className="bg-[#0c0e1a] p-8 rounded-[2.5rem] border border-white/[0.08] shadow-sm">
+              <div className="p-3 bg-[#0d0f1c] rounded-2xl border border-white/[0.06] w-fit mb-6">
+                <Activity className="w-6 h-6 text-slate-100" />
               </div>
-              <p className="text-zinc-400 text-[10px] font-black uppercase tracking-widest mb-1">Ticket Médio</p>
-              <h3 className="text-5xl font-black text-zinc-900 tracking-tighter">
+              <p className="text-slate-600 text-[10px] font-black uppercase tracking-widest mb-1">Ticket Médio</p>
+              <h3 className="text-5xl font-black text-slate-100 tracking-tighter">
                 R$ {histArpu.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}
               </h3>
             </div>
@@ -370,28 +370,28 @@ export default function AdminBilling() {
           {/* Distribuição + lista de vendas */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Distribuição por plano */}
-            <div className="bg-white rounded-[2rem] border border-zinc-200 shadow-sm p-8">
-              <h3 className="text-base font-black text-zinc-900 mb-6 flex items-center gap-2">
+            <div className="bg-[#0c0e1a] rounded-[2rem] border border-white/[0.08] shadow-sm p-8">
+              <h3 className="text-base font-black text-slate-100 mb-6 flex items-center gap-2">
                 <PieChart className="w-5 h-5" /> Distribuição de Receita
               </h3>
               <div className="space-y-6">
                 {[
-                  { label: 'Starter', price: 'R$ 397,00/mês', count: histSales.filter(s => s.plan === 'starter').length, color: 'bg-zinc-900' },
+                  { label: 'Starter', price: 'R$ 397,00/mês', count: histSales.filter(s => s.plan === 'starter').length, color: 'bg-emerald-600' },
                   { label: 'Pro',     price: 'R$ 797,00/mês', count: histSales.filter(s => s.plan === 'pro').length,     color: 'bg-green-600' },
                   { label: 'Clinic',  price: 'R$ 1.497,00/mês', count: histSales.filter(s => s.plan === 'clinic').length, color: 'bg-purple-600' },
                 ].map(p => (
                   <div key={p.label}>
                     <div className="flex justify-between items-end mb-2">
                       <div>
-                        <span className="text-sm font-bold text-zinc-900 block">{p.label}</span>
-                        <span className="text-xs text-zinc-500">{p.price}</span>
+                        <span className="text-sm font-bold text-slate-100 block">{p.label}</span>
+                        <span className="text-xs text-slate-500">{p.price}</span>
                       </div>
                       <div className="text-right">
-                        <span className="text-lg font-black text-zinc-900">{p.count}</span>
-                        <span className="text-xs text-zinc-400 ml-1">clientes</span>
+                        <span className="text-lg font-black text-slate-100">{p.count}</span>
+                        <span className="text-xs text-slate-600 ml-1">clientes</span>
                       </div>
                     </div>
-                    <div className="w-full bg-zinc-100 h-3 rounded-full overflow-hidden">
+                    <div className="w-full bg-white/[0.04] h-3 rounded-full overflow-hidden">
                       <div
                         className={`${p.color} h-full rounded-full transition-all duration-700`}
                         style={{ width: `${(p.count / (histSales.length || 1)) * 100}%` }}
@@ -403,31 +403,31 @@ export default function AdminBilling() {
             </div>
 
             {/* Lista de vendas */}
-            <div className="bg-white rounded-[2rem] border border-zinc-200 shadow-sm p-8 flex flex-col">
-              <h3 className="text-base font-black text-zinc-900 mb-6 flex items-center gap-2">
+            <div className="bg-[#0c0e1a] rounded-[2rem] border border-white/[0.08] shadow-sm p-8 flex flex-col">
+              <h3 className="text-base font-black text-slate-100 mb-6 flex items-center gap-2">
                 <Activity className="w-5 h-5" /> Vendas do Período
               </h3>
               <div className="overflow-auto space-y-3 max-h-72 flex-1">
                 {histSales.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-10 text-zinc-400">
+                  <div className="flex flex-col items-center justify-center py-10 text-slate-600">
                     <p className="text-xs font-bold uppercase">Nenhuma venda registrada</p>
                   </div>
                 ) : histSales.map(s => (
-                  <div key={s.id} className="flex items-center justify-between p-4 rounded-xl border border-zinc-100 bg-zinc-50/50">
+                  <div key={s.id} className="flex items-center justify-between p-4 rounded-xl border border-white/[0.06] bg-zinc-50/50">
                     <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-full bg-white border border-zinc-200 flex items-center justify-center text-zinc-600 font-black text-sm">
+                      <div className="w-9 h-9 rounded-full bg-[#0c0e1a] border border-white/[0.08] flex items-center justify-center text-slate-400 font-black text-sm">
                         {(s.org_name || '?').charAt(0).toUpperCase()}
                       </div>
                       <div>
-                        <p className="text-sm font-bold text-zinc-900">{s.org_name || '—'}</p>
-                        <p className="text-[10px] text-zinc-400 font-bold uppercase">{s.plan}</p>
+                        <p className="text-sm font-bold text-slate-100">{s.org_name || '—'}</p>
+                        <p className="text-[10px] text-slate-600 font-bold uppercase">{s.plan}</p>
                       </div>
                     </div>
                     <div className="text-right">
                       <p className="text-sm font-black text-emerald-600">
                         + R$ {s.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                       </p>
-                      <p className="text-[10px] text-zinc-400">
+                      <p className="text-[10px] text-slate-600">
                         {new Date(s.paid_at || s.created_at).toLocaleDateString('pt-BR')}
                       </p>
                     </div>
