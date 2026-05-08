@@ -46,7 +46,7 @@ export default function ClientLayout({ children, orgName }: ClientLayoutProps) {
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 px-3 py-4 space-y-0.5">
+      <nav className="flex-1 px-3 pt-7 pb-4 space-y-2">
         {navItems.map(({ href, label, icon: Icon }) => {
           const active = location.pathname === href
           return (
@@ -55,7 +55,7 @@ export default function ClientLayout({ children, orgName }: ClientLayoutProps) {
               to={href}
               onClick={() => setSidebarOpen(false)}
               className={cn(
-                'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all duration-150',
+                'flex items-center gap-3 px-3 py-2.5 rounded-xl text-[0.8125rem] font-bold transition-all duration-150',
                 active
                   ? 'bg-gray-900 text-white shadow-sm'
                   : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
