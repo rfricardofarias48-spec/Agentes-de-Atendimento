@@ -11,11 +11,9 @@ import { cn } from '../../lib/utils'
 
 // ── Calendar constants ─────────────────────────────────────────
 const HOUR_HEIGHT = 64
-const START_HOUR = 7
+const DEFAULT_START = 8
 const END_HOUR = 20
-const TOTAL_HEIGHT = (END_HOUR - START_HOUR) * HOUR_HEIGHT
 const TIME_COL_W = 60
-const HOURS = Array.from({ length: END_HOUR - START_HOUR }, (_, i) => START_HOUR + i)
 const DAY_PT = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
 
 const APPT_COLORS = [
@@ -33,11 +31,11 @@ function apptColor(specialty: string) {
   return APPT_COLORS[hash % APPT_COLORS.length]
 }
 
-function apptTop(iso: string): number | null {
+function apptTop(iso: string, startHour: number): number | null {
   const d = new Date(iso)
   const h = d.getHours(), m = d.getMinutes()
-  if (h < START_HOUR || h >= END_HOUR) return null
-  return ((h - START_HOUR) * 60 + m) / 60 * HOUR_HEIGHT
+  if (h < startHour || h >= END_HOUR) return null
+  return ((h - startHour) * 60 + m) / 60 * HOUR_HEIGHT
 }
 
 function dayKey(d: Date) { return d.toISOString().slice(0, 10) }
@@ -105,6 +103,19 @@ export default function ClientAppointments() {
     })
     return map
   }, [appointments, days])
+
+  // Dynamic start hour: 8 by default, earlier if any visible appointment requires it
+  const startHour = useMemo(() => {
+    const visibleAppts = days.flatMap(d => apptsByDay[dayKey(d)] ?? [])
+    const earliest = visibleAppts.reduce((min, a) => {
+      const h = new Date(a.scheduled_at).getHours()
+      return h < min ? h : min
+    }, DEFAULT_START)
+    return Math.min(earliest, DEFAULT_START)
+  }, [apptsByDay, days])
+
+  const totalHeight = (END_HOUR - startHour) * HOUR_HEIGHT
+  const hours = Array.from({ length: END_HOUR - startHour }, (_, i) => startHour + i)
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase()
@@ -247,14 +258,14 @@ export default function ClientAppointments() {
                 </div>
 
                 {/* Time grid */}
-                <div className="flex w-full relative" style={{ height: TOTAL_HEIGHT }}>
+                <div className="flex w-full relative" style={{ height: totalHeight }}>
 
                   {/* Time labels column */}
                   <div className="relative shrink-0 bg-white border-r border-slate-100"
                     style={{ width: TIME_COL_W, minWidth: TIME_COL_W }}>
-                    {HOURS.map(h => (
+                    {hours.map(h => (
                       <div key={h} className="absolute right-3 flex items-start justify-end"
-                        style={{ top: (h - START_HOUR) * HOUR_HEIGHT, height: HOUR_HEIGHT }}>
+                        style={{ top: (h - startHour) * HOUR_HEIGHT, height: HOUR_HEIGHT }}>
                         <span className="text-[11px] text-slate-400 font-medium pt-1.5">
                           {String(h).padStart(2, '0')}:00
                         </span>
@@ -269,21 +280,21 @@ export default function ClientAppointments() {
                     return (
                       <div key={i} className={cn('relative flex-1 min-w-0 border-l border-slate-100',
                         isToday && 'bg-emerald-50/30')}
-                        style={{ height: TOTAL_HEIGHT }}>
+                        style={{ height: totalHeight }}>
 
                         {/* Grid lines */}
-                        {HOURS.map(h => (
+                        {hours.map(h => (
                           <div key={h}>
                             <div className="absolute left-0 right-0 border-t border-slate-100"
-                              style={{ top: (h - START_HOUR) * HOUR_HEIGHT }} />
+                              style={{ top: (h - startHour) * HOUR_HEIGHT }} />
                             <div className="absolute left-0 right-0 border-t border-slate-50"
-                              style={{ top: (h - START_HOUR) * HOUR_HEIGHT + HOUR_HEIGHT / 2 }} />
+                              style={{ top: (h - startHour) * HOUR_HEIGHT + HOUR_HEIGHT / 2 }} />
                           </div>
                         ))}
 
                         {/* Appointments */}
                         {dayAppts.map(appt => {
-                          const top = apptTop(appt.scheduled_at)
+                          const top = apptTop(appt.scheduled_at, startHour)
                           if (top === null) return null
                           const color = apptColor(appt.specialty)
                           const d = new Date(appt.scheduled_at)
