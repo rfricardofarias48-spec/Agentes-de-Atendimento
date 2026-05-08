@@ -25,17 +25,6 @@ const statuses: OrgStatus[] = ['active', 'trial', 'inactive', 'suspended']
 const maxConvByPlan: Record<OrgPlan, number> = { starter: 600, pro: 2000, clinic: 999999 }
 const PLAN_PRICES: Record<OrgPlan, number> = { starter: 397, pro: 797, clinic: 1497 }
 
-const planColors: Record<string, string> = {
-  starter: 'border-slate-300 text-slate-600',
-  pro:     'border-blue-400 text-blue-700',
-  clinic:  'border-emerald-400 text-emerald-700',
-}
-const statusColors: Record<string, string> = {
-  active:    'border-emerald-400 text-emerald-700',
-  trial:     'border-amber-400 text-amber-700',
-  inactive:  'border-slate-300 text-slate-500',
-  suspended: 'border-red-400 text-red-600',
-}
 
 const CARD_STYLE: React.CSSProperties = {
   background: '#ffffff',
