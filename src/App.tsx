@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './hooks/useAuth'
 
 import Login from './pages/auth/Login'
+import ResetPassword from './pages/auth/ResetPassword'
 import ProtectedRoute from './components/layout/ProtectedRoute'
 import AdminLayout from './components/layout/AdminLayout'
 import ClientLayout from './components/layout/ClientLayout'
@@ -31,6 +32,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<RootRedirect />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
 
           {/* Admin */}
           <Route path="/admin" element={
