@@ -84,7 +84,7 @@ export default function ClientPayments() {
   const usagePct = org ? Math.min(100, (org.conversations_used / org.max_conversations_month) * 100) : 0
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-4">
 
       {/* Header */}
       <div>
@@ -94,10 +94,10 @@ export default function ClientPayments() {
 
       {/* ── Active Plan Banner ──────────────────────────────────── */}
       {org && planMeta && (
-        <div className="bg-[#111111] rounded-[1.75rem] px-8 py-7 relative overflow-hidden">
+        <div className="bg-[#111111] rounded-[1.75rem] px-8 py-5 relative overflow-hidden">
 
           {/* Top row */}
-          <div className="flex items-center justify-between mb-5">
+          <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-3">
               <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">
                 Plano Ativo
@@ -137,7 +137,7 @@ export default function ClientPayments() {
           </div>
 
           {/* Progress bar */}
-          <div className="mt-5">
+          <div className="mt-4">
             <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
               <div
                 className="h-full rounded-full transition-all duration-700"
@@ -188,7 +188,7 @@ export default function ClientPayments() {
       </div>
 
       {/* Plans grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5 items-center">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
         {PLANS.map(plan => {
           const price = annual ? plan.price_monthly * (1 - DISCOUNT) : plan.price_monthly
           const isCurrent = org?.plan === plan.key
@@ -197,22 +197,22 @@ export default function ClientPayments() {
             <div
               key={plan.key}
               className={cn(
-                'relative flex flex-col rounded-[2rem] p-8',
+                'relative flex flex-col rounded-[2rem] p-6',
                 plan.highlight
-                  ? 'bg-[#111111] text-white shadow-2xl md:-mx-1 md:py-10 z-10'
+                  ? 'bg-[#111111] text-white shadow-2xl md:-mx-1 md:py-8 z-10'
                   : 'bg-white border border-slate-100 shadow-[0px_4px_24px_rgba(0,0,0,0.05)]',
               )}
             >
               {/* Badge */}
               {plan.badge && (
-                <span className="absolute top-7 right-7 bg-emerald-400 text-gray-900 text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full">
+                <span className="absolute top-5 right-5 bg-emerald-400 text-gray-900 text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full">
                   {plan.badge}
                 </span>
               )}
 
               {/* Plan name */}
               <p className={cn(
-                'text-xs font-black uppercase tracking-widest mb-4',
+                'text-xs font-black uppercase tracking-widest mb-2',
                 plan.highlight ? 'text-slate-500' : 'text-slate-400',
               )}>
                 {plan.name}
@@ -221,27 +221,27 @@ export default function ClientPayments() {
               {/* Price */}
               <div className="mb-1">
                 <div className="flex items-baseline gap-1">
-                  <span className={cn('text-5xl font-black tracking-tighter', plan.highlight ? 'text-white' : 'text-gray-900')}>
+                  <span className={cn('text-4xl font-black tracking-tighter', plan.highlight ? 'text-white' : 'text-gray-900')}>
                     R$ {fmt(price)}
                   </span>
-                  <span className={cn('text-base font-medium', plan.highlight ? 'text-slate-400' : 'text-slate-400')}>
+                  <span className={cn('text-sm font-medium', plan.highlight ? 'text-slate-400' : 'text-slate-400')}>
                     /mês
                   </span>
                 </div>
                 {annual && (
-                  <p className="text-sm font-medium text-emerald-500 mt-0.5">
+                  <p className="text-xs font-medium text-emerald-500 mt-0.5">
                     Cobrado como R$ {fmt(price * 12)}/ano
                   </p>
                 )}
               </div>
 
               {/* Description */}
-              <p className={cn('text-sm leading-relaxed mt-3 mb-6', plan.highlight ? 'text-slate-400' : 'text-slate-500')}>
+              <p className={cn('text-sm leading-relaxed mt-2 mb-4', plan.highlight ? 'text-slate-400' : 'text-slate-500')}>
                 {plan.description}
               </p>
 
               {/* Features */}
-              <ul className="space-y-3 flex-1 mb-8">
+              <ul className="space-y-2 flex-1 mb-5">
                 {plan.features.map((f, i) => (
                   <li key={i} className="flex items-start gap-3">
                     <span className="mt-0.5 w-[18px] h-[18px] shrink-0 rounded-md bg-emerald-400 flex items-center justify-center">
@@ -258,7 +258,7 @@ export default function ClientPayments() {
               <button
                 disabled={isCurrent}
                 className={cn(
-                  'w-full py-3.5 rounded-2xl font-bold text-sm transition-all',
+                  'w-full py-3 rounded-2xl font-bold text-sm transition-all',
                   isCurrent
                     ? 'bg-emerald-400/20 text-emerald-600 cursor-default border border-emerald-400/30'
                     : plan.highlight
