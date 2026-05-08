@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from 'react'
-import { MessageSquare, Calendar, CheckCircle, XCircle, Bot, ExternalLink } from 'lucide-react'
+import { MessageSquare, Calendar, CheckCircle, XCircle } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { type Appointment, type Conversation, type Organization } from '../../types'
@@ -171,7 +171,7 @@ export default function ClientDashboard() {
       </div>
 
       {/* ── Bottom Section ──────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
 
         {/* Agendamentos Recentes — 2 colunas */}
         <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-[0px_4px_20px_rgba(0,0,0,0.02)] lg:col-span-2">
@@ -217,44 +217,6 @@ export default function ClientDashboard() {
               ))}
             </div>
           )}
-        </div>
-
-        {/* Agente em Ação — 1 coluna */}
-        <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-[0px_4px_20px_rgba(0,0,0,0.02)] flex flex-col justify-between relative overflow-hidden lg:col-span-1">
-          <div className="relative z-10">
-            <div className="flex items-center gap-2 mb-4">
-              <div className="relative flex h-3 w-3">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500" />
-              </div>
-              <span className="text-xs font-black text-emerald-600 uppercase tracking-widest">Online</span>
-            </div>
-            <h3 className="text-2xl font-black text-slate-900 tracking-tighter mb-2">Agente em Ação</h3>
-            <p className="text-slate-500 font-medium text-xs">
-              Seu agente está atendendo pacientes no WhatsApp.
-            </p>
-          </div>
-
-          <div className="relative z-10 mt-6">
-            {org?.chatwoot_url ? (
-              <a
-                href={org.chatwoot_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-full flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-3 rounded-xl font-black text-sm transition-all shadow-[0_4px_14px_0_rgba(16,185,129,0.4)] hover:shadow-[0_6px_20px_rgba(16,185,129,0.5)] hover:-translate-y-0.5 active:translate-y-0"
-              >
-                <Bot className="w-4 h-4" /> Acompanhar
-                <ExternalLink className="w-3.5 h-3.5 opacity-70" />
-              </a>
-            ) : (
-              <p className="text-xs text-slate-400 text-center font-medium">
-                Configure o Chatwoot nas configurações para acompanhar conversas.
-              </p>
-            )}
-          </div>
-
-          {/* Glow decorativo */}
-          <div className="absolute right-0 bottom-0 w-48 h-48 bg-emerald-50 rounded-full blur-[60px] opacity-60 -mr-10 -mb-10 pointer-events-none" />
         </div>
 
         {/* Meu Plano — dark card (Elevva "Plano Atual" style) */}
