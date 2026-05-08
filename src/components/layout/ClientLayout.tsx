@@ -82,7 +82,7 @@ export default function ClientLayout({ children, orgName }: ClientLayoutProps) {
   )
 
   return (
-    <div className="flex h-screen bg-[#f0f2f5]">
+    <div className="flex h-screen bg-[#f8f9fb]">
 
       {/* Desktop sidebar */}
       <div className="hidden lg:flex shrink-0 shadow-[2px_0_12px_rgba(0,0,0,0.04)]">
