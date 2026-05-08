@@ -145,7 +145,7 @@ export default function ClientDashboard() {
         )}
       </div>
 
-      {/* Usage bar + period filter */}
+      {/* Usage bar */}
       {org && (
         <div className="bg-white rounded-xl border border-gray-200 p-4">
           <div className="flex items-center justify-between mb-2">
@@ -160,27 +160,26 @@ export default function ClientDashboard() {
               style={{ width: `${Math.min(100, (org.conversations_used / org.max_conversations_month) * 100)}%` }}
             />
           </div>
-
-          {/* Period filter */}
-          <div className="flex items-center gap-1 mt-4">
-            <span className="text-xs text-gray-400 mr-1">Exibindo:</span>
-            {PERIODS.map(({ key, label }) => (
-              <button
-                key={key}
-                onClick={() => setPeriod(key)}
-                className={cn(
-                  'px-3 py-1 rounded-md text-xs font-medium transition-colors',
-                  period === key
-                    ? 'bg-primary/10 text-primary'
-                    : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700'
-                )}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
         </div>
       )}
+
+      {/* Period filter */}
+      <div className="flex items-center gap-0.5">
+        {PERIODS.map(({ key, label }) => (
+          <button
+            key={key}
+            onClick={() => setPeriod(key)}
+            className={cn(
+              'px-3 py-1.5 rounded-md text-xs font-medium transition-colors',
+              period === key
+                ? 'bg-gray-100 text-gray-800'
+                : 'text-gray-400 hover:text-gray-600'
+            )}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
 
       {/* Stat cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
