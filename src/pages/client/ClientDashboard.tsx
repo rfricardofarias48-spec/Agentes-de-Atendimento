@@ -101,8 +101,8 @@ export default function ClientDashboard() {
               {avatarLetter}
             </div>
           </div>
-          <h1 className="text-xl font-semibold text-slate-800 leading-none">
-            Olá, {firstName}
+          <h1 className="text-xl text-slate-800 leading-none">
+            Olá, <span className="font-bold">{firstName}</span>
           </h1>
         </div>
 
