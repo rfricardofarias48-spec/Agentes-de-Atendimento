@@ -35,7 +35,7 @@ export default function ClientLayout({ children, orgName }: ClientLayoutProps) {
     <aside className="flex flex-col h-full w-52 bg-white border-r border-slate-100">
 
       {/* Logo / brand */}
-      <div className="flex items-center gap-3 px-5 py-5 border-b border-slate-100">
+      <div className="flex items-center gap-3 px-5 py-7 border-b border-slate-100">
         <div className="w-8 h-8 bg-gray-900 rounded-xl flex items-center justify-center shadow-sm">
           <Bot className="w-4 h-4 text-emerald-400" />
         </div>
@@ -55,7 +55,7 @@ export default function ClientLayout({ children, orgName }: ClientLayoutProps) {
               to={href}
               onClick={() => setSidebarOpen(false)}
               className={cn(
-                'flex items-center gap-3 px-3 py-2.5 rounded-xl text-[0.8125rem] font-bold transition-all duration-150',
+                'flex items-center gap-3 px-3 py-2.5 rounded-xl text-[0.875rem] font-bold transition-all duration-150',
                 active
                   ? 'bg-gray-900 text-white shadow-sm'
                   : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
