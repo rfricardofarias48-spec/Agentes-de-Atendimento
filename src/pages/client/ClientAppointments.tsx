@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from 'react'
-import { Search, Plus, X, ChevronLeft, ChevronRight, Calendar, List } from 'lucide-react'
+import { Search, Plus, X, ChevronLeft, ChevronRight, Calendar, List, Clock, User, Stethoscope, Phone, FileText, Tag } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { type Appointment } from '../../types'
@@ -16,19 +16,20 @@ const END_HOUR = 20
 const TIME_COL_W = 60
 const DAY_PT = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
 
-const APPT_COLORS = [
-  'bg-emerald-50 border-emerald-200 text-emerald-900',
-  'bg-blue-50 border-blue-200 text-blue-900',
-  'bg-violet-50 border-violet-200 text-violet-900',
-  'bg-orange-50 border-orange-200 text-orange-900',
-  'bg-pink-50 border-pink-200 text-pink-900',
-  'bg-teal-50 border-teal-200 text-teal-900',
-  'bg-amber-50 border-amber-200 text-amber-900',
+// Each entry: [bg, accent-bar color, text, subtext]
+const APPT_PALETTES = [
+  { bg: 'bg-emerald-50', bar: 'bg-emerald-400', text: 'text-emerald-900', sub: 'text-emerald-600' },
+  { bg: 'bg-blue-50',    bar: 'bg-blue-400',    text: 'text-blue-900',    sub: 'text-blue-600'    },
+  { bg: 'bg-violet-50',  bar: 'bg-violet-400',  text: 'text-violet-900',  sub: 'text-violet-600'  },
+  { bg: 'bg-orange-50',  bar: 'bg-orange-400',  text: 'text-orange-900',  sub: 'text-orange-600'  },
+  { bg: 'bg-pink-50',    bar: 'bg-pink-400',    text: 'text-pink-900',    sub: 'text-pink-600'    },
+  { bg: 'bg-teal-50',    bar: 'bg-teal-400',    text: 'text-teal-900',    sub: 'text-teal-600'    },
+  { bg: 'bg-amber-50',   bar: 'bg-amber-400',   text: 'text-amber-900',   sub: 'text-amber-600'   },
 ]
 
-function apptColor(specialty: string) {
+function apptPalette(specialty: string) {
   const hash = specialty.split('').reduce((a, c) => a + c.charCodeAt(0), 0)
-  return APPT_COLORS[hash % APPT_COLORS.length]
+  return APPT_PALETTES[hash % APPT_PALETTES.length]
 }
 
 function apptTop(iso: string, startHour: number): number | null {
@@ -92,6 +93,7 @@ export default function ClientAppointments() {
   const [startDate, setStartDate] = useState<Date>(() => weekStart(new Date()))
   const [showModal, setShowModal] = useState(false)
   const [form, setForm] = useState<FormData>(EMPTY)
+  const [detailAppt, setDetailAppt] = useState<Appointment | null>(null)
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState('')
 
@@ -329,23 +331,39 @@ export default function ClientAppointments() {
                         {dayAppts.map(appt => {
                           const top = apptTop(appt.scheduled_at, startHour)
                           if (top === null) return null
-                          const color = apptColor(appt.specialty)
+                          const pal = apptPalette(appt.specialty)
                           const d = new Date(appt.scheduled_at)
                           const time = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+                          const initials = appt.patient_name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()
                           return (
-                            <div key={appt.id}
-                              title={`${appt.patient_name} — ${appt.specialty}${appt.doctor_name ? ' | ' + appt.doctor_name : ''}`}
+                            <div
+                              key={appt.id}
+                              onClick={() => setDetailAppt(appt)}
                               className={cn(
-                                'absolute left-1 right-1 rounded-lg border px-2 py-1 overflow-hidden cursor-default hover:brightness-95 transition-all z-10',
-                                color,
+                                'absolute left-1 right-1 rounded-xl overflow-hidden cursor-pointer z-10',
+                                'shadow-sm hover:shadow-md hover:-translate-y-px transition-all duration-150',
+                                pal.bg,
                               )}
-                              style={{ top: top + 1, minHeight: HOUR_HEIGHT / 2 - 2 }}>
-                              <p className="text-[11px] font-semibold truncate leading-tight">
-                                {appt.patient_name} · {time}
-                              </p>
-                              <p className="text-[10px] truncate opacity-60 leading-tight mt-0.5">
-                                {appt.specialty}{appt.doctor_name ? ` · ${appt.doctor_name}` : ''}
-                              </p>
+                              style={{ top: top + 2, minHeight: HOUR_HEIGHT / 2 - 4 }}
+                            >
+                              {/* Accent bar */}
+                              <div className={cn('absolute left-0 top-0 bottom-0 w-1 rounded-l-xl', pal.bar)} />
+                              <div className="pl-3 pr-2 py-1.5 flex items-start gap-1.5">
+                                <div className="flex-1 min-w-0">
+                                  <p className={cn('text-[11px] font-bold truncate leading-tight', pal.text)}>
+                                    {appt.patient_name}
+                                  </p>
+                                  <p className={cn('text-[10px] truncate leading-tight mt-0.5 font-medium', pal.sub)}>
+                                    {time} · {appt.specialty}
+                                  </p>
+                                </div>
+                                <span className={cn(
+                                  'shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-black',
+                                  pal.bar, 'text-white'
+                                )}>
+                                  {initials}
+                                </span>
+                              </div>
                             </div>
                           )
                         })}
@@ -404,6 +422,89 @@ export default function ClientAppointments() {
           )}
         </div>
       )}
+
+      {/* ── Detail Modal ──────────────────────────────────────── */}
+      {detailAppt && (() => {
+        const pal = apptPalette(detailAppt.specialty)
+        const d = new Date(detailAppt.scheduled_at)
+        const dateStr = d.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+        const timeStr = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+        const initials = detailAppt.patient_name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()
+        const statusDot: Record<string, string> = {
+          scheduled: 'bg-slate-400', confirmed: 'bg-emerald-500',
+          completed: 'bg-blue-400', cancelled: 'bg-red-400',
+        }
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" onClick={() => setDetailAppt(null)} />
+            <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden animate-fade-up">
+
+              {/* Header colorido */}
+              <div className={cn('px-6 pt-6 pb-5 relative', pal.bg)}>
+                <div className={cn('absolute left-0 top-0 bottom-0 w-1.5', pal.bar)} />
+                <button
+                  onClick={() => setDetailAppt(null)}
+                  className="absolute top-4 right-4 w-7 h-7 flex items-center justify-center rounded-full bg-black/10 hover:bg-black/20 transition-colors"
+                >
+                  <X className="w-3.5 h-3.5 text-slate-700" />
+                </button>
+
+                <div className="flex items-center gap-3">
+                  <div className={cn('w-11 h-11 rounded-2xl flex items-center justify-center text-sm font-black text-white shadow-sm', pal.bar)}>
+                    {initials}
+                  </div>
+                  <div>
+                    <p className={cn('font-bold text-base leading-tight', pal.text)}>{detailAppt.patient_name}</p>
+                    <div className="flex items-center gap-1.5 mt-1">
+                      <span className={cn('w-1.5 h-1.5 rounded-full shrink-0', statusDot[detailAppt.status] ?? 'bg-slate-400')} />
+                      <span className="text-xs font-medium text-slate-600">{statusLabel(detailAppt.status)}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Detalhes */}
+              <div className="px-6 py-5 space-y-3.5">
+                <DetailRow icon={<Clock className="w-4 h-4" />} label="Data e horário">
+                  <span className="capitalize">{dateStr}</span> às <strong>{timeStr}</strong>
+                </DetailRow>
+                <DetailRow icon={<Stethoscope className="w-4 h-4" />} label="Especialidade">
+                  {detailAppt.specialty}
+                </DetailRow>
+                {detailAppt.doctor_name && (
+                  <DetailRow icon={<User className="w-4 h-4" />} label="Médico">
+                    {detailAppt.doctor_name}
+                  </DetailRow>
+                )}
+                {detailAppt.patient_phone && (
+                  <DetailRow icon={<Phone className="w-4 h-4" />} label="Telefone">
+                    {detailAppt.patient_phone}
+                  </DetailRow>
+                )}
+                {detailAppt.notes && (
+                  <DetailRow icon={<FileText className="w-4 h-4" />} label="Observações">
+                    {detailAppt.notes}
+                  </DetailRow>
+                )}
+                <DetailRow icon={<Tag className="w-4 h-4" />} label="Status">
+                  <Badge variant={statusColors[detailAppt.status] ?? 'outline'} className="text-[11px]">
+                    {statusLabel(detailAppt.status)}
+                  </Badge>
+                </DetailRow>
+              </div>
+
+              <div className="px-6 pb-5">
+                <button
+                  onClick={() => setDetailAppt(null)}
+                  className="w-full py-2.5 rounded-2xl text-sm font-semibold text-slate-600 border border-slate-200 hover:bg-slate-50 transition-colors"
+                >
+                  Fechar
+                </button>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
 
       {/* ── New Appointment Modal ──────────────────────────────── */}
       {showModal && (
@@ -494,6 +595,20 @@ export default function ClientAppointments() {
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+function DetailRow({ icon, label, children }: { icon: React.ReactNode; label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex items-start gap-3">
+      <div className="w-7 h-7 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400 shrink-0 mt-0.5">
+        {icon}
+      </div>
+      <div className="min-w-0">
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 leading-none mb-0.5">{label}</p>
+        <p className="text-sm text-slate-700">{children}</p>
+      </div>
     </div>
   )
 }
