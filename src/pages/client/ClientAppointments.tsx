@@ -1,5 +1,5 @@
-import { useEffect, useState, useMemo } from 'react'
-import { Search, Plus, X, ChevronLeft, ChevronRight, Calendar, List, Clock, User, Stethoscope, Phone, FileText, Tag } from 'lucide-react'
+import { type ReactNode, useEffect, useState, useMemo } from 'react'
+import { Search, Plus, X, ChevronLeft, ChevronRight, Calendar, List, Clock, User, Stethoscope, Phone, FileText } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { type Appointment } from '../../types'
@@ -16,15 +16,14 @@ const END_HOUR = 20
 const TIME_COL_W = 60
 const DAY_PT = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
 
-// Each entry: [bg, accent-bar color, text, subtext]
 const APPT_PALETTES = [
-  { bg: 'bg-brand-50', bar: 'bg-brand-400', text: 'text-brand-900', sub: 'text-brand-600' },
-  { bg: 'bg-blue-50',    bar: 'bg-blue-400',    text: 'text-blue-900',    sub: 'text-blue-600'    },
-  { bg: 'bg-violet-50',  bar: 'bg-violet-400',  text: 'text-violet-900',  sub: 'text-violet-600'  },
-  { bg: 'bg-orange-50',  bar: 'bg-orange-400',  text: 'text-orange-900',  sub: 'text-orange-600'  },
-  { bg: 'bg-pink-50',    bar: 'bg-pink-400',    text: 'text-pink-900',    sub: 'text-pink-600'    },
-  { bg: 'bg-teal-50',    bar: 'bg-teal-400',    text: 'text-teal-900',    sub: 'text-teal-600'    },
-  { bg: 'bg-amber-50',   bar: 'bg-amber-400',   text: 'text-amber-900',   sub: 'text-amber-600'   },
+  { bg: 'bg-brand-50',  bar: 'bg-brand-400',  text: 'text-brand-900',  sub: 'text-brand-600'  },
+  { bg: 'bg-blue-50',   bar: 'bg-blue-400',   text: 'text-blue-900',   sub: 'text-blue-600'   },
+  { bg: 'bg-violet-50', bar: 'bg-violet-400', text: 'text-violet-900', sub: 'text-violet-600' },
+  { bg: 'bg-orange-50', bar: 'bg-orange-400', text: 'text-orange-900', sub: 'text-orange-600' },
+  { bg: 'bg-pink-50',   bar: 'bg-pink-400',   text: 'text-pink-900',   sub: 'text-pink-600'   },
+  { bg: 'bg-teal-50',   bar: 'bg-teal-400',   text: 'text-teal-900',   sub: 'text-teal-600'   },
+  { bg: 'bg-amber-50',  bar: 'bg-amber-400',  text: 'text-amber-900',  sub: 'text-amber-600'  },
 ]
 
 function apptPalette(specialty: string) {
@@ -45,15 +44,14 @@ function weekStart(d: Date) {
   const r = new Date(d); r.setDate(r.getDate() - r.getDay()); r.setHours(0, 0, 0, 0); return r
 }
 
-// ── Form types ─────────────────────────────────────────────────
 const statusColors: Record<string, 'success' | 'secondary' | 'warning' | 'destructive' | 'outline'> = {
   scheduled: 'secondary', confirmed: 'success', cancelled: 'destructive', completed: 'outline',
 }
 const STATUS_OPTIONS = [
-  { value: 'scheduled', label: 'Agendado' },
+  { value: 'scheduled', label: 'Agendado'   },
   { value: 'confirmed', label: 'Confirmado' },
-  { value: 'completed', label: 'Realizado' },
-  { value: 'cancelled', label: 'Cancelado' },
+  { value: 'completed', label: 'Realizado'  },
+  { value: 'cancelled', label: 'Cancelado'  },
 ]
 interface FormData {
   patient_name: string; patient_phone: string; specialty: string
@@ -122,7 +120,6 @@ export default function ClientAppointments() {
     return map
   }, [appointments, days])
 
-  // Dynamic start hour: 8 by default, earlier if any visible appointment requires it
   const startHour = useMemo(() => {
     const visibleAppts = days.flatMap(d => apptsByDay[dayKey(d)] ?? [])
     const earliest = visibleAppts.reduce((min, a) => {
@@ -171,7 +168,7 @@ export default function ClientAppointments() {
       status: form.status,
     })
     setSaving(false)
-    if (error) { console.error('appointments insert error:', error); setFormError(`Erro: ${error.message}`); return }
+    if (error) { setFormError(`Erro: ${error.message}`); return }
     closeModal(); fetchAppointments()
   }
 
@@ -183,53 +180,75 @@ export default function ClientAppointments() {
   })()
 
   return (
-    <div className="flex flex-col gap-3 h-full">
+    <div className="flex flex-col gap-4 h-full">
 
-      {/* Top bar */}
+      {/* ── Top bar ──────────────────────────────────────────────── */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Agendamentos</h1>
-          <p className="text-sm text-gray-500">{appointments.length} consultas registradas</p>
+          <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400 leading-none mb-1.5">
+            Agenda
+          </p>
+          <h1 className="text-2xl font-black text-gray-900 leading-none">
+            {appointments.length}
+            <span className="text-lg font-medium text-slate-400 ml-2">consultas</span>
+          </h1>
         </div>
-        <Button onClick={openModal} className="gap-2 bg-gray-900 hover:bg-gray-800 text-white">
-          <Plus className="w-4 h-4" /> Novo Agendamento
-        </Button>
+        <button
+          onClick={openModal}
+          className="flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-bold text-white shadow-[0_4px_14px_rgba(44,130,181,0.30)] hover:shadow-[0_6px_20px_rgba(44,130,181,0.42)] hover:-translate-y-[1px] transition-all duration-200"
+          style={{ background: 'linear-gradient(135deg, #2C82B5 0%, #2570a0 100%)' }}
+        >
+          <Plus className="w-4 h-4" />
+          Novo Agendamento
+        </button>
       </div>
 
-      {/* Controls */}
-      <div className="flex items-center gap-3 flex-wrap">
+      {/* ── Controls bar ─────────────────────────────────────────── */}
+      <div className="flex items-center gap-2 flex-wrap">
 
         {/* View toggle */}
-        <div className="flex bg-white border border-slate-200 rounded-xl p-1">
-          <button onClick={() => setView('calendar')}
-            className={cn('px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5',
-              view === 'calendar' ? 'bg-gray-900 text-white' : 'text-slate-500 hover:text-slate-800')}>
-            <Calendar className="w-3.5 h-3.5" /> Calendário
-          </button>
-          <button onClick={() => setView('list')}
-            className={cn('px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5',
-              view === 'list' ? 'bg-gray-900 text-white' : 'text-slate-500 hover:text-slate-800')}>
-            <List className="w-3.5 h-3.5" /> Lista
-          </button>
+        <div className="flex items-center bg-white border border-slate-200 rounded-2xl p-1 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
+          {(['calendar', 'list'] as ViewMode[]).map((v) => (
+            <button
+              key={v}
+              onClick={() => setView(v)}
+              className={cn(
+                'flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-[13px] font-semibold transition-all duration-200',
+                view === v
+                  ? 'text-white shadow-[0_2px_8px_rgba(37,112,160,0.28)]'
+                  : 'text-slate-400 hover:text-slate-600',
+              )}
+              style={view === v ? { background: 'linear-gradient(135deg, #2C82B5, #2570a0)' } : {}}
+            >
+              {v === 'calendar' ? <Calendar className="w-3.5 h-3.5" /> : <List className="w-3.5 h-3.5" />}
+              {v === 'calendar' ? 'Calendário' : 'Lista'}
+            </button>
+          ))}
         </div>
 
         {view === 'calendar' && (
           <>
-            {/* Navigation */}
-            <div className="flex items-center gap-1">
-              <button onClick={prev}
-                className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors">
-                <ChevronLeft className="w-4 h-4 text-slate-600" />
+            <div className="flex items-center bg-white border border-slate-200 rounded-2xl p-1 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
+              <button
+                onClick={prev}
+                className="w-7 h-7 flex items-center justify-center rounded-xl hover:bg-slate-100 transition-colors"
+              >
+                <ChevronLeft className="w-4 h-4 text-slate-500" />
               </button>
-              <span className="text-sm font-medium text-slate-700 px-2 min-w-[160px] text-center">{rangeLabel}</span>
-              <button onClick={next}
-                className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors">
-                <ChevronRight className="w-4 h-4 text-slate-600" />
+              <span className="text-[13px] font-semibold text-slate-700 px-2 min-w-[148px] text-center tabular-nums">
+                {rangeLabel}
+              </span>
+              <button
+                onClick={next}
+                className="w-7 h-7 flex items-center justify-center rounded-xl hover:bg-slate-100 transition-colors"
+              >
+                <ChevronRight className="w-4 h-4 text-slate-500" />
               </button>
             </div>
-
-            <button onClick={goToday}
-              className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors">
+            <button
+              onClick={goToday}
+              className="px-3.5 py-1.5 rounded-xl border border-slate-200 bg-white text-[13px] font-semibold text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-all shadow-[0_2px_8px_rgba(0,0,0,0.04)]"
+            >
               Hoje
             </button>
           </>
@@ -237,42 +256,58 @@ export default function ClientAppointments() {
 
         {view === 'list' && (
           <div className="relative flex-1 max-w-xs">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <Input placeholder="Buscar paciente..." className="pl-9 h-9" value={search} onChange={e => setSearch(e.target.value)} />
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <Input
+              placeholder="Buscar paciente, especialidade..."
+              className="pl-10 h-9 rounded-2xl border-slate-200 bg-white text-sm focus-visible:ring-brand-400 shadow-[0_2px_8px_rgba(0,0,0,0.04)]"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+            />
           </div>
         )}
       </div>
 
-      {/* ── Calendar ─────────────────────────────────────────── */}
+      {/* ── Calendar view ────────────────────────────────────────── */}
       {view === 'calendar' && (
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-[0px_4px_24px_rgba(0,0,0,0.04)] overflow-hidden">
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-[0_2px_16px_rgba(0,0,0,0.04)] overflow-hidden">
           {loading ? (
             <div className="flex justify-center py-20">
-              <div className="w-6 h-6 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+              <div className="w-5 h-5 border-[2.5px] border-brand-500 border-t-transparent rounded-full animate-spin" />
             </div>
           ) : (
-            <div className="overflow-y-auto" style={{ maxHeight: 'calc(100vh - 160px)' }}>
+            <div className="overflow-y-auto" style={{ maxHeight: 'calc(100vh - 200px)' }}>
               <div className="w-full">
 
                 {/* Day header row */}
-                <div className="sticky top-0 z-30 flex bg-white border-b border-slate-200 w-full">
-                  <div style={{ width: TIME_COL_W, minWidth: TIME_COL_W }}
-                    className="shrink-0" />
+                <div className="sticky top-0 z-30 flex bg-white border-b border-slate-100 w-full">
+                  <div
+                    style={{ width: TIME_COL_W, minWidth: TIME_COL_W }}
+                    className="shrink-0 border-r border-slate-100"
+                  />
                   {days.map((day, i) => {
                     const isToday = dayKey(day) === todayKey
                     const isWeekend = day.getDay() === 0 || day.getDay() === 6
                     return (
-                      <div key={i}
+                      <div
+                        key={i}
                         className={cn(
-                          'flex-1 border-l border-slate-200 py-3 text-center min-w-0',
-                          isWeekend && !isToday && 'bg-slate-50/60',
+                          'flex-1 border-l border-slate-100 py-3 text-center min-w-0',
+                          isWeekend && !isToday ? 'bg-slate-50/60' : '',
+                        )}
+                      >
+                        <p className={cn(
+                          'text-[10px] font-bold uppercase tracking-[0.12em]',
+                          isToday ? 'text-brand-500' : 'text-slate-400',
                         )}>
-                        <p className={cn('text-[11px] font-semibold uppercase tracking-widest',
-                          isToday ? 'text-brand-500' : isWeekend ? 'text-slate-400' : 'text-slate-400')}>
                           {DAY_PT[day.getDay()]}
                         </p>
-                        <div className={cn('mt-1 mx-auto w-8 h-8 flex items-center justify-center rounded-full text-sm font-bold transition-colors',
-                          isToday ? 'bg-gray-900 text-white' : 'text-slate-600 hover:bg-slate-100')}>
+                        <div
+                          className={cn(
+                            'mt-1.5 mx-auto w-8 h-8 flex items-center justify-center rounded-full text-[13px] font-bold transition-all duration-200',
+                            isToday ? 'text-white shadow-[0_4px_10px_rgba(44,130,181,0.35)]' : 'text-slate-600 hover:bg-slate-100',
+                          )}
+                          style={isToday ? { background: 'linear-gradient(135deg, #2C82B5, #2570a0)' } : {}}
+                        >
                           {day.getDate()}
                         </div>
                       </div>
@@ -284,11 +319,16 @@ export default function ClientAppointments() {
                 <div className="flex w-full relative" style={{ height: totalHeight }}>
 
                   {/* Time labels column */}
-                  <div className="relative shrink-0 bg-white border-r border-slate-200"
-                    style={{ width: TIME_COL_W, minWidth: TIME_COL_W }}>
+                  <div
+                    className="relative shrink-0 bg-white border-r border-slate-100"
+                    style={{ width: TIME_COL_W, minWidth: TIME_COL_W }}
+                  >
                     {hours.map(h => (
-                      <div key={h} className="absolute right-3 flex items-start justify-end"
-                        style={{ top: (h - startHour) * HOUR_HEIGHT, height: HOUR_HEIGHT }}>
+                      <div
+                        key={h}
+                        className="absolute right-3 flex items-start justify-end"
+                        style={{ top: (h - startHour) * HOUR_HEIGHT, height: HOUR_HEIGHT }}
+                      >
                         <span className="text-[11px] text-slate-400 font-medium pt-1.5 tabular-nums">
                           {String(h).padStart(2, '0')}:00
                         </span>
@@ -302,32 +342,43 @@ export default function ClientAppointments() {
                     const isWeekend = day.getDay() === 0 || day.getDay() === 6
                     const dayAppts = apptsByDay[dayKey(day)] ?? []
                     return (
-                      <div key={i} className={cn(
-                          'relative flex-1 min-w-0 border-l border-slate-200',
-                          isToday ? 'bg-brand-50/40' : isWeekend ? 'bg-slate-50/50' : '',
+                      <div
+                        key={i}
+                        className={cn(
+                          'relative flex-1 min-w-0 border-l border-slate-100',
+                          isToday ? 'bg-brand-50/20' : isWeekend ? 'bg-slate-50/40' : '',
                         )}
-                        style={{ height: totalHeight }}>
-
-                        {/* Grid lines */}
+                        style={{ height: totalHeight }}
+                      >
+                        {/* Horizontal grid lines */}
                         {hours.map(h => (
                           <div key={h}>
-                            <div className="absolute left-0 right-0 border-t border-slate-200"
-                              style={{ top: (h - startHour) * HOUR_HEIGHT }} />
-                            <div className="absolute left-0 right-0 border-t border-dashed border-slate-100"
-                              style={{ top: (h - startHour) * HOUR_HEIGHT + HOUR_HEIGHT / 2 }} />
+                            <div
+                              className="absolute left-0 right-0 border-t border-slate-100"
+                              style={{ top: (h - startHour) * HOUR_HEIGHT }}
+                            />
+                            <div
+                              className="absolute left-0 right-0 border-t border-dashed border-slate-50"
+                              style={{ top: (h - startHour) * HOUR_HEIGHT + HOUR_HEIGHT / 2 }}
+                            />
                           </div>
                         ))}
 
-                        {/* Current time indicator */}
+                        {/* Current time line */}
                         {isToday && nowLine !== null && (
-                          <div className="absolute left-0 right-0 z-20 pointer-events-none"
-                            style={{ top: nowLine }}>
+                          <div
+                            className="absolute left-0 right-0 z-20 pointer-events-none"
+                            style={{ top: nowLine }}
+                          >
                             <div className="absolute -left-1 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-brand-500" />
-                            <div className="h-[2px] bg-brand-400 ml-1" />
+                            <div
+                              className="h-[1.5px] ml-1"
+                              style={{ background: 'linear-gradient(90deg, #2C82B5, rgba(44,130,181,0.15))' }}
+                            />
                           </div>
                         )}
 
-                        {/* Appointments */}
+                        {/* Appointment cards */}
                         {dayAppts.map(appt => {
                           const top = apptTop(appt.scheduled_at, startHour)
                           if (top === null) return null
@@ -341,13 +392,12 @@ export default function ClientAppointments() {
                               onClick={() => setDetailAppt(appt)}
                               className={cn(
                                 'absolute left-1 right-1 rounded-xl overflow-hidden cursor-pointer z-10',
-                                'shadow-sm hover:shadow-md hover:-translate-y-px transition-all duration-150',
+                                'shadow-[0_1px_4px_rgba(0,0,0,0.07)] hover:shadow-[0_4px_14px_rgba(0,0,0,0.12)] hover:-translate-y-px transition-all duration-150',
                                 pal.bg,
                               )}
                               style={{ top: top + 2, minHeight: HOUR_HEIGHT / 2 - 4 }}
                             >
-                              {/* Accent bar */}
-                              <div className={cn('absolute left-0 top-0 bottom-0 w-1 rounded-l-xl', pal.bar)} />
+                              <div className={cn('absolute left-0 top-0 bottom-0 w-[3px] rounded-l-xl', pal.bar)} />
                               <div className="pl-3 pr-2 py-1.5 flex items-start gap-1.5">
                                 <div className="flex-1 min-w-0">
                                   <p className={cn('text-[11px] font-bold truncate leading-tight', pal.text)}>
@@ -358,8 +408,8 @@ export default function ClientAppointments() {
                                   </p>
                                 </div>
                                 <span className={cn(
-                                  'shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-black',
-                                  pal.bar, 'text-white'
+                                  'shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-black text-white',
+                                  pal.bar,
                                 )}>
                                   {initials}
                                 </span>
@@ -377,126 +427,160 @@ export default function ClientAppointments() {
         </div>
       )}
 
-      {/* ── List View ─────────────────────────────────────────── */}
+      {/* ── List view ─────────────────────────────────────────────── */}
       {view === 'list' && (
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-[0px_4px_20px_rgba(0,0,0,0.02)] overflow-hidden">
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-[0_2px_12px_rgba(0,0,0,0.03)] overflow-hidden">
+
+          {/* Column headers */}
+          <div className="flex items-center gap-4 px-6 py-3 border-b border-slate-50">
+            <div className="w-2 shrink-0" />
+            <p className="flex-1 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400 min-w-0">
+              Paciente · Especialidade
+            </p>
+            <p className="w-32 shrink-0 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400 hidden md:block">
+              Médico
+            </p>
+            <p className="w-28 shrink-0 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400 hidden sm:block">
+              Data
+            </p>
+            <p className="w-20 shrink-0 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400 text-right">
+              Status
+            </p>
+          </div>
+
           {loading ? (
             <div className="flex justify-center py-12">
-              <div className="w-6 h-6 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+              <div className="w-5 h-5 border-[2.5px] border-brand-500 border-t-transparent rounded-full animate-spin" />
             </div>
           ) : filtered.length === 0 ? (
-            <div className="text-center py-14 text-gray-400">
-              <Calendar className="w-10 h-10 mx-auto mb-3 opacity-30" />
-              <p className="text-sm">Nenhum agendamento encontrado.</p>
+            <div className="flex flex-col items-center justify-center py-14">
+              <div className="w-10 h-10 rounded-2xl bg-slate-50 flex items-center justify-center mb-3 border border-slate-100">
+                <Calendar className="w-5 h-5 text-slate-300" />
+              </div>
+              <p className="text-[13px] font-semibold text-slate-400">Nenhum agendamento encontrado.</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-gray-100">
-                    <th className="text-left py-3 px-4 text-gray-500 font-medium">Paciente</th>
-                    <th className="text-left py-3 px-4 text-gray-500 font-medium">Especialidade</th>
-                    <th className="text-left py-3 px-4 text-gray-500 font-medium hidden md:table-cell">Médico</th>
-                    <th className="text-left py-3 px-4 text-gray-500 font-medium">Data/Hora</th>
-                    <th className="text-left py-3 px-4 text-gray-500 font-medium">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filtered.map(appt => (
-                    <tr key={appt.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
-                      <td className="py-3 px-4">
-                        <p className="font-medium text-gray-900">{appt.patient_name}</p>
-                        <p className="text-xs text-gray-400">{appt.patient_phone}</p>
-                      </td>
-                      <td className="py-3 px-4 text-gray-600">{appt.specialty}</td>
-                      <td className="py-3 px-4 text-gray-600 hidden md:table-cell">{appt.doctor_name ?? '—'}</td>
-                      <td className="py-3 px-4 text-gray-600">{formatDate(appt.scheduled_at)}</td>
-                      <td className="py-3 px-4">
-                        <Badge variant={statusColors[appt.status] ?? 'outline'}>{statusLabel(appt.status)}</Badge>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="divide-y divide-slate-50/80">
+              {filtered.map((appt, i) => (
+                <div
+                  key={appt.id}
+                  onClick={() => setDetailAppt(appt)}
+                  className={cn(
+                    'flex items-center gap-4 px-6 py-3.5 cursor-pointer transition-colors duration-150 hover:bg-slate-50/70 group',
+                    i % 2 !== 0 ? 'bg-slate-50/30' : '',
+                  )}
+                >
+                  {/* Status dot */}
+                  <div className={cn(
+                    'w-2 h-2 rounded-full shrink-0 transition-transform duration-200 group-hover:scale-125',
+                    appt.status === 'scheduled'  ? 'bg-slate-300'   :
+                    appt.status === 'confirmed'  ? 'bg-emerald-400' :
+                    appt.status === 'cancelled'  ? 'bg-rose-400'    : 'bg-brand-400',
+                  )} />
+
+                  {/* Patient + specialty */}
+                  <div className="flex-1 flex items-center gap-1.5 min-w-0">
+                    <p className="text-[13px] font-semibold text-gray-900 truncate">{appt.patient_name}</p>
+                    <span className="text-slate-300 text-[11px] shrink-0">·</span>
+                    <p className="text-[12px] text-slate-500 truncate">{appt.specialty}</p>
+                  </div>
+
+                  {/* Doctor */}
+                  <p className="w-32 shrink-0 text-[12px] text-slate-400 truncate hidden md:block">
+                    {appt.doctor_name ?? '—'}
+                  </p>
+
+                  {/* Date */}
+                  <p className="w-28 shrink-0 text-[12px] font-medium text-slate-500 tabular-nums hidden sm:block">
+                    {formatDate(appt.scheduled_at)}
+                  </p>
+
+                  {/* Badge */}
+                  <div className="w-20 shrink-0 flex justify-end">
+                    <Badge variant={statusColors[appt.status] ?? 'outline'} className="text-[10px] font-semibold">
+                      {statusLabel(appt.status)}
+                    </Badge>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </div>
       )}
 
-      {/* ── Detail Modal ──────────────────────────────────────── */}
+      {/* ── Detail modal ─────────────────────────────────────────── */}
       {detailAppt && (() => {
         const pal = apptPalette(detailAppt.specialty)
         const d = new Date(detailAppt.scheduled_at)
         const dateStr = d.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
         const timeStr = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
         const initials = detailAppt.patient_name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()
-        const statusDot: Record<string, string> = {
-          scheduled: 'bg-slate-400', confirmed: 'bg-brand-500',
-          completed: 'bg-blue-400', cancelled: 'bg-red-400',
-        }
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" onClick={() => setDetailAppt(null)} />
-            <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden animate-fade-up">
+            <div
+              className="absolute inset-0 bg-black/40 backdrop-blur-[3px]"
+              onClick={() => setDetailAppt(null)}
+            />
+            <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden">
 
-              {/* Header colorido */}
+              {/* Colored header */}
               <div className={cn('px-6 pt-6 pb-5 relative', pal.bg)}>
-                <div className={cn('absolute left-0 top-0 bottom-0 w-1.5', pal.bar)} />
+                <div className={cn('absolute left-0 top-0 bottom-0 w-[3px]', pal.bar)} />
                 <button
                   onClick={() => setDetailAppt(null)}
                   className="absolute top-4 right-4 w-7 h-7 flex items-center justify-center rounded-full bg-black/10 hover:bg-black/20 transition-colors"
                 >
                   <X className="w-3.5 h-3.5 text-slate-700" />
                 </button>
-
                 <div className="flex items-center gap-3">
-                  <div className={cn('w-11 h-11 rounded-2xl flex items-center justify-center text-sm font-black text-white shadow-sm', pal.bar)}>
+                  <div className={cn(
+                    'w-12 h-12 rounded-2xl flex items-center justify-center text-sm font-black text-white shadow-sm shrink-0',
+                    pal.bar,
+                  )}>
                     {initials}
                   </div>
                   <div>
-                    <p className={cn('font-bold text-base leading-tight', pal.text)}>{detailAppt.patient_name}</p>
-                    <div className="flex items-center gap-1.5 mt-1">
-                      <span className={cn('w-1.5 h-1.5 rounded-full shrink-0', statusDot[detailAppt.status] ?? 'bg-slate-400')} />
-                      <span className="text-xs font-medium text-slate-600">{statusLabel(detailAppt.status)}</span>
+                    <p className={cn('font-bold text-base leading-tight', pal.text)}>
+                      {detailAppt.patient_name}
+                    </p>
+                    <div className="mt-1.5">
+                      <Badge variant={statusColors[detailAppt.status] ?? 'outline'} className="text-[10px]">
+                        {statusLabel(detailAppt.status)}
+                      </Badge>
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* Detalhes */}
+              {/* Detail rows */}
               <div className="px-6 py-5 space-y-3.5">
-                <DetailRow icon={<Clock className="w-4 h-4" />} label="Data e horário">
+                <DetailRow icon={<Clock className="w-3.5 h-3.5" />} label="Data e horário">
                   <span className="capitalize">{dateStr}</span> às <strong>{timeStr}</strong>
                 </DetailRow>
-                <DetailRow icon={<Stethoscope className="w-4 h-4" />} label="Especialidade">
+                <DetailRow icon={<Stethoscope className="w-3.5 h-3.5" />} label="Especialidade">
                   {detailAppt.specialty}
                 </DetailRow>
                 {detailAppt.doctor_name && (
-                  <DetailRow icon={<User className="w-4 h-4" />} label="Médico">
+                  <DetailRow icon={<User className="w-3.5 h-3.5" />} label="Médico">
                     {detailAppt.doctor_name}
                   </DetailRow>
                 )}
                 {detailAppt.patient_phone && (
-                  <DetailRow icon={<Phone className="w-4 h-4" />} label="Telefone">
+                  <DetailRow icon={<Phone className="w-3.5 h-3.5" />} label="Telefone">
                     {detailAppt.patient_phone}
                   </DetailRow>
                 )}
                 {detailAppt.notes && (
-                  <DetailRow icon={<FileText className="w-4 h-4" />} label="Observações">
+                  <DetailRow icon={<FileText className="w-3.5 h-3.5" />} label="Observações">
                     {detailAppt.notes}
                   </DetailRow>
                 )}
-                <DetailRow icon={<Tag className="w-4 h-4" />} label="Status">
-                  <Badge variant={statusColors[detailAppt.status] ?? 'outline'} className="text-[11px]">
-                    {statusLabel(detailAppt.status)}
-                  </Badge>
-                </DetailRow>
               </div>
 
-              <div className="px-6 pb-5">
+              <div className="px-6 pb-6">
                 <button
                   onClick={() => setDetailAppt(null)}
-                  className="w-full py-2.5 rounded-2xl text-sm font-semibold text-slate-600 border border-slate-200 hover:bg-slate-50 transition-colors"
+                  className="w-full py-2.5 rounded-2xl text-[13px] font-semibold text-slate-600 border border-slate-200 hover:bg-slate-50 transition-colors"
                 >
                   Fechar
                 </button>
@@ -506,90 +590,145 @@ export default function ClientAppointments() {
         )
       })()}
 
-      {/* ── New Appointment Modal ──────────────────────────────── */}
+      {/* ── New Appointment Modal ────────────────────────────────── */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/40" onClick={closeModal} />
-          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between p-6 border-b border-slate-100">
-              <h2 className="text-lg font-bold text-gray-900">Novo Agendamento</h2>
-              <button onClick={closeModal}
-                className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 transition-colors">
-                <X className="w-4 h-4 text-gray-500" />
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" onClick={closeModal} />
+          <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+
+            {/* Header */}
+            <div
+              className="flex items-center justify-between px-6 py-5 rounded-t-3xl"
+              style={{ background: 'linear-gradient(135deg, #2C82B5 0%, #1e5f88 100%)' }}
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-xl bg-white/15 flex items-center justify-center border border-white/20">
+                  <Calendar className="w-4 h-4 text-white" />
+                </div>
+                <h2 className="text-base font-bold text-white">Novo Agendamento</h2>
+              </div>
+              <button
+                onClick={closeModal}
+                className="w-8 h-8 flex items-center justify-center rounded-xl bg-white/10 hover:bg-white/20 transition-colors"
+              >
+                <X className="w-4 h-4 text-white" />
               </button>
             </div>
+
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                    Nome do paciente <span className="text-red-400">*</span>
-                  </label>
-                  <Input placeholder="Nome completo" value={form.patient_name}
-                    onChange={e => setForm(f => ({ ...f, patient_name: e.target.value }))} />
-                </div>
-                <div className="col-span-2 sm:col-span-1">
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Telefone</label>
-                  <Input placeholder="(00) 00000-0000" value={form.patient_phone}
-                    onChange={e => setForm(f => ({ ...f, patient_phone: e.target.value }))} />
-                </div>
-                <div className="col-span-2 sm:col-span-1">
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                    Especialidade <span className="text-red-400">*</span>
-                  </label>
-                  <Input placeholder="Ex: Cardiologia" value={form.specialty}
-                    onChange={e => setForm(f => ({ ...f, specialty: e.target.value }))} />
-                </div>
-                <div className="col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Médico responsável</label>
-                  <Input placeholder="Nome do médico" value={form.doctor_name}
-                    onChange={e => setForm(f => ({ ...f, doctor_name: e.target.value }))} />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                    Data <span className="text-red-400">*</span>
-                  </label>
-                  <Input type="date" value={form.date}
-                    onChange={e => setForm(f => ({ ...f, date: e.target.value }))} />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                    Horário <span className="text-red-400">*</span>
-                  </label>
-                  <Input type="time" value={form.time}
-                    onChange={e => setForm(f => ({ ...f, time: e.target.value }))} />
-                </div>
-                <div className="col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Status</label>
-                  <div className="flex gap-2 flex-wrap">
-                    {STATUS_OPTIONS.map(opt => (
-                      <button key={opt.value} type="button"
-                        onClick={() => setForm(f => ({ ...f, status: opt.value as FormData['status'] }))}
-                        className={cn('px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors',
-                          form.status === opt.value
-                            ? 'bg-gray-900 text-white border-gray-900'
-                            : 'border-gray-200 text-gray-600 hover:border-gray-400')}>
-                        {opt.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div className="col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Observações</label>
-                  <textarea
-                    className="w-full border border-input rounded-md px-3 py-2 text-sm min-h-[72px] resize-y focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    placeholder="Informações adicionais..."
-                    value={form.notes}
-                    onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
+
+              <FormField label="Nome do paciente" required>
+                <Input
+                  placeholder="Nome completo"
+                  value={form.patient_name}
+                  onChange={e => setForm(f => ({ ...f, patient_name: e.target.value }))}
+                  className="rounded-xl border-slate-200 focus-visible:ring-brand-400 h-10 text-sm"
+                />
+              </FormField>
+
+              <div className="grid grid-cols-2 gap-3">
+                <FormField label="Telefone">
+                  <Input
+                    placeholder="(00) 00000-0000"
+                    value={form.patient_phone}
+                    onChange={e => setForm(f => ({ ...f, patient_phone: e.target.value }))}
+                    className="rounded-xl border-slate-200 focus-visible:ring-brand-400 h-10 text-sm"
                   />
-                </div>
+                </FormField>
+                <FormField label="Especialidade" required>
+                  <Input
+                    placeholder="Ex: Cardiologia"
+                    value={form.specialty}
+                    onChange={e => setForm(f => ({ ...f, specialty: e.target.value }))}
+                    className="rounded-xl border-slate-200 focus-visible:ring-brand-400 h-10 text-sm"
+                  />
+                </FormField>
               </div>
-              {formError && <p className="text-sm text-red-500">{formError}</p>}
-              <div className="flex gap-3 pt-2">
-                <Button type="button" variant="outline" onClick={closeModal} className="flex-1">Cancelar</Button>
-                <Button type="submit" disabled={saving}
-                  className="flex-1 bg-gray-900 hover:bg-gray-800 text-white">
-                  {saving ? 'Salvando...' : 'Salvar Agendamento'}
+
+              <FormField label="Médico responsável">
+                <Input
+                  placeholder="Nome do médico"
+                  value={form.doctor_name}
+                  onChange={e => setForm(f => ({ ...f, doctor_name: e.target.value }))}
+                  className="rounded-xl border-slate-200 focus-visible:ring-brand-400 h-10 text-sm"
+                />
+              </FormField>
+
+              <div className="grid grid-cols-2 gap-3">
+                <FormField label="Data" required>
+                  <Input
+                    type="date"
+                    value={form.date}
+                    onChange={e => setForm(f => ({ ...f, date: e.target.value }))}
+                    className="rounded-xl border-slate-200 focus-visible:ring-brand-400 h-10 text-sm"
+                  />
+                </FormField>
+                <FormField label="Horário" required>
+                  <Input
+                    type="time"
+                    value={form.time}
+                    onChange={e => setForm(f => ({ ...f, time: e.target.value }))}
+                    className="rounded-xl border-slate-200 focus-visible:ring-brand-400 h-10 text-sm"
+                  />
+                </FormField>
+              </div>
+
+              <FormField label="Status">
+                <div className="flex gap-2 flex-wrap">
+                  {STATUS_OPTIONS.map(opt => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setForm(f => ({ ...f, status: opt.value as FormData['status'] }))}
+                      className={cn(
+                        'px-3.5 py-1.5 rounded-xl text-[13px] font-semibold border transition-all duration-200',
+                        form.status === opt.value
+                          ? 'text-white border-transparent shadow-[0_2px_8px_rgba(44,130,181,0.26)]'
+                          : 'border-slate-200 text-slate-600 hover:border-slate-300 bg-white',
+                      )}
+                      style={form.status === opt.value
+                        ? { background: 'linear-gradient(135deg, #2C82B5, #2570a0)' }
+                        : {}}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </FormField>
+
+              <FormField label="Observações">
+                <textarea
+                  className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm min-h-[72px] resize-y focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent transition-all"
+                  placeholder="Informações adicionais..."
+                  value={form.notes}
+                  onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
+                />
+              </FormField>
+
+              {formError && (
+                <div className="flex items-center gap-2 text-sm text-rose-600 bg-rose-50 border border-rose-100 rounded-xl px-4 py-3">
+                  <X className="w-4 h-4 shrink-0" />
+                  {formError}
+                </div>
+              )}
+
+              <div className="flex gap-3 pt-1">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={closeModal}
+                  className="flex-1 rounded-2xl border-slate-200 text-[13px] font-semibold"
+                >
+                  Cancelar
                 </Button>
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="flex-1 py-2.5 rounded-2xl text-sm font-bold text-white shadow-[0_4px_14px_rgba(44,130,181,0.28)] hover:shadow-[0_6px_20px_rgba(44,130,181,0.38)] hover:-translate-y-[1px] disabled:opacity-60 disabled:hover:translate-y-0 transition-all duration-200"
+                  style={{ background: 'linear-gradient(135deg, #2C82B5 0%, #2570a0 100%)' }}
+                >
+                  {saving ? 'Salvando...' : 'Salvar Agendamento'}
+                </button>
               </div>
             </form>
           </div>
@@ -599,16 +738,34 @@ export default function ClientAppointments() {
   )
 }
 
-function DetailRow({ icon, label, children }: { icon: React.ReactNode; label: string; children: React.ReactNode }) {
+// ── Helpers ────────────────────────────────────────────────────
+
+function DetailRow({ icon, label, children }: {
+  icon: ReactNode; label: string; children: ReactNode
+}) {
   return (
     <div className="flex items-start gap-3">
       <div className="w-7 h-7 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400 shrink-0 mt-0.5">
         {icon}
       </div>
       <div className="min-w-0">
-        <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 leading-none mb-0.5">{label}</p>
-        <p className="text-sm text-slate-700">{children}</p>
+        <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-400 leading-none mb-1">{label}</p>
+        <p className="text-[13px] text-slate-700 leading-snug">{children}</p>
       </div>
+    </div>
+  )
+}
+
+function FormField({ label, required, children }: {
+  label: string; required?: boolean; children: ReactNode
+}) {
+  return (
+    <div className="space-y-1.5">
+      <label className="flex items-center gap-1 text-[11px] font-bold uppercase tracking-[0.1em] text-slate-400">
+        {label}
+        {required && <span className="text-rose-400 text-[10px]">*</span>}
+      </label>
+      {children}
     </div>
   )
 }
