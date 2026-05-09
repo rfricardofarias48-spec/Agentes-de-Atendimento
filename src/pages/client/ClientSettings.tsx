@@ -107,7 +107,7 @@ export default function ClientSettings() {
 
   if (loading) return (
     <div className="flex items-center justify-center py-24">
-      <div className="w-6 h-6 border-[3px] border-emerald-500 border-t-transparent rounded-full animate-spin" />
+      <div className="w-6 h-6 border-[3px] border-brand-500 border-t-transparent rounded-full animate-spin" />
     </div>
   )
 
@@ -140,7 +140,7 @@ export default function ClientSettings() {
               value={clinicName}
               onChange={e => setClinicName(e.target.value)}
               placeholder="Ex: Clínica São Lucas"
-              className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent transition-all"
+              className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent transition-all"
             />
           </div>
 
@@ -162,7 +162,7 @@ export default function ClientSettings() {
               value={phone}
               onChange={e => setPhone(e.target.value)}
               placeholder="(00) 00000-0000"
-              className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent transition-all"
+              className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent transition-all"
             />
           </div>
 
@@ -223,7 +223,7 @@ export default function ClientSettings() {
                 onClick={() => setter(!val)}
                 className={cn(
                   'w-9 h-5 rounded-full transition-colors duration-200 relative shrink-0 cursor-pointer',
-                  val ? 'bg-emerald-500' : 'bg-slate-200'
+                  val ? 'bg-brand-500' : 'bg-slate-200'
                 )}
               >
                 <div className={cn(
@@ -256,7 +256,7 @@ function PasswordInput({ value, onChange, show, onToggle, placeholder }: {
         value={value}
         onChange={e => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent transition-all"
+        className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent transition-all"
       />
       <button
         type="button"
@@ -286,7 +286,7 @@ function SaveRow({ saving, msg, onSave, label, disabled }: {
       {msg && (
         <div className={cn(
           'flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-xl',
-          msg.ok ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'
+          msg.ok ? 'bg-brand-50 text-brand-700' : 'bg-red-50 text-red-600'
         )}>
           {msg.ok
             ? <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />

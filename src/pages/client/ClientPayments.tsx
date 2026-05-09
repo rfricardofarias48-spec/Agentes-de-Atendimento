@@ -98,11 +98,11 @@ export default function ClientPayments() {
 
           {/* Top row */}
           <div className="flex items-center justify-between mb-3">
-            <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">
+            <span className="text-[10px] font-black text-brand-400 uppercase tracking-widest">
               Plano Ativo
             </span>
             <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center">
-              <Zap className="w-4 h-4 text-emerald-400" />
+              <Zap className="w-4 h-4 text-brand-400" />
             </div>
           </div>
 
@@ -138,7 +138,7 @@ export default function ClientPayments() {
           </div>
 
           {/* Decorative glow */}
-          <div className="absolute -right-16 -bottom-16 w-48 h-48 bg-emerald-500 rounded-full blur-[80px] opacity-10 pointer-events-none" />
+          <div className="absolute -right-16 -bottom-16 w-48 h-48 bg-brand-500 rounded-full blur-[80px] opacity-10 pointer-events-none" />
         </div>
       )}
 
@@ -168,7 +168,7 @@ export default function ClientPayments() {
             )}
           >
             Anual
-            <span className="bg-emerald-400 text-gray-900 text-[10px] font-black px-1.5 py-0.5 rounded-full">
+            <span className="bg-brand-400 text-gray-900 text-[10px] font-black px-1.5 py-0.5 rounded-full">
               -20%
             </span>
           </button>
@@ -193,7 +193,7 @@ export default function ClientPayments() {
             >
               {/* Badge */}
               {plan.badge && (
-                <span className="absolute top-5 right-5 bg-emerald-400 text-gray-900 text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full">
+                <span className="absolute top-5 right-5 bg-brand-400 text-gray-900 text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full">
                   {plan.badge}
                 </span>
               )}
@@ -217,7 +217,7 @@ export default function ClientPayments() {
                   </span>
                 </div>
                 {annual && (
-                  <p className="text-xs font-medium text-emerald-500 mt-0.5">
+                  <p className="text-xs font-medium text-brand-500 mt-0.5">
                     Cobrado como R$ {fmt(price * 12)}/ano
                   </p>
                 )}
@@ -232,7 +232,7 @@ export default function ClientPayments() {
               <ul className="space-y-2 flex-1 mb-5">
                 {plan.features.map((f, i) => (
                   <li key={i} className="flex items-start gap-3">
-                    <span className="mt-0.5 w-[18px] h-[18px] shrink-0 rounded-md bg-emerald-400 flex items-center justify-center">
+                    <span className="mt-0.5 w-[18px] h-[18px] shrink-0 rounded-md bg-brand-400 flex items-center justify-center">
                       <Check className="w-3 h-3 text-gray-900" strokeWidth={3} />
                     </span>
                     <span className={cn('text-sm leading-snug', plan.highlight ? 'text-slate-200' : 'text-slate-600')}>
@@ -248,9 +248,9 @@ export default function ClientPayments() {
                 className={cn(
                   'w-full py-3 rounded-2xl font-bold text-sm transition-all',
                   isCurrent
-                    ? 'bg-emerald-400/20 text-emerald-600 cursor-default border border-emerald-400/30'
+                    ? 'bg-brand-400/20 text-brand-600 cursor-default border border-brand-400/30'
                     : plan.highlight
-                      ? 'bg-emerald-400 text-gray-900 hover:bg-emerald-300 active:bg-emerald-500'
+                      ? 'bg-brand-400 text-gray-900 hover:bg-brand-300 active:bg-brand-500'
                       : 'border border-slate-200 text-gray-900 bg-white hover:bg-slate-50 hover:border-slate-300',
                 )}
               >

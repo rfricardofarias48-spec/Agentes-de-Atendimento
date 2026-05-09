@@ -83,7 +83,7 @@ export default function ClientDashboard() {
 
   if (loading) return (
     <div className="flex items-center justify-center py-24">
-      <div className="w-6 h-6 border-[3px] border-emerald-500 border-t-transparent rounded-full animate-spin" />
+      <div className="w-6 h-6 border-[3px] border-brand-500 border-t-transparent rounded-full animate-spin" />
     </div>
   )
 
@@ -96,7 +96,7 @@ export default function ClientDashboard() {
         <div className="flex items-center gap-3">
           {/* Avatar com offset sombra (Elevva style) */}
           <div className="relative shrink-0 group cursor-default">
-            <div className="absolute inset-0 bg-emerald-400 rounded-lg translate-x-1 translate-y-1 transition-transform duration-300 group-hover:translate-x-1.5 group-hover:translate-y-1.5" />
+            <div className="absolute inset-0 bg-brand-400 rounded-lg translate-x-1 translate-y-1 transition-transform duration-300 group-hover:translate-x-1.5 group-hover:translate-y-1.5" />
             <div className="w-9 h-9 bg-gray-900 rounded-lg relative flex items-center justify-center text-white text-sm font-bold border-2 border-gray-900 z-10 shadow-sm">
               {avatarLetter}
             </div>
@@ -174,7 +174,7 @@ export default function ClientDashboard() {
         <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-[0px_4px_20px_rgba(0,0,0,0.02)] lg:col-span-2">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-              <Calendar className="w-5 h-5 text-emerald-500" />
+              <Calendar className="w-5 h-5 text-brand-500" />
               Agendamentos Recentes
             </h3>
             <span className="text-xs font-medium text-slate-400">
@@ -233,7 +233,7 @@ export default function ClientDashboard() {
                 className="h-full rounded-full transition-all duration-700"
                 style={{
                   width: `${usagePct}%`,
-                  background: usagePct > 80 ? '#f43f5e' : '#10b981',
+                  background: usagePct > 80 ? '#f43f5e' : '#2C82B5',
                 }}
               />
             </div>

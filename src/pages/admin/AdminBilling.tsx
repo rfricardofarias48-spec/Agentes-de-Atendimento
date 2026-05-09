@@ -109,7 +109,7 @@ export default function AdminBilling() {
 
   if (loading) return (
     <div className="flex justify-center py-20">
-      <div className="w-6 h-6 border-2 border-slate-200 border-t-emerald-500 rounded-full animate-spin" />
+      <div className="w-6 h-6 border-2 border-slate-200 border-t-brand-500 rounded-full animate-spin" />
     </div>
   )
 
@@ -167,10 +167,10 @@ export default function AdminBilling() {
                 onClick={() => setYear(String(y))}
                 className="px-4 py-1.5 rounded-xl text-sm font-semibold transition-all"
                 style={year === String(y) ? {
-                  background: '#10b981',
+                  background: '#2C82B5',
                   color: '#ffffff',
-                  border: '1px solid #059669',
-                  boxShadow: '0 1px 4px rgba(16,185,129,0.3)',
+                  border: '1px solid #2570a0',
+                  boxShadow: '0 1px 4px rgba(44,130,181,0.3)',
                 } : {
                   border: '1px solid #e4e7ec',
                   color: '#667085',
@@ -187,9 +187,9 @@ export default function AdminBilling() {
             <div
               className="relative overflow-hidden rounded-2xl p-7"
               style={{
-                background: 'linear-gradient(135deg,#065f46 0%,#047857 100%)',
-                border: '1px solid #059669',
-                boxShadow: '0 4px 16px rgba(5,150,105,0.25)',
+                background: 'linear-gradient(135deg,#164a6a 0%,#1e5f88 100%)',
+                border: '1px solid #2570a0',
+                boxShadow: '0 4px 16px rgba(44,130,181,0.25)',
               }}
             >
               <div className="absolute -top-8 -right-8 w-32 h-32 rounded-full pointer-events-none opacity-20"
@@ -199,15 +199,15 @@ export default function AdminBilling() {
                   <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'rgba(255,255,255,0.15)' }}>
                     <Wallet className="w-5 h-5 text-white" />
                   </div>
-                  <span className="text-[10px] font-bold text-emerald-200 uppercase tracking-widest px-2.5 py-1 rounded-full" style={{ background: 'rgba(255,255,255,0.1)' }}>MRR</span>
+                  <span className="text-[10px] font-bold text-brand-200 uppercase tracking-widest px-2.5 py-1 rounded-full" style={{ background: 'rgba(255,255,255,0.1)' }}>MRR</span>
                 </div>
-                <p className="text-[10px] font-semibold text-emerald-200 uppercase tracking-widest mb-1">Receita Recorrente Mensal</p>
+                <p className="text-[10px] font-semibold text-brand-200 uppercase tracking-widest mb-1">Receita Recorrente Mensal</p>
                 <h3 className="text-4xl font-bold text-white tracking-tight">
                   R$ {mrr.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                 </h3>
                 <div className="flex items-center gap-2 mt-4 pt-4" style={{ borderTop: '1px solid rgba(255,255,255,0.15)' }}>
-                  <TrendingUp className="w-4 h-4 text-emerald-300" />
-                  <span className="text-xs text-emerald-300 font-semibold">Projeção {year}:</span>
+                  <TrendingUp className="w-4 h-4 text-brand-300" />
+                  <span className="text-xs text-brand-300 font-semibold">Projeção {year}:</span>
                   <span className="text-sm font-bold text-white ml-auto">R$ {(arr / 1000).toFixed(1)}k</span>
                 </div>
               </div>
@@ -226,7 +226,7 @@ export default function AdminBilling() {
                 <div className="w-full h-2 rounded-full overflow-hidden mt-5" style={{ background: '#f2f4f7' }}>
                   <div
                     className="h-full rounded-full transition-all duration-700"
-                    style={{ width: `${Math.min(100, (payingCount / (totalCount || 1)) * 100)}%`, background: '#10b981' }}
+                    style={{ width: `${Math.min(100, (payingCount / (totalCount || 1)) * 100)}%`, background: '#2C82B5' }}
                   />
                 </div>
                 <p className="text-[10px] font-semibold mt-2 text-right" style={{ color: '#98a2b3' }}>
@@ -247,7 +247,7 @@ export default function AdminBilling() {
                 {[
                   { label: 'Essencial', count: starterCount, color: '#94a3b8' },
                   { label: 'Pro',      count: proCount,     color: '#3b82f6' },
-                  { label: 'Max',      count: clinicCount,  color: '#10b981' },
+                  { label: 'Max',      count: clinicCount,  color: '#2C82B5' },
                 ].map(p => (
                   <div key={p.label} className="flex items-center gap-3">
                     <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: p.color }} />
@@ -274,7 +274,7 @@ export default function AdminBilling() {
               </div>
               <div className="flex items-center gap-5">
                 <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-emerald-500" />
+                  <div className="w-3 h-3 rounded-full bg-brand-500" />
                   <span className="text-xs font-medium" style={{ color: '#667085' }}>MRR (R$)</span>
                 </div>
                 <div className="flex items-center gap-2">
@@ -287,8 +287,8 @@ export default function AdminBilling() {
             <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ height: 240 }}>
               <defs>
                 <linearGradient id="gradMrrAC" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#10b981" stopOpacity="0.15" />
-                  <stop offset="100%" stopColor="#10b981" stopOpacity="0" />
+                  <stop offset="0%" stopColor="#2C82B5" stopOpacity="0.15" />
+                  <stop offset="100%" stopColor="#2C82B5" stopOpacity="0" />
                 </linearGradient>
                 <linearGradient id="gradUsersAC" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor="#38bdf8" stopOpacity="0.12" />
@@ -318,14 +318,14 @@ export default function AdminBilling() {
               ))}
 
               <path d={areaPath(ptsMrr)} fill="url(#gradMrrAC)" />
-              <path d={bezier(ptsMrr)} fill="none" stroke="#10b981" strokeWidth="2.5" strokeLinecap="round" />
+              <path d={bezier(ptsMrr)} fill="none" stroke="#2C82B5" strokeWidth="2.5" strokeLinecap="round" />
               <path d={areaPath(ptsUser)} fill="url(#gradUsersAC)" />
               <path d={bezier(ptsUser)} fill="none" stroke="#38bdf8" strokeWidth="2" strokeLinecap="round" strokeDasharray="5 3" />
 
               {ptsMrr.map((p, i) => monthlyData[i].mrr > 0 && (
                 <g key={i}>
-                  <circle cx={p.x} cy={p.y} r="4" fill="#ffffff" stroke="#10b981" strokeWidth="2" />
-                  <text x={p.x} y={p.y-10} textAnchor="middle" fill="#10b981" fontSize="9" fontWeight="700">
+                  <circle cx={p.x} cy={p.y} r="4" fill="#ffffff" stroke="#2C82B5" strokeWidth="2" />
+                  <text x={p.x} y={p.y-10} textAnchor="middle" fill="#2C82B5" fontSize="9" fontWeight="700">
                     {monthlyData[i].mrr >= 1000 ? `R$${(monthlyData[i].mrr/1000).toFixed(1)}k` : `R$${monthlyData[i].mrr}`}
                   </text>
                 </g>
@@ -364,9 +364,9 @@ export default function AdminBilling() {
             <div
               className="relative overflow-hidden rounded-2xl p-7"
               style={{
-                background: 'linear-gradient(135deg,#065f46 0%,#047857 100%)',
-                border: '1px solid #059669',
-                boxShadow: '0 4px 16px rgba(5,150,105,0.25)',
+                background: 'linear-gradient(135deg,#164a6a 0%,#1e5f88 100%)',
+                border: '1px solid #2570a0',
+                boxShadow: '0 4px 16px rgba(44,130,181,0.25)',
               }}
             >
               <div className="absolute -top-8 -right-8 w-32 h-32 rounded-full pointer-events-none opacity-20"
@@ -375,7 +375,7 @@ export default function AdminBilling() {
                 <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-5" style={{ background: 'rgba(255,255,255,0.15)' }}>
                   <Wallet className="w-5 h-5 text-white" />
                 </div>
-                <p className="text-[10px] font-semibold text-emerald-200 uppercase tracking-widest mb-1">Receita do Período</p>
+                <p className="text-[10px] font-semibold text-brand-200 uppercase tracking-widest mb-1">Receita do Período</p>
                 <h3 className="text-4xl font-bold text-white tracking-tight">
                   R$ {histMrr.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                 </h3>
@@ -412,7 +412,7 @@ export default function AdminBilling() {
                 {[
                   { label: 'Essencial', price: 'R$ 299,90/mês', count: histSales.filter(s => s.plan === 'starter').length, color: '#94a3b8' },
                   { label: 'Pro',       price: 'R$ 449,90/mês', count: histSales.filter(s => s.plan === 'pro').length,     color: '#3b82f6' },
-                  { label: 'Max',       price: 'R$ 849,90/mês', count: histSales.filter(s => s.plan === 'clinic').length,  color: '#10b981' },
+                  { label: 'Max',       price: 'R$ 849,90/mês', count: histSales.filter(s => s.plan === 'clinic').length,  color: '#2C82B5' },
                 ].map(p => (
                   <div key={p.label}>
                     <div className="flex justify-between items-end mb-2">
@@ -465,7 +465,7 @@ export default function AdminBilling() {
                       </div>
                     </div>
                     <div className="text-right">
-                      <p className="text-sm font-bold text-emerald-600">
+                      <p className="text-sm font-bold text-brand-600">
                         + R$ {s.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                       </p>
                       <p className="text-[10px]" style={{ color: '#98a2b3' }}>

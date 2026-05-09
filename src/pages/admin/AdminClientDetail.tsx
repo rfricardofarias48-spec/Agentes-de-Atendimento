@@ -81,7 +81,7 @@ function ToggleGroup({ options, value, onChange }: {
           onClick={() => onChange(o.value)}
           className="px-3.5 py-1.5 rounded-xl text-xs font-semibold border-2 transition-all"
           style={value === o.value ? {
-            borderColor: '#34d399', color: '#059669',
+            borderColor: '#4d9aca', color: '#2570a0',
             background: '#ffffff', boxShadow: '0 1px 3px rgba(16,24,40,0.08)',
           } : {
             borderColor: '#e4e7ec', color: '#98a2b3',
@@ -391,12 +391,12 @@ export default function AdminClientDetail() {
 
   if (loading) return (
     <div className="flex justify-center py-20">
-      <div className="w-6 h-6 border-2 border-slate-200 border-t-emerald-500 rounded-full animate-spin" />
+      <div className="w-6 h-6 border-2 border-slate-200 border-t-brand-500 rounded-full animate-spin" />
     </div>
   )
 
   const connIcon = connectionStatus === 'open'
-    ? <Wifi className="w-4 h-4 text-emerald-500" />
+    ? <Wifi className="w-4 h-4 text-brand-500" />
     : connectionStatus === 'connecting'
       ? <Wifi className="w-4 h-4 text-amber-500" />
       : <WifiOff className="w-4 h-4 text-slate-400" />
@@ -407,8 +407,8 @@ export default function AdminClientDetail() {
       <div className="max-w-xl mx-auto space-y-6 py-12 animate-fade-up">
         <div style={CARD_STYLE} className="p-8 text-center space-y-4">
           <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto"
-            style={{ background: '#f0fdf4', border: '1px solid #a7f3d0' }}>
-            <CheckCircle2 className="w-7 h-7 text-emerald-500" />
+            style={{ background: '#f0fdf4', border: '1px solid #b3d4ec' }}>
+            <CheckCircle2 className="w-7 h-7 text-brand-500" />
           </div>
           <div>
             <h2 className="text-lg font-bold" style={{ color: '#101828' }}>Usuário criado com sucesso!</h2>
@@ -421,7 +421,7 @@ export default function AdminClientDetail() {
           {(settingUp || setupResult) && (
             <div className="text-left rounded-xl p-4 space-y-2" style={{ background: '#f9fafb', border: '1px solid #f2f4f7' }}>
               <div className="flex items-center gap-2 mb-3">
-                <Zap className={`w-4 h-4 ${settingUp ? 'text-amber-500 animate-pulse' : 'text-emerald-500'}`} />
+                <Zap className={`w-4 h-4 ${settingUp ? 'text-amber-500 animate-pulse' : 'text-brand-500'}`} />
                 <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#344054' }}>
                   {settingUp ? 'Configurando automaticamente...' : 'Setup concluído'}
                 </p>
@@ -435,7 +435,7 @@ export default function AdminClientDetail() {
               {setupResult?.steps.map(step => (
                 <div key={step.id} className="flex items-start gap-2.5">
                   {step.ok
-                    ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 mt-0.5 shrink-0" />
+                    ? <CheckCircle2 className="w-3.5 h-3.5 text-brand-500 mt-0.5 shrink-0" />
                     : <XCircle className="w-3.5 h-3.5 text-slate-400 mt-0.5 shrink-0" />}
                   <div>
                     <p className="text-xs font-semibold" style={{ color: step.ok ? '#344054' : '#98a2b3' }}>{step.label}</p>
@@ -561,8 +561,8 @@ export default function AdminClientDetail() {
                       <button key={p} onClick={() => handlePlanChange(p)}
                         className="px-3.5 py-1.5 rounded-xl text-xs font-semibold border-2 transition-all"
                         style={org.plan === p ? {
-                          borderColor: p === 'starter' ? '#94a3b8' : p === 'pro' ? '#60a5fa' : '#34d399',
-                          color: p === 'starter' ? '#475467' : p === 'pro' ? '#2563eb' : '#059669',
+                          borderColor: p === 'starter' ? '#94a3b8' : p === 'pro' ? '#60a5fa' : '#4d9aca',
+                          color: p === 'starter' ? '#475467' : p === 'pro' ? '#2563eb' : '#2570a0',
                           background: '#ffffff', boxShadow: '0 1px 3px rgba(16,24,40,0.08)',
                         } : { borderColor: '#e4e7ec', color: '#98a2b3' }}
                       >
@@ -578,8 +578,8 @@ export default function AdminClientDetail() {
                       <button key={s} onClick={() => setOrg(o => ({ ...o, status: s }))}
                         className="px-3.5 py-1.5 rounded-xl text-xs font-semibold border-2 transition-all"
                         style={org.status === s ? {
-                          borderColor: s === 'active' ? '#34d399' : s === 'trial' ? '#fbbf24' : s === 'inactive' ? '#94a3b8' : '#f87171',
-                          color: s === 'active' ? '#059669' : s === 'trial' ? '#d97706' : s === 'inactive' ? '#475467' : '#dc2626',
+                          borderColor: s === 'active' ? '#4d9aca' : s === 'trial' ? '#fbbf24' : s === 'inactive' ? '#94a3b8' : '#f87171',
+                          color: s === 'active' ? '#2570a0' : s === 'trial' ? '#d97706' : s === 'inactive' ? '#475467' : '#dc2626',
                           background: '#ffffff', boxShadow: '0 1px 3px rgba(16,24,40,0.08)',
                         } : { borderColor: '#e4e7ec', color: '#98a2b3' }}
                       >
@@ -663,7 +663,7 @@ export default function AdminClientDetail() {
                     {resetting ? 'Salvando...' : 'Redefinir Senha'}
                   </button>
                   {resetMsg && (
-                    <div className={`flex items-center gap-2 text-xs font-medium px-3 py-2 rounded-lg ${resetMsg.ok ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'}`}>
+                    <div className={`flex items-center gap-2 text-xs font-medium px-3 py-2 rounded-lg ${resetMsg.ok ? 'bg-brand-50 text-brand-700' : 'bg-red-50 text-red-600'}`}>
                       {resetMsg.ok ? <CheckCircle2 className="w-3.5 h-3.5 shrink-0" /> : <XCircle className="w-3.5 h-3.5 shrink-0" />}
                       {resetMsg.text}
                     </div>
@@ -697,9 +697,9 @@ export default function AdminClientDetail() {
                   </Field>
                 </div>
                 {isNew && (
-                  <div className="flex items-start gap-2 p-3 rounded-xl" style={{ background: '#f0fdf4', border: '1px solid #a7f3d0' }}>
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 mt-0.5 shrink-0" />
-                    <p className="text-xs" style={{ color: '#065f46' }}>
+                  <div className="flex items-start gap-2 p-3 rounded-xl" style={{ background: '#f0fdf4', border: '1px solid #b3d4ec' }}>
+                    <CheckCircle2 className="w-3.5 h-3.5 text-brand-500 mt-0.5 shrink-0" />
+                    <p className="text-xs" style={{ color: '#164a6a' }}>
                       Ao preencher e salvar, o sistema configura o webhook e cria a conta Chatwoot automaticamente.
                     </p>
                   </div>
@@ -737,7 +737,7 @@ export default function AdminClientDetail() {
           {!isNew && (settingUp || setupResult) && (
             <div style={CARD_STYLE} className="p-6 space-y-4">
               <div className="flex items-center gap-2">
-                <Zap className={`w-4 h-4 ${settingUp ? 'text-amber-500 animate-pulse' : 'text-emerald-500'}`} />
+                <Zap className={`w-4 h-4 ${settingUp ? 'text-amber-500 animate-pulse' : 'text-brand-500'}`} />
                 <p className="font-semibold text-sm uppercase tracking-wider" style={{ color: '#344054' }}>
                   {settingUp ? 'Configurando automaticamente...' : 'Resultado do Setup'}
                 </p>
@@ -753,7 +753,7 @@ export default function AdminClientDetail() {
                   {setupResult.steps.map(step => (
                     <div key={step.id} className="flex items-start gap-3 p-3 rounded-xl" style={{ background: '#f9fafb', border: '1px solid #f2f4f7' }}>
                       {step.ok
-                        ? <CheckCircle2 className="w-4 h-4 text-emerald-500 mt-0.5 shrink-0" />
+                        ? <CheckCircle2 className="w-4 h-4 text-brand-500 mt-0.5 shrink-0" />
                         : <XCircle className="w-4 h-4 text-slate-400 mt-0.5 shrink-0" />}
                       <div className="min-w-0">
                         <p className="text-xs font-semibold" style={{ color: step.ok ? '#344054' : '#98a2b3' }}>{step.label}</p>
@@ -947,10 +947,10 @@ export default function AdminClientDetail() {
                           >
                             <div className="flex-1 min-w-0 flex items-center gap-3">
                               <span className="text-sm font-semibold truncate" style={{ color: '#344054' }}>{svc.name}</span>
-                              {svc.price && <span className="text-xs font-semibold shrink-0 text-emerald-600">R$ {svc.price}</span>}
+                              {svc.price && <span className="text-xs font-semibold shrink-0 text-brand-600">R$ {svc.price}</span>}
                             </div>
                             <div className="flex items-center gap-3 shrink-0">
-                              <div className={`flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full ${svc.pdf_url ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-500'}`}>
+                              <div className={`flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full ${svc.pdf_url ? 'bg-brand-50 text-brand-600' : 'bg-slate-100 text-slate-500'}`}>
                                 <FileText className="w-3 h-3" />
                                 {svc.pdf_url ? 'PDF' : 'Sem PDF'}
                               </div>
@@ -964,7 +964,7 @@ export default function AdminClientDetail() {
                                 <button onClick={() => triggerPdfUpload(svc.id)} disabled={isUploading}
                                   className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold transition-colors disabled:opacity-50"
                                   style={{ border: '1px solid #e4e7ec', color: '#667085', background: '#ffffff' }}
-                                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = '#a7f3d0'; (e.currentTarget as HTMLElement).style.color = '#059669' }}
+                                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = '#b3d4ec'; (e.currentTarget as HTMLElement).style.color = '#2570a0' }}
                                   onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = '#e4e7ec'; (e.currentTarget as HTMLElement).style.color = '#667085' }}
                                 >
                                   {isUploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
@@ -1010,7 +1010,7 @@ export default function AdminClientDetail() {
               {savingAgent ? 'Salvando...' : 'Salvar Configurações do Agente'}
             </button>
             {agentMsg && (
-              <div className={`flex items-center gap-2 text-xs font-medium px-3 py-2 rounded-lg ${agentMsg.ok ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'}`}>
+              <div className={`flex items-center gap-2 text-xs font-medium px-3 py-2 rounded-lg ${agentMsg.ok ? 'bg-brand-50 text-brand-700' : 'bg-red-50 text-red-600'}`}>
                 {agentMsg.ok ? <CheckCircle2 className="w-3.5 h-3.5 shrink-0" /> : <XCircle className="w-3.5 h-3.5 shrink-0" />}
                 {agentMsg.text}
               </div>

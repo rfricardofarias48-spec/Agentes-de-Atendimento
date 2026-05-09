@@ -135,7 +135,7 @@ export default function ClientBento() {
 
   if (loading) return (
     <div className="flex items-center justify-center py-24">
-      <div className="w-6 h-6 border-[3px] border-emerald-500 border-t-transparent rounded-full animate-spin" />
+      <div className="w-6 h-6 border-[3px] border-brand-500 border-t-transparent rounded-full animate-spin" />
     </div>
   )
 
@@ -165,7 +165,7 @@ export default function ClientBento() {
                 value={agentName}
                 onChange={e => setAgentName(e.target.value)}
                 placeholder="Assistente"
-                className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent transition-all"
+                className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent transition-all"
               />
             </div>
 
@@ -183,7 +183,7 @@ export default function ClientBento() {
                     className={cn(
                       'px-4 py-2 rounded-xl text-sm font-medium border-2 transition-all',
                       agentTone === opt.value
-                        ? 'border-emerald-400 text-emerald-700 bg-white shadow-sm'
+                        ? 'border-brand-400 text-brand-700 bg-white shadow-sm'
                         : 'border-slate-200 text-slate-500 hover:border-slate-300'
                     )}
                   >
@@ -200,7 +200,7 @@ export default function ClientBento() {
                 onChange={e => setAgentGreeting(e.target.value)}
                 placeholder="Olá! Sou o assistente da clínica. Como posso ajudar?"
                 rows={3}
-                className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent transition-all"
+                className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent transition-all"
               />
             </div>
           </div>
@@ -216,7 +216,7 @@ export default function ClientBento() {
               onChange={e => setAgentInstructions(e.target.value)}
               placeholder={`Ex: Aceitamos os convênios Unimed, Bradesco e Amil.\nFuncionamos de segunda a sexta das 8h às 18h.\nRetornos devem ser agendados em até 30 dias.`}
               rows={8}
-              className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm resize-none font-mono focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent transition-all"
+              className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm resize-none font-mono focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent transition-all"
             />
           </div>
         </div>
@@ -233,7 +233,7 @@ export default function ClientBento() {
             </div>
             <button
               onClick={() => { setShowAddService(v => !v); setNewService({ name: '', description: '', price: '' }) }}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold text-white bg-emerald-500 hover:bg-emerald-600 transition-colors shrink-0"
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold text-white bg-brand-500 hover:bg-brand-600 transition-colors shrink-0"
             >
               <Plus className="w-3.5 h-3.5" />
               Novo Serviço
@@ -252,7 +252,7 @@ export default function ClientBento() {
                     onKeyDown={e => e.key === 'Enter' && addService()}
                     placeholder="Consulta Cardiologia"
                     autoFocus
-                    className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent"
+                    className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent"
                   />
                 </div>
                 <div>
@@ -264,7 +264,7 @@ export default function ClientBento() {
                       value={newService.price}
                       onChange={e => setNewService(s => ({ ...s, price: e.target.value }))}
                       placeholder="150,00"
-                      className="w-full border border-slate-200 rounded-xl pl-8 pr-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent"
+                      className="w-full border border-slate-200 rounded-xl pl-8 pr-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent"
                     />
                   </div>
                 </div>
@@ -276,7 +276,7 @@ export default function ClientBento() {
                   value={newService.description}
                   onChange={e => setNewService(s => ({ ...s, description: e.target.value }))}
                   placeholder="Detalhes para o agente informar ao paciente"
-                  className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent"
+                  className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent"
                 />
               </div>
               <div className="flex gap-2">
@@ -311,13 +311,13 @@ export default function ClientBento() {
                       <div className="flex-1 min-w-0 flex items-center gap-3">
                         <span className="text-sm font-semibold text-slate-700 truncate">{svc.name}</span>
                         {svc.price && (
-                          <span className="text-xs font-semibold text-emerald-600 shrink-0">R$ {svc.price}</span>
+                          <span className="text-xs font-semibold text-brand-600 shrink-0">R$ {svc.price}</span>
                         )}
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
                         <span className={cn(
                           'flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full',
-                          svc.pdf_url ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-500'
+                          svc.pdf_url ? 'bg-brand-50 text-brand-600' : 'bg-slate-100 text-slate-500'
                         )}>
                           <FileText className="w-3 h-3" />
                           {svc.pdf_url ? 'PDF' : 'Sem PDF'}
@@ -335,7 +335,7 @@ export default function ClientBento() {
                           <button
                             onClick={() => triggerPdfUpload(svc.id)}
                             disabled={isUploading}
-                            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold border border-slate-200 text-slate-600 bg-white hover:border-emerald-300 hover:text-emerald-600 transition-colors disabled:opacity-50"
+                            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold border border-slate-200 text-slate-600 bg-white hover:border-brand-300 hover:text-brand-600 transition-colors disabled:opacity-50"
                           >
                             {isUploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
                             {isUploading ? 'Enviando...' : svc.pdf_url ? 'Trocar PDF' : 'Anexar PDF'}
@@ -389,7 +389,7 @@ export default function ClientBento() {
         {msg && (
           <div className={cn(
             'flex items-center gap-2 text-xs font-medium px-3 py-2 rounded-xl',
-            msg.ok ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'
+            msg.ok ? 'bg-brand-50 text-brand-700' : 'bg-red-50 text-red-600'
           )}>
             {msg.ok ? <CheckCircle2 className="w-3.5 h-3.5 shrink-0" /> : <XCircle className="w-3.5 h-3.5 shrink-0" />}
             {msg.text}

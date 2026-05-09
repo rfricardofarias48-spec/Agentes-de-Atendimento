@@ -56,7 +56,7 @@ export default function ResetPassword() {
             <div className="flex flex-col items-center mb-8">
               <div
                 className="w-11 h-11 rounded-xl flex items-center justify-center mb-4"
-                style={{ background: '#10b981', boxShadow: '0 4px 12px rgba(16,185,129,0.3)' }}
+                style={{ background: '#2C82B5', boxShadow: '0 4px 12px rgba(44,130,181,0.3)' }}
               >
                 <Bot className="w-5 h-5 text-white" />
               </div>
@@ -70,7 +70,7 @@ export default function ResetPassword() {
 
             {!ready ? (
               <div className="text-center space-y-3 py-4">
-                <div className="w-5 h-5 border-2 border-slate-200 border-t-emerald-500 rounded-full animate-spin mx-auto" />
+                <div className="w-5 h-5 border-2 border-slate-200 border-t-brand-500 rounded-full animate-spin mx-auto" />
                 <p className="text-xs" style={{ color: '#98a2b3' }}>Verificando link de recuperação...</p>
               </div>
             ) : (
@@ -119,7 +119,7 @@ export default function ResetPassword() {
                   <div
                     className="flex items-center gap-2 px-3.5 py-2.5 rounded-lg text-xs font-medium"
                     style={msg.ok
-                      ? { background: '#f0fdf4', border: '1px solid #a7f3d0', color: '#059669' }
+                      ? { background: '#f0fdf4', border: '1px solid #b3d4ec', color: '#2570a0' }
                       : { background: '#fef2f2', border: '1px solid #fecaca', color: '#dc2626' }
                     }
                   >

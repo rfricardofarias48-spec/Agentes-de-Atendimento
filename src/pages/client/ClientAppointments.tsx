@@ -18,7 +18,7 @@ const DAY_PT = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
 
 // Each entry: [bg, accent-bar color, text, subtext]
 const APPT_PALETTES = [
-  { bg: 'bg-emerald-50', bar: 'bg-emerald-400', text: 'text-emerald-900', sub: 'text-emerald-600' },
+  { bg: 'bg-brand-50', bar: 'bg-brand-400', text: 'text-brand-900', sub: 'text-brand-600' },
   { bg: 'bg-blue-50',    bar: 'bg-blue-400',    text: 'text-blue-900',    sub: 'text-blue-600'    },
   { bg: 'bg-violet-50',  bar: 'bg-violet-400',  text: 'text-violet-900',  sub: 'text-violet-600'  },
   { bg: 'bg-orange-50',  bar: 'bg-orange-400',  text: 'text-orange-900',  sub: 'text-orange-600'  },
@@ -268,7 +268,7 @@ export default function ClientAppointments() {
                           isWeekend && !isToday && 'bg-slate-50/60',
                         )}>
                         <p className={cn('text-[11px] font-semibold uppercase tracking-widest',
-                          isToday ? 'text-emerald-500' : isWeekend ? 'text-slate-400' : 'text-slate-400')}>
+                          isToday ? 'text-brand-500' : isWeekend ? 'text-slate-400' : 'text-slate-400')}>
                           {DAY_PT[day.getDay()]}
                         </p>
                         <div className={cn('mt-1 mx-auto w-8 h-8 flex items-center justify-center rounded-full text-sm font-bold transition-colors',
@@ -304,7 +304,7 @@ export default function ClientAppointments() {
                     return (
                       <div key={i} className={cn(
                           'relative flex-1 min-w-0 border-l border-slate-200',
-                          isToday ? 'bg-emerald-50/40' : isWeekend ? 'bg-slate-50/50' : '',
+                          isToday ? 'bg-brand-50/40' : isWeekend ? 'bg-slate-50/50' : '',
                         )}
                         style={{ height: totalHeight }}>
 
@@ -322,8 +322,8 @@ export default function ClientAppointments() {
                         {isToday && nowLine !== null && (
                           <div className="absolute left-0 right-0 z-20 pointer-events-none"
                             style={{ top: nowLine }}>
-                            <div className="absolute -left-1 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-emerald-500" />
-                            <div className="h-[2px] bg-emerald-400 ml-1" />
+                            <div className="absolute -left-1 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-brand-500" />
+                            <div className="h-[2px] bg-brand-400 ml-1" />
                           </div>
                         )}
 
@@ -431,7 +431,7 @@ export default function ClientAppointments() {
         const timeStr = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
         const initials = detailAppt.patient_name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()
         const statusDot: Record<string, string> = {
-          scheduled: 'bg-slate-400', confirmed: 'bg-emerald-500',
+          scheduled: 'bg-slate-400', confirmed: 'bg-brand-500',
           completed: 'bg-blue-400', cancelled: 'bg-red-400',
         }
         return (

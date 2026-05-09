@@ -13,7 +13,7 @@ export default function ProtectedRoute({ children, requiredRole }: ProtectedRout
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--c-bg)' }}>
-        <div className="w-6 h-6 border-2 border-slate-200 border-t-emerald-500 rounded-full animate-spin" />
+        <div className="w-6 h-6 border-2 border-slate-200 border-t-brand-500 rounded-full animate-spin" />
       </div>
     )
   }

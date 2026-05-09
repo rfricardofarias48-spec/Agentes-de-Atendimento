@@ -5,6 +5,18 @@ export default {
   theme: {
     extend: {
       colors: {
+        brand: {
+          50:  '#eff6fb',
+          100: '#d6eaf5',
+          200: '#b3d4ec',
+          300: '#7fb7de',
+          400: '#4d9aca',
+          500: '#2C82B5',
+          600: '#2570a0',
+          700: '#1e5f88',
+          800: '#164a6a',
+          900: '#0e3550',
+        },
         border: 'hsl(var(--border))',
         input: 'hsl(var(--input))',
         ring: 'hsl(var(--ring))',

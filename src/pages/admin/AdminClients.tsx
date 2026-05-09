@@ -8,10 +8,10 @@ import { planLabel, statusLabel, formatDateShort } from '../../lib/utils'
 const planBadge: Record<string, string> = {
   starter: 'bg-slate-100 text-slate-600',
   pro:     'bg-blue-50 text-blue-600',
-  clinic:  'bg-emerald-50 text-emerald-700',
+  clinic:  'bg-brand-50 text-brand-700',
 }
 const statusBadge: Record<string, string> = {
-  active:    'bg-emerald-50 text-emerald-700',
+  active:    'bg-brand-50 text-brand-700',
   trial:     'bg-amber-50 text-amber-700',
   inactive:  'bg-slate-100 text-slate-500',
   suspended: 'bg-red-50 text-red-600',
@@ -132,7 +132,7 @@ export default function AdminClients() {
       <div className="rounded-[1.125rem] overflow-hidden" style={CARD}>
         {loading ? (
           <div className="flex justify-center py-14">
-            <div className="w-5 h-5 border-2 border-slate-200 border-t-emerald-500 rounded-full animate-spin" />
+            <div className="w-5 h-5 border-2 border-slate-200 border-t-brand-500 rounded-full animate-spin" />
           </div>
         ) : filtered.length === 0 ? (
           <div className="text-center py-16">
@@ -172,7 +172,7 @@ export default function AdminClients() {
                     <td className="py-3.5 px-5">
                       <span className={`inline-flex items-center gap-1.5 px-2.5 py-[3px] rounded-full text-[10px] font-semibold ${statusBadge[org.status] ?? 'bg-slate-100 text-slate-500'}`}>
                         {org.status === 'active' && (
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                          <span className="w-1.5 h-1.5 rounded-full bg-brand-500 shrink-0" />
                         )}
                         {statusLabel(org.status)}
                       </span>
@@ -180,7 +180,7 @@ export default function AdminClients() {
                     <td className="py-3.5 px-5 text-xs">
                       {org.evolution_instance ? (
                         <span className="flex items-center gap-1.5" style={{ color: '#667085' }}>
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                          <span className="w-1.5 h-1.5 rounded-full bg-brand-500 shrink-0" />
                           {org.evolution_instance}
                         </span>
                       ) : (
@@ -201,8 +201,8 @@ export default function AdminClients() {
                           style={{ border: '1px solid #e4e7ec', color: '#98a2b3' }}
                           onMouseEnter={e => {
                             (e.currentTarget as HTMLElement).style.background = '#f0fdf4'
-                            ;(e.currentTarget as HTMLElement).style.borderColor = '#a7f3d0'
-                            ;(e.currentTarget as HTMLElement).style.color = '#059669'
+                            ;(e.currentTarget as HTMLElement).style.borderColor = '#b3d4ec'
+                            ;(e.currentTarget as HTMLElement).style.color = '#2570a0'
                           }}
                           onMouseLeave={e => {
                             (e.currentTarget as HTMLElement).style.background = 'transparent'

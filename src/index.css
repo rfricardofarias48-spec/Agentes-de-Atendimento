@@ -11,8 +11,8 @@
     --c-surface2: #f8f9fb;
     --c-border:   #e4e7ec;
     --c-border2:  #d0d5dd;
-    --c-accent:   #10b981;
-    --c-accent2:  #059669;
+    --c-accent:   #2C82B5;
+    --c-accent2:  #2570a0;
     --c-text:     #101828;
     --c-text2:    #475467;
     --c-text3:    #98a2b3;
@@ -24,7 +24,7 @@
     --card-foreground:      222 47% 6%;
     --border:               220 13% 90%;
     --input:                220 13% 90%;
-    --primary:              152 73% 40%;
+    --primary:              205 61% 44%;
     --primary-foreground:   0 0% 100%;
     --secondary:            220 14% 96%;
     --secondary-foreground: 222 47% 11%;
@@ -34,7 +34,7 @@
     --accent-foreground:    222 47% 11%;
     --destructive:          0 84% 60%;
     --destructive-foreground: 0 0% 100%;
-    --ring:                 152 73% 40%;
+    --ring:                 205 61% 44%;
     --radius:               0.75rem;
   }
 }
@@ -63,7 +63,7 @@
   ::-webkit-scrollbar-thumb { background: #d0d5dd; border-radius: 99px; }
   ::-webkit-scrollbar-thumb:hover { background: #98a2b3; }
 
-  ::selection { background: rgba(16,185,129,0.15); color: #101828; }
+  ::selection { background: rgba(44,130,181,0.15); color: #101828; }
 }
 
 @layer utilities {
@@ -95,24 +95,24 @@
   .input-dark::placeholder { color: #98a2b3; }
   .input-dark:focus {
     outline: none;
-    border-color: #10b981;
-    box-shadow: 0 0 0 3px rgba(16,185,129,0.12);
+    border-color: #2C82B5;
+    box-shadow: 0 0 0 3px rgba(44,130,181,0.12);
   }
 
   /* Button */
   .btn-primary {
-    background: #10b981;
+    background: #2C82B5;
     color: #fff;
     font-family: 'Inter', sans-serif;
     font-weight: 600;
     border-radius: 0.625rem;
     transition: background 150ms, box-shadow 150ms;
-    box-shadow: 0 1px 2px rgba(16,185,129,0.2);
+    box-shadow: 0 1px 2px rgba(44,130,181,0.2);
     border: none;
     cursor: pointer;
   }
-  .btn-primary:hover  { background: #059669; box-shadow: 0 2px 8px rgba(16,185,129,0.25); }
-  .btn-primary:active { background: #047857; }
+  .btn-primary:hover  { background: #2570a0; box-shadow: 0 2px 8px rgba(44,130,181,0.25); }
+  .btn-primary:active { background: #1e5f88; }
 
   /* Animations */
   @keyframes fade-up {

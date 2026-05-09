@@ -66,8 +66,8 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
 
       {/* ── Top bar ──────────────────────────────────────────────── */}
       <header
-        className="shrink-0 flex items-center justify-between px-4 h-14 z-40 shadow-[0_2px_12px_rgba(5,150,105,0.18)]"
-        style={{ background: 'linear-gradient(90deg, #059669 0%, #047857 100%)' }}
+        className="shrink-0 flex items-center justify-between px-4 h-14 z-40 shadow-[0_2px_12px_rgba(44,130,181,0.18)]"
+        style={{ background: 'linear-gradient(90deg, #2570a0 0%, #1e5f88 100%)' }}
       >
         {/* Left: hamburger (mobile) + logo only */}
         <div className="flex items-center gap-3">
@@ -95,7 +95,7 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
             <div className="absolute right-0 top-10 w-52 bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden z-50 animate-fade-up">
               <div className="px-4 py-3 border-b border-slate-100">
                 <p className="text-sm font-bold text-slate-800 truncate">{orgName || 'Minha Clínica'}</p>
-                <span className="inline-flex items-center mt-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700">
+                <span className="inline-flex items-center mt-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-brand-50 text-brand-700">
                   {planLabel(orgPlan) || 'Essencial'}
                 </span>
               </div>
@@ -127,7 +127,7 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
             onClick={() => setExpanded(v => !v)}
             className={cn(
               'flex items-center h-12 px-4 border-b border-slate-100 text-slate-400',
-              'hover:text-emerald-600 transition-colors duration-150',
+              'hover:text-brand-600 transition-colors duration-150',
               expanded ? 'justify-end' : 'justify-center',
             )}
           >
@@ -150,14 +150,14 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
                     'flex items-center rounded-xl transition-all duration-150 overflow-hidden',
                     expanded ? 'gap-3 px-3 py-2.5' : 'justify-center p-3',
                     active
-                      ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-200'
+                      ? 'bg-brand-600 text-white shadow-sm shadow-brand-200'
                       : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900',
                   )}
                 >
                   <Icon className={cn(
                     'shrink-0 transition-colors',
                     expanded ? 'w-4 h-4' : 'w-5 h-5',
-                    active ? 'text-emerald-100' : 'text-slate-400',
+                    active ? 'text-brand-100' : 'text-slate-400',
                   )} />
                   {expanded && (
                     <span className="text-[0.875rem] font-bold whitespace-nowrap">{label}</span>
@@ -193,13 +193,13 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
             <aside className="fixed inset-y-0 left-0 z-40 lg:hidden w-52 flex flex-col bg-white shadow-2xl">
               <div
                 className="flex items-center gap-2.5 px-4 h-14 shrink-0"
-                style={{ background: 'linear-gradient(90deg, #059669 0%, #047857 100%)' }}
+                style={{ background: 'linear-gradient(90deg, #2570a0 0%, #1e5f88 100%)' }}
               >
                 <div className="w-8 h-8 bg-white/15 rounded-xl flex items-center justify-center border border-white/20">
                   <Bot className="w-4 h-4 text-white" />
                 </div>
                 <div>
-                  <p className="text-[10px] font-black text-emerald-200 uppercase tracking-widest leading-none">AgenteClin</p>
+                  <p className="text-[10px] font-black text-brand-200 uppercase tracking-widest leading-none">AgenteClin</p>
                   <p className="text-sm font-black text-white truncate max-w-[140px] mt-0.5">{orgName ?? 'Minha Clínica'}</p>
                 </div>
               </div>
@@ -214,11 +214,11 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
                       className={cn(
                         'flex items-center gap-3 px-3 py-2.5 rounded-xl text-[0.875rem] font-bold transition-all duration-150',
                         active
-                          ? 'bg-emerald-600 text-white shadow-sm'
+                          ? 'bg-brand-600 text-white shadow-sm'
                           : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900',
                       )}
                     >
-                      <Icon className={cn('w-4 h-4 shrink-0', active ? 'text-emerald-100' : 'text-slate-400')} />
+                      <Icon className={cn('w-4 h-4 shrink-0', active ? 'text-brand-100' : 'text-slate-400')} />
                       {label}
                     </Link>
                   )

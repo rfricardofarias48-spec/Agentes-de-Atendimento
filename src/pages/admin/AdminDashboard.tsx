@@ -8,10 +8,10 @@ import { planLabel, statusLabel, formatDateShort } from '../../lib/utils'
 const planBadge: Record<string, string> = {
   starter: 'bg-slate-100 text-slate-600',
   pro:     'bg-blue-50 text-blue-600',
-  clinic:  'bg-emerald-50 text-emerald-700',
+  clinic:  'bg-brand-50 text-brand-700',
 }
 const statusBadge: Record<string, string> = {
-  active:    'bg-emerald-50 text-emerald-700',
+  active:    'bg-brand-50 text-brand-700',
   trial:     'bg-amber-50 text-amber-700',
   inactive:  'bg-slate-100 text-slate-500',
   suspended: 'bg-red-50 text-red-600',
@@ -69,24 +69,24 @@ export default function AdminDashboard() {
         <div
           className="col-span-2 lg:col-span-1 relative overflow-hidden rounded-2xl p-6 animate-fade-up"
           style={{
-            background: 'linear-gradient(135deg,#065f46 0%,#047857 100%)',
-            border: '1px solid #059669',
-            boxShadow: '0 4px 16px rgba(5,150,105,0.25)',
+            background: 'linear-gradient(135deg,#164a6a 0%,#1e5f88 100%)',
+            border: '1px solid #2570a0',
+            boxShadow: '0 4px 16px rgba(44,130,181,0.25)',
           }}
         >
           <div className="absolute -top-6 -right-6 w-28 h-28 rounded-full pointer-events-none opacity-20"
             style={{ background: 'radial-gradient(circle,#ffffff 0%,transparent 70%)' }} />
           <div className="relative">
             <div className="flex items-center gap-2 mb-3">
-              <TrendingUp className="w-3.5 h-3.5 text-emerald-200" />
-              <p className="text-[10px] font-bold text-emerald-200 uppercase tracking-widest">MRR Estimado</p>
+              <TrendingUp className="w-3.5 h-3.5 text-brand-200" />
+              <p className="text-[10px] font-bold text-brand-200 uppercase tracking-widest">MRR Estimado</p>
             </div>
             <p className="text-[1.75rem] font-bold text-white leading-none">
               R$ {mrr.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
             </p>
             <div className="mt-3 pt-3 flex items-center justify-between"
               style={{ borderTop: '1px solid rgba(255,255,255,0.15)' }}>
-              <span className="text-[10px] text-emerald-300 font-semibold uppercase">ARR</span>
+              <span className="text-[10px] text-brand-300 font-semibold uppercase">ARR</span>
               <span className="text-sm font-bold text-white">R$ {(mrr * 12 / 1000).toFixed(1)}k</span>
             </div>
           </div>
@@ -132,7 +132,7 @@ export default function AdminDashboard() {
             {[
               { label: 'Essencial', count: starterCount, color: '#94a3b8' },
               { label: 'Pro',     count: proCount,     color: '#3b82f6' },
-              { label: 'Max',     count: clinicCount,  color: '#10b981' },
+              { label: 'Max',     count: clinicCount,  color: '#2C82B5' },
             ].map(({ label, count, color }) => (
               <div key={label} className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -157,7 +157,7 @@ export default function AdminDashboard() {
             <p className="text-xs mt-0.5" style={{ color: '#98a2b3' }}>{orgs.length} cadastrados</p>
           </div>
           <Link to="/admin/clients">
-            <button className="flex items-center gap-1.5 text-xs font-semibold text-emerald-600 hover:text-emerald-700 transition-colors">
+            <button className="flex items-center gap-1.5 text-xs font-semibold text-brand-600 hover:text-brand-700 transition-colors">
               Ver todos <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </Link>
@@ -165,7 +165,7 @@ export default function AdminDashboard() {
 
         {loading ? (
           <div className="flex justify-center py-14">
-            <div className="w-5 h-5 border-2 border-slate-200 border-t-emerald-500 rounded-full animate-spin" />
+            <div className="w-5 h-5 border-2 border-slate-200 border-t-brand-500 rounded-full animate-spin" />
           </div>
         ) : orgs.length === 0 ? (
           <div className="text-center py-14">
@@ -204,7 +204,7 @@ export default function AdminDashboard() {
                     </td>
                     <td className="py-3.5 px-5">
                       <span className={`inline-flex items-center gap-1.5 px-2.5 py-[3px] rounded-full text-[10px] font-semibold ${statusBadge[org.status] ?? 'bg-slate-100 text-slate-500'}`}>
-                        {org.status === 'active' && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />}
+                        {org.status === 'active' && <span className="w-1.5 h-1.5 rounded-full bg-brand-500 shrink-0" />}
                         {statusLabel(org.status)}
                       </span>
                     </td>
@@ -217,7 +217,7 @@ export default function AdminDashboard() {
                     <td className="py-3.5 px-5 text-xs" style={{ color: '#98a2b3' }}>{formatDateShort(org.created_at)}</td>
                     <td className="py-3.5 px-5">
                       <Link to={`/admin/clients/${org.id}`}>
-                        <button className="text-xs font-semibold text-slate-400 hover:text-emerald-600 transition-colors">
+                        <button className="text-xs font-semibold text-slate-400 hover:text-brand-600 transition-colors">
                           Detalhes →
                         </button>
                       </Link>

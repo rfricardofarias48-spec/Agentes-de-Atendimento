@@ -36,7 +36,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
         <div className="flex items-center gap-2.5">
           <div
             className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
-            style={{ background: '#10b981' }}
+            style={{ background: '#2C82B5' }}
           >
             <Bot className="w-4 h-4 text-white" />
           </div>
@@ -44,7 +44,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
             <p className="font-semibold text-[13.5px] tracking-tight leading-none" style={{ color: '#101828' }}>
               AgenteClin
             </p>
-            <p className="text-[10px] font-medium mt-[4px] uppercase tracking-widest" style={{ color: '#10b981' }}>
+            <p className="text-[10px] font-medium mt-[4px] uppercase tracking-widest" style={{ color: '#2C82B5' }}>
               Admin Panel
             </p>
           </div>
@@ -64,13 +64,13 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
               className={cn(
                 'flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-[13px] font-medium transition-all duration-150',
                 active
-                  ? 'text-emerald-700 bg-emerald-50'
+                  ? 'text-brand-700 bg-brand-50'
                   : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50',
               )}
             >
-              <Icon className={cn('w-4 h-4 shrink-0', active ? 'text-emerald-600' : 'text-slate-400')} />
+              <Icon className={cn('w-4 h-4 shrink-0', active ? 'text-brand-600' : 'text-slate-400')} />
               {label}
-              {active && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />}
+              {active && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-brand-500 shrink-0" />}
             </Link>
           )
         })}
