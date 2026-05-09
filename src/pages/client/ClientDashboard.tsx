@@ -128,42 +128,49 @@ export default function ClientDashboard() {
       {/* ── 4 Metric Cards ─────────────────────────────────────────────────── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
 
-        {/* Conversas — white */}
-        <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-[0px_4px_20px_rgba(0,0,0,0.02)] hover:shadow-[0px_4px_25px_rgba(0,0,0,0.05)] transition-all">
-          <div className="flex items-center justify-between mb-4">
-            <p className="text-xs font-medium text-slate-500">Conversas</p>
-            <MessageSquare className="w-5 h-5 text-slate-300" />
+        {/* Conversas */}
+        <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-[0px_2px_12px_rgba(0,0,0,0.04)] hover:shadow-[0px_4px_20px_rgba(44,130,181,0.10)] transition-all group">
+          <div className="flex items-start justify-between mb-4">
+            <div className="w-9 h-9 rounded-xl bg-brand-50 flex items-center justify-center group-hover:bg-brand-100 transition-colors">
+              <MessageSquare className="w-4 h-4 text-brand-500" />
+            </div>
           </div>
-          <span className="text-4xl font-bold text-gray-900 leading-none">{filtered.conversations}</span>
+          <p className="text-[11px] font-semibold uppercase tracking-widest text-slate-400 mb-1">Conversas</p>
+          <span className="text-3xl font-bold text-gray-900 leading-none">{filtered.conversations}</span>
         </div>
 
-        {/* Agendamentos — white */}
-        <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-[0px_4px_20px_rgba(0,0,0,0.02)] hover:shadow-[0px_4px_25px_rgba(0,0,0,0.05)] transition-all">
-          <div className="flex items-center justify-between mb-4">
-            <p className="text-xs font-medium text-slate-500">Agendamentos</p>
-            <Calendar className="w-5 h-5 text-slate-300" />
+        {/* Agendamentos */}
+        <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-[0px_2px_12px_rgba(0,0,0,0.04)] hover:shadow-[0px_4px_20px_rgba(99,102,241,0.10)] transition-all group">
+          <div className="flex items-start justify-between mb-4">
+            <div className="w-9 h-9 rounded-xl bg-indigo-50 flex items-center justify-center group-hover:bg-indigo-100 transition-colors">
+              <Calendar className="w-4 h-4 text-indigo-500" />
+            </div>
           </div>
-          <span className="text-4xl font-bold text-gray-900 leading-none">{filtered.appointments}</span>
+          <p className="text-[11px] font-semibold uppercase tracking-widest text-slate-400 mb-1">Agendamentos</p>
+          <span className="text-3xl font-bold text-gray-900 leading-none">{filtered.appointments}</span>
         </div>
 
-        {/* Consultas Realizadas — white */}
-        <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-[0px_4px_20px_rgba(0,0,0,0.02)] hover:shadow-[0px_4px_25px_rgba(0,0,0,0.05)] transition-all">
-          <div className="flex items-center justify-between mb-4">
-            <p className="text-xs font-medium text-slate-500">Consultas Realizadas</p>
-            <CheckCircle className="w-5 h-5 text-slate-300" />
+        {/* Consultas Realizadas */}
+        <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-[0px_2px_12px_rgba(0,0,0,0.04)] hover:shadow-[0px_4px_20px_rgba(16,185,129,0.10)] transition-all group">
+          <div className="flex items-start justify-between mb-4">
+            <div className="w-9 h-9 rounded-xl bg-emerald-50 flex items-center justify-center group-hover:bg-emerald-100 transition-colors">
+              <CheckCircle className="w-4 h-4 text-emerald-500" />
+            </div>
           </div>
-          <span className="text-4xl font-bold text-gray-900 leading-none">{filtered.completed}</span>
+          <p className="text-[11px] font-semibold uppercase tracking-widest text-slate-400 mb-1">Realizadas</p>
+          <span className="text-3xl font-bold text-gray-900 leading-none">{filtered.completed}</span>
         </div>
 
-        {/* Cancelamentos — gray card */}
-        <div className="bg-gray-900 p-6 rounded-[2rem] border border-gray-800 shadow-[0px_4px_20px_rgba(0,0,0,0.02)] hover:shadow-[0px_4px_25px_rgba(0,0,0,0.05)] transition-all">
-          <div className="flex items-center justify-between mb-4">
-            <p className="text-xs font-medium text-slate-300">Cancelamentos</p>
-            <XCircle className="w-5 h-5 text-slate-300" />
+        {/* Cancelamentos — dark */}
+        <div className="bg-gray-900 p-5 rounded-2xl shadow-[0px_2px_12px_rgba(0,0,0,0.10)] hover:shadow-[0px_4px_20px_rgba(0,0,0,0.18)] transition-all group relative overflow-hidden">
+          <div className="absolute -right-4 -top-4 w-20 h-20 bg-white/5 rounded-full" />
+          <div className="flex items-start justify-between mb-4">
+            <div className="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center group-hover:bg-white/15 transition-colors">
+              <XCircle className="w-4 h-4 text-rose-400" />
+            </div>
           </div>
-          <div className="flex items-baseline gap-1">
-            <span className="text-4xl font-bold text-white leading-none">{filtered.cancelled}</span>
-          </div>
+          <p className="text-[11px] font-semibold uppercase tracking-widest text-slate-400 mb-1">Cancelamentos</p>
+          <span className="text-3xl font-bold text-white leading-none">{filtered.cancelled}</span>
         </div>
       </div>
 
@@ -190,22 +197,14 @@ export default function ClientDashboard() {
           ) : (
             <div className="space-y-3">
               {filtered.recentAppts.map(appt => (
-                <div key={appt.id} className="flex items-center justify-between p-4 rounded-2xl border border-slate-100 hover:bg-slate-50 transition-colors">
-                  <div className="flex items-center gap-4 min-w-0">
-                    <div className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 font-semibold text-sm shrink-0">
-                      {appt.patient_name.charAt(0).toUpperCase()}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="font-semibold text-gray-900 text-sm truncate">{appt.patient_name}</p>
-                      <p className="text-xs text-slate-500 font-medium truncate">
-                        {appt.specialty}{appt.doctor_name ? ` · ${appt.doctor_name}` : ''}
-                      </p>
-                    </div>
+                <div key={appt.id} className="flex items-center justify-between px-4 py-3 rounded-2xl border border-slate-100 hover:bg-slate-50 transition-colors">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <p className="font-semibold text-gray-900 text-sm truncate">{appt.patient_name}</p>
+                    <span className="text-slate-300 text-xs shrink-0">·</span>
+                    <p className="text-xs text-slate-500 font-medium truncate">{appt.specialty}{appt.doctor_name ? ` · ${appt.doctor_name}` : ''}</p>
                   </div>
                   <div className="flex items-center gap-3 shrink-0 ml-3">
-                    <div className="text-right hidden sm:block">
-                      <p className="font-bold text-slate-900 text-sm">{formatDate(appt.scheduled_at)}</p>
-                    </div>
+                    <p className="font-medium text-slate-500 text-xs hidden sm:block">{formatDate(appt.scheduled_at)}</p>
                     <Badge variant={statusColors[appt.status] ?? 'outline'} className="text-[10px] whitespace-nowrap">
                       {statusLabel(appt.status)}
                     </Badge>
