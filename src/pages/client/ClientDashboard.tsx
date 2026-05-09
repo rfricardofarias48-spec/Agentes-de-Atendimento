@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react'
+import { type ReactNode, useEffect, useState, useMemo } from 'react'
 import { MessageSquare, Calendar, CheckCircle, XCircle } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
@@ -35,6 +35,13 @@ function getPeriodStart(period: Period): Date {
     return d
   }
   return new Date(now.getFullYear(), now.getMonth(), 1)
+}
+
+// ── Metric card left-border accent colors (inline style for custom brand color)
+const CARD_ACCENTS = {
+  brand:   { border: '#2C82B5', iconBg: 'bg-brand-50',   iconColor: 'text-brand-500'   },
+  violet:  { border: '#7c3aed', iconBg: 'bg-violet-50',  iconColor: 'text-violet-500'  },
+  emerald: { border: '#10b981', iconBg: 'bg-emerald-50', iconColor: 'text-emerald-500' },
 }
 
 export default function ClientDashboard() {
@@ -80,10 +87,11 @@ export default function ClientDashboard() {
   const planName = org?.plan ? (PLAN_LABEL[org.plan] ?? org.plan) : '—'
   const firstName = org?.name?.split(' ')[0] ?? '—'
   const avatarLetter = org?.name?.charAt(0).toUpperCase() ?? '?'
+  const periodLabel = period === 'day' ? 'hoje' : period === 'week' ? 'esta semana' : 'este mês'
 
   if (loading) return (
     <div className="flex items-center justify-center py-24">
-      <div className="w-6 h-6 border-[3px] border-brand-500 border-t-transparent rounded-full animate-spin" />
+      <div className="w-5 h-5 border-[2.5px] border-brand-500 border-t-transparent rounded-full animate-spin" />
     </div>
   )
 
@@ -93,31 +101,38 @@ export default function ClientDashboard() {
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
 
-        <div className="flex items-center gap-3">
-          {/* Avatar com offset sombra (Elevva style) */}
-          <div className="relative shrink-0 group cursor-default">
-            <div className="absolute inset-0 bg-brand-400 rounded-lg translate-x-1 translate-y-1 transition-transform duration-300 group-hover:translate-x-1.5 group-hover:translate-y-1.5" />
-            <div className="w-9 h-9 bg-gray-900 rounded-lg relative flex items-center justify-center text-white text-sm font-bold border-2 border-gray-900 z-10 shadow-sm">
+        <div className="flex items-center gap-3.5">
+          {/* Avatar with online dot */}
+          <div className="relative shrink-0">
+            <div
+              className="w-10 h-10 rounded-2xl flex items-center justify-center text-white text-sm font-bold shadow-[0_4px_14px_rgba(44,130,181,0.32)]"
+              style={{ background: 'linear-gradient(135deg, #2C82B5 0%, #1e5f88 100%)' }}
+            >
               {avatarLetter}
             </div>
+            <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-400 rounded-full border-2 border-white" />
           </div>
-          <h1 className="text-xl text-slate-800 leading-none">
-            Olá, <span className="font-bold">{firstName}</span>
-          </h1>
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400 leading-none mb-1">
+              Bem-vindo de volta
+            </p>
+            <h1 className="text-xl font-bold text-gray-900 leading-none">{firstName}</h1>
+          </div>
         </div>
 
-        {/* Period filter — Elevva pill style */}
-        <div className="flex items-center bg-white border border-slate-200 rounded-2xl p-1 shadow-[0px_4px_20px_rgba(0,0,0,0.04)]">
+        {/* Period switcher */}
+        <div className="flex items-center bg-white border border-slate-200 rounded-2xl p-1 shadow-[0_2px_10px_rgba(0,0,0,0.05)]">
           {PERIODS.map(({ key, label }) => (
             <button
               key={key}
               onClick={() => setPeriod(key)}
               className={cn(
-                'px-3 py-1.5 rounded-xl text-xs font-medium transition-all duration-150',
+                'px-4 py-1.5 rounded-xl text-[13px] font-semibold transition-all duration-200',
                 period === key
-                  ? 'bg-gray-900 text-white shadow-sm'
-                  : 'text-slate-400 hover:text-slate-700'
+                  ? 'text-white shadow-[0_2px_8px_rgba(37,112,160,0.28)]'
+                  : 'text-slate-400 hover:text-slate-600'
               )}
+              style={period === key ? { background: 'linear-gradient(135deg, #2C82B5, #2570a0)' } : {}}
             >
               {label}
             </button>
@@ -128,84 +143,102 @@ export default function ClientDashboard() {
       {/* ── 4 Metric Cards ─────────────────────────────────────────────────── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
 
-        {/* Conversas */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-[0px_2px_12px_rgba(0,0,0,0.04)] hover:shadow-[0px_4px_20px_rgba(44,130,181,0.10)] transition-all group">
-          <div className="flex items-start justify-between mb-4">
-            <div className="w-9 h-9 rounded-xl bg-brand-50 flex items-center justify-center group-hover:bg-brand-100 transition-colors">
-              <MessageSquare className="w-4 h-4 text-brand-500" />
-            </div>
-          </div>
-          <p className="text-[11px] font-semibold uppercase tracking-widest text-slate-400 mb-1">Conversas</p>
-          <span className="text-3xl font-bold text-gray-900 leading-none">{filtered.conversations}</span>
-        </div>
+        <MetricCard
+          label="Conversas"
+          value={filtered.conversations}
+          accent={CARD_ACCENTS.brand}
+          icon={<MessageSquare className="w-[17px] h-[17px] text-brand-500" />}
+        />
+        <MetricCard
+          label="Agendamentos"
+          value={filtered.appointments}
+          accent={CARD_ACCENTS.violet}
+          icon={<Calendar className="w-[17px] h-[17px] text-violet-500" />}
+        />
+        <MetricCard
+          label="Realizadas"
+          value={filtered.completed}
+          accent={CARD_ACCENTS.emerald}
+          icon={<CheckCircle className="w-[17px] h-[17px] text-emerald-500" />}
+        />
 
-        {/* Agendamentos */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-[0px_2px_12px_rgba(0,0,0,0.04)] hover:shadow-[0px_4px_20px_rgba(99,102,241,0.10)] transition-all group">
-          <div className="flex items-start justify-between mb-4">
-            <div className="w-9 h-9 rounded-xl bg-indigo-50 flex items-center justify-center group-hover:bg-indigo-100 transition-colors">
-              <Calendar className="w-4 h-4 text-indigo-500" />
+        {/* Cancelamentos — dark card */}
+        <div
+          className="relative overflow-hidden rounded-2xl p-5 shadow-[0_2px_16px_rgba(0,0,0,0.14)] hover:shadow-[0_6px_24px_rgba(0,0,0,0.22)] transition-all duration-300 cursor-default"
+          style={{ background: 'linear-gradient(145deg, #18181b 0%, #111113 100%)' }}
+        >
+          {/* Glow top-right */}
+          <div className="absolute -top-8 -right-8 w-28 h-28 rounded-full blur-2xl pointer-events-none" style={{ background: 'rgba(244,63,94,0.12)' }} />
+          {/* Subtle grid texture */}
+          <div
+            className="absolute inset-0 opacity-[0.04] pointer-events-none"
+            style={{
+              backgroundImage: 'repeating-linear-gradient(0deg,rgba(255,255,255,.8) 0,rgba(255,255,255,.8) 1px,transparent 1px,transparent 20px),repeating-linear-gradient(90deg,rgba(255,255,255,.8) 0,rgba(255,255,255,.8) 1px,transparent 1px,transparent 20px)',
+            }}
+          />
+          <div className="relative z-10 flex flex-col h-full">
+            <div className="w-8 h-8 rounded-xl bg-white/[0.08] flex items-center justify-center mb-4 border border-white/10">
+              <XCircle className="w-[17px] h-[17px] text-rose-400" />
             </div>
+            <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500 mb-2">Cancelamentos</p>
+            <p className="text-4xl font-black text-white leading-none">{filtered.cancelled}</p>
           </div>
-          <p className="text-[11px] font-semibold uppercase tracking-widest text-slate-400 mb-1">Agendamentos</p>
-          <span className="text-3xl font-bold text-gray-900 leading-none">{filtered.appointments}</span>
-        </div>
-
-        {/* Consultas Realizadas */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-[0px_2px_12px_rgba(0,0,0,0.04)] hover:shadow-[0px_4px_20px_rgba(16,185,129,0.10)] transition-all group">
-          <div className="flex items-start justify-between mb-4">
-            <div className="w-9 h-9 rounded-xl bg-emerald-50 flex items-center justify-center group-hover:bg-emerald-100 transition-colors">
-              <CheckCircle className="w-4 h-4 text-emerald-500" />
-            </div>
-          </div>
-          <p className="text-[11px] font-semibold uppercase tracking-widest text-slate-400 mb-1">Realizadas</p>
-          <span className="text-3xl font-bold text-gray-900 leading-none">{filtered.completed}</span>
-        </div>
-
-        {/* Cancelamentos — dark */}
-        <div className="bg-gray-900 p-5 rounded-2xl shadow-[0px_2px_12px_rgba(0,0,0,0.10)] hover:shadow-[0px_4px_20px_rgba(0,0,0,0.18)] transition-all group relative overflow-hidden">
-          <div className="absolute -right-4 -top-4 w-20 h-20 bg-white/5 rounded-full" />
-          <div className="flex items-start justify-between mb-4">
-            <div className="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center group-hover:bg-white/15 transition-colors">
-              <XCircle className="w-4 h-4 text-rose-400" />
-            </div>
-          </div>
-          <p className="text-[11px] font-semibold uppercase tracking-widest text-slate-400 mb-1">Cancelamentos</p>
-          <span className="text-3xl font-bold text-white leading-none">{filtered.cancelled}</span>
         </div>
       </div>
 
       {/* ── Bottom Section ──────────────────────────────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
 
-        {/* Agendamentos Recentes — 2 colunas */}
-        <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-[0px_4px_20px_rgba(0,0,0,0.02)] lg:col-span-2">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-              <Calendar className="w-5 h-5 text-brand-500" />
-              Agendamentos Recentes
-            </h3>
-            <span className="text-xs font-medium text-slate-400">
-              {period === 'day' ? 'hoje' : period === 'week' ? 'esta semana' : 'este mês'}
-            </span>
+        {/* Agendamentos Recentes — 2 cols wide */}
+        <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-100 shadow-[0_2px_12px_rgba(0,0,0,0.03)] overflow-hidden">
+
+          {/* Table header */}
+          <div className="flex items-center justify-between px-6 py-4 border-b border-slate-50">
+            <div className="flex items-center gap-2.5">
+              <div className="w-1.5 h-4 rounded-full" style={{ background: 'linear-gradient(180deg, #2C82B5, #1e5f88)' }} />
+              <h3 className="text-[13px] font-bold text-gray-900 tracking-tight">Agendamentos Recentes</h3>
+            </div>
+            <span className="text-[11px] font-semibold uppercase tracking-widest text-slate-400">{periodLabel}</span>
           </div>
 
           {filtered.recentAppts.length === 0 ? (
-            <div className="text-center py-10">
-              <Calendar className="w-8 h-8 text-slate-200 mx-auto mb-2" />
-              <p className="text-slate-400 font-medium text-sm">Nenhum agendamento neste período.</p>
+            <div className="flex flex-col items-center justify-center py-14">
+              <div className="w-10 h-10 rounded-2xl bg-slate-50 flex items-center justify-center mb-3 border border-slate-100">
+                <Calendar className="w-5 h-5 text-slate-300" />
+              </div>
+              <p className="text-[13px] font-semibold text-slate-400">Nenhum agendamento {periodLabel}.</p>
             </div>
           ) : (
-            <div className="space-y-3">
-              {filtered.recentAppts.map(appt => (
-                <div key={appt.id} className="flex items-center justify-between px-4 py-3 rounded-2xl border border-slate-100 hover:bg-slate-50 transition-colors">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <p className="font-semibold text-gray-900 text-sm truncate">{appt.patient_name}</p>
-                    <span className="text-slate-300 text-xs shrink-0">·</span>
-                    <p className="text-xs text-slate-500 font-medium truncate">{appt.specialty}{appt.doctor_name ? ` · ${appt.doctor_name}` : ''}</p>
+            <div className="divide-y divide-slate-50/80">
+              {filtered.recentAppts.map((appt, i) => (
+                <div
+                  key={appt.id}
+                  className={cn(
+                    'flex items-center justify-between px-6 py-3.5 transition-colors duration-150 hover:bg-slate-50/70 group',
+                    i % 2 === 0 ? '' : 'bg-slate-50/30',
+                  )}
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    {/* Status dot */}
+                    <div className={cn('w-2 h-2 rounded-full shrink-0 transition-transform duration-200 group-hover:scale-125', {
+                      'bg-slate-300':   appt.status === 'scheduled',
+                      'bg-emerald-400': appt.status === 'confirmed',
+                      'bg-rose-400':    appt.status === 'cancelled',
+                      'bg-brand-400':   appt.status === 'completed',
+                    })} />
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <p className="text-[13px] font-semibold text-gray-900 truncate">{appt.patient_name}</p>
+                      <span className="text-slate-300 text-[11px] shrink-0 font-light">·</span>
+                      <p className="text-[12px] text-slate-500 truncate">
+                        {appt.specialty}{appt.doctor_name ? ` · ${appt.doctor_name}` : ''}
+                      </p>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-3 shrink-0 ml-3">
-                    <p className="font-medium text-slate-500 text-xs hidden sm:block">{formatDate(appt.scheduled_at)}</p>
-                    <Badge variant={statusColors[appt.status] ?? 'outline'} className="text-[10px] whitespace-nowrap">
+                  <div className="flex items-center gap-3 shrink-0 ml-4">
+                    <p className="text-[12px] font-medium text-slate-400 hidden sm:block tabular-nums">
+                      {formatDate(appt.scheduled_at)}
+                    </p>
+                    <Badge variant={statusColors[appt.status] ?? 'outline'} className="text-[10px] font-semibold">
                       {statusLabel(appt.status)}
                     </Badge>
                   </div>
@@ -215,35 +248,100 @@ export default function ClientDashboard() {
           )}
         </div>
 
-        {/* Meu Plano — gray card */}
-        <div className="bg-gray-900 p-6 rounded-[2rem] relative overflow-hidden flex flex-col justify-between shadow-[0px_4px_20px_rgba(0,0,0,0.08)] lg:col-span-1">
+        {/* Meu Plano — dark card */}
+        <div
+          className="lg:col-span-1 relative overflow-hidden rounded-2xl p-6 flex flex-col justify-between shadow-[0_4px_24px_rgba(0,0,0,0.16)]"
+          style={{ background: 'linear-gradient(160deg, #18181b 0%, #0f0f11 100%)' }}
+        >
+          {/* Background glow blobs */}
+          <div className="absolute -bottom-16 -right-16 w-52 h-52 rounded-full blur-3xl pointer-events-none" style={{ background: 'rgba(44,130,181,0.18)' }} />
+          <div className="absolute top-0 left-0 w-36 h-36 rounded-full blur-3xl pointer-events-none" style={{ background: 'rgba(30,95,136,0.25)' }} />
+
+          {/* Subtle grid */}
+          <div
+            className="absolute inset-0 opacity-[0.03] pointer-events-none"
+            style={{
+              backgroundImage: 'repeating-linear-gradient(0deg,rgba(255,255,255,1) 0,rgba(255,255,255,1) 1px,transparent 1px,transparent 24px),repeating-linear-gradient(90deg,rgba(255,255,255,1) 0,rgba(255,255,255,1) 1px,transparent 1px,transparent 24px)',
+            }}
+          />
+
           <div className="relative z-10">
-            <p className="text-xs font-medium text-slate-400 mb-3">Plano atual</p>
-            <h3 className="text-3xl font-bold text-white mb-2">{planName}</h3>
-            <p className="text-slate-300 text-sm font-medium">
-              {org?.conversations_used ?? 0} de {org?.max_conversations_month ?? 0} conversas utilizadas
+            <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500 mb-4">Plano Atual</p>
+            <h3 className="text-[2.5rem] font-black text-white leading-none mb-2">{planName}</h3>
+            <p className="text-[13px] font-medium" style={{ color: 'rgba(148,163,184,0.7)' }}>
+              <span className="text-slate-300 font-bold">{org?.conversations_used ?? 0}</span>
+              <span className="mx-1 text-slate-600">/</span>
+              {org?.max_conversations_month ?? 0} conversas
             </p>
           </div>
 
-          {/* Barra de uso */}
-          <div className="relative z-10 mt-5">
-            <div className="w-full h-1.5 bg-gray-700 rounded-full overflow-hidden mb-4">
-              <div
-                className="h-full rounded-full transition-all duration-700"
-                style={{
-                  width: `${usagePct}%`,
-                  background: usagePct > 80 ? '#f43f5e' : '#2C82B5',
-                }}
-              />
+          {/* Segmented progress bar — the signature detail */}
+          <div className="relative z-10 mt-8">
+            <SegmentedProgress pct={usagePct} />
+            <div className="flex items-center justify-between mt-3">
+              <p className="text-[11px] font-semibold text-slate-600">Uso do período</p>
+              <p
+                className="text-[12px] font-bold tabular-nums"
+                style={{ color: usagePct > 80 ? '#f87171' : '#4d9aca' }}
+              >
+                {usagePct.toFixed(0)}%
+              </p>
             </div>
-            <p className="text-xs font-medium text-zinc-400 text-right">{usagePct.toFixed(0)}% usado</p>
           </div>
-
-          {/* Glow decorativo */}
-          <div className="absolute -right-10 -bottom-10 w-40 h-40 bg-zinc-800 rounded-full blur-[50px] opacity-50 pointer-events-none" />
         </div>
 
       </div>
+    </div>
+  )
+}
+
+// ── Metric Card ──────────────────────────────────────────────────
+
+interface MetricCardProps {
+  label: string
+  value: number
+  icon: ReactNode
+  accent: { border: string; iconBg: string; iconColor: string }
+}
+
+function MetricCard({ label, value, icon, accent }: MetricCardProps) {
+  return (
+    <div
+      className="bg-white rounded-2xl p-5 border border-slate-100 border-l-[3px] shadow-[0_2px_12px_rgba(0,0,0,0.03)] hover:shadow-[0_6px_20px_rgba(0,0,0,0.07)] hover:-translate-y-[1px] transition-all duration-250 cursor-default"
+      style={{ borderLeftColor: accent.border }}
+    >
+      <div className={cn('w-8 h-8 rounded-xl flex items-center justify-center mb-5', accent.iconBg)}>
+        {icon}
+      </div>
+      <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400 mb-2">{label}</p>
+      <p className="text-4xl font-black text-gray-900 leading-none tabular-nums">{value}</p>
+    </div>
+  )
+}
+
+// ── Segmented Progress ───────────────────────────────────────────
+
+function SegmentedProgress({ pct }: { pct: number }) {
+  const total = 20
+  const filled = Math.round((pct / 100) * total)
+  const isHigh = pct > 80
+
+  return (
+    <div className="flex gap-[3px]">
+      {Array.from({ length: total }).map((_, i) => (
+        <div
+          key={i}
+          className="flex-1 h-1.5 rounded-full transition-all duration-500"
+          style={{
+            transitionDelay: `${i * 20}ms`,
+            background: i < filled
+              ? isHigh
+                ? `rgba(248,113,113,${0.6 + (i / total) * 0.4})`
+                : `rgba(44,130,181,${0.45 + (i / total) * 0.55})`
+              : 'rgba(255,255,255,0.08)',
+          }}
+        />
+      ))}
     </div>
   )
 }
