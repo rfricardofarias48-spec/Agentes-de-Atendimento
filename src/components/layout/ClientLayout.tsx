@@ -1,10 +1,12 @@
-import { type ReactNode, useState } from 'react'
+import { type ReactNode, useState, useEffect, useRef } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, Calendar, CreditCard, Settings, LogOut,
-  Bot, ChevronRight, Bell, Menu, X,
+  Bot, ChevronRight, Menu, X, UserCircle2,
 } from 'lucide-react'
+import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
+import { planLabel } from '../../lib/utils'
 import { cn } from '../../lib/utils'
 
 const navItems = [
@@ -21,14 +23,38 @@ interface ClientLayoutProps {
   chatwootUrl?: string | null
 }
 
-export default function ClientLayout({ children, orgName }: ClientLayoutProps) {
-  const { signOut } = useAuth()
+export default function ClientLayout({ children }: ClientLayoutProps) {
+  const { signOut, orgId } = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
   const [expanded, setExpanded] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [profileOpen, setProfileOpen] = useState(false)
+  const profileRef = useRef<HTMLDivElement>(null)
 
-  const orgInitial = (orgName ?? 'C').charAt(0).toUpperCase()
+  const [orgName, setOrgName] = useState<string>('')
+  const [orgPlan, setOrgPlan] = useState<string>('')
+
+  useEffect(() => {
+    if (!orgId) return
+    supabase.from('organizations').select('name,plan').eq('id', orgId).single()
+      .then(({ data }) => {
+        if (data) { setOrgName(data.name); setOrgPlan(data.plan) }
+      })
+  }, [orgId])
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
+        setProfileOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  const orgInitial = orgName.charAt(0).toUpperCase() || 'C'
 
   async function handleSignOut() {
     await signOut()
@@ -43,7 +69,7 @@ export default function ClientLayout({ children, orgName }: ClientLayoutProps) {
         className="shrink-0 flex items-center justify-between px-4 h-14 z-40 shadow-[0_2px_12px_rgba(5,150,105,0.18)]"
         style={{ background: 'linear-gradient(90deg, #059669 0%, #047857 100%)' }}
       >
-        {/* Left: hamburger (mobile) + logo */}
+        {/* Left: hamburger (mobile) + logo only */}
         <div className="flex items-center gap-3">
           <button
             onClick={() => setMobileOpen(v => !v)}
@@ -51,26 +77,37 @@ export default function ClientLayout({ children, orgName }: ClientLayoutProps) {
           >
             {mobileOpen ? <X className="w-4 h-4 text-white" /> : <Menu className="w-4 h-4 text-white" />}
           </button>
-
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 bg-white/15 rounded-xl flex items-center justify-center border border-white/20">
-              <Bot className="w-4 h-4 text-white" />
-            </div>
-            <div className="hidden sm:block">
-              <p className="text-[10px] font-black text-emerald-200 uppercase tracking-widest leading-none">AgenteClin</p>
-              <p className="text-sm font-black text-white truncate max-w-[160px] mt-0.5">{orgName ?? 'Minha Clínica'}</p>
-            </div>
+          <div className="w-8 h-8 bg-white/15 rounded-xl flex items-center justify-center border border-white/20">
+            <Bot className="w-4 h-4 text-white" />
           </div>
         </div>
 
-        {/* Right: bell + avatar */}
-        <div className="flex items-center gap-2">
-          <button className="w-8 h-8 flex items-center justify-center rounded-xl bg-white/10 hover:bg-white/20 transition-colors relative">
-            <Bell className="w-4 h-4 text-white" />
+        {/* Right: profile dropdown */}
+        <div className="relative" ref={profileRef}>
+          <button
+            onClick={() => setProfileOpen(v => !v)}
+            className="w-8 h-8 rounded-xl bg-white/20 border border-white/30 flex items-center justify-center text-white text-xs font-black hover:bg-white/30 transition-colors"
+          >
+            {orgInitial || <UserCircle2 className="w-4 h-4" />}
           </button>
-          <div className="w-8 h-8 rounded-xl bg-white/20 border border-white/30 flex items-center justify-center text-white text-xs font-black">
-            {orgInitial}
-          </div>
+
+          {profileOpen && (
+            <div className="absolute right-0 top-10 w-52 bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden z-50 animate-fade-up">
+              <div className="px-4 py-3 border-b border-slate-100">
+                <p className="text-sm font-bold text-slate-800 truncate">{orgName || 'Minha Clínica'}</p>
+                <span className="inline-flex items-center mt-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700">
+                  {planLabel(orgPlan) || 'Essencial'}
+                </span>
+              </div>
+              <button
+                onClick={handleSignOut}
+                className="flex items-center gap-2 w-full px-4 py-3 text-sm font-medium text-slate-500 hover:bg-slate-50 hover:text-red-500 transition-colors"
+              >
+                <LogOut className="w-4 h-4 shrink-0" />
+                Sair
+              </button>
+            </div>
+          )}
         </div>
       </header>
 
