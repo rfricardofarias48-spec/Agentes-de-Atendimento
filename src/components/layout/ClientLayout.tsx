@@ -1,17 +1,18 @@
 import { type ReactNode, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import {
-  LayoutDashboard, Calendar, CreditCard, Settings, LogOut, Menu, X, Bot
+  LayoutDashboard, Calendar, CreditCard, Settings, LogOut,
+  Bot, ChevronRight, Bell, Menu, X,
 } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { cn } from '../../lib/utils'
 
 const navItems = [
-  { href: '/dashboard',              label: 'Visão Geral',   icon: LayoutDashboard },
-  { href: '/dashboard/appointments', label: 'Agenda',        icon: Calendar },
-  { href: '/dashboard/training',     label: 'Bento',         icon: Bot },
+  { href: '/dashboard',              label: 'Visão Geral',      icon: LayoutDashboard },
+  { href: '/dashboard/appointments', label: 'Agenda',           icon: Calendar },
+  { href: '/dashboard/training',     label: 'Bento',            icon: Bot },
   { href: '/dashboard/payments',     label: 'Minha Assinatura', icon: CreditCard },
-  { href: '/dashboard/settings',     label: 'Configurações', icon: Settings },
+  { href: '/dashboard/settings',     label: 'Configurações',    icon: Settings },
 ]
 
 interface ClientLayoutProps {
@@ -24,94 +25,183 @@ export default function ClientLayout({ children, orgName }: ClientLayoutProps) {
   const { signOut } = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
-  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [expanded, setExpanded] = useState(false)
+  const [mobileOpen, setMobileOpen] = useState(false)
+
+  const orgInitial = (orgName ?? 'C').charAt(0).toUpperCase()
 
   async function handleSignOut() {
     await signOut()
     navigate('/login')
   }
 
-  const Sidebar = () => (
-    <aside className="flex flex-col h-full w-52 bg-white border-r border-slate-100">
+  return (
+    <div className="flex flex-col h-screen bg-[#f8f9fb]">
 
-      {/* Logo / brand */}
-      <div className="flex items-center gap-3 px-5 py-7 border-b border-slate-100">
-        <div className="w-8 h-8 bg-gray-900 rounded-xl flex items-center justify-center shadow-sm">
-          <Bot className="w-4 h-4 text-emerald-400" />
-        </div>
-        <div className="min-w-0">
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">AgenteClin</p>
-          <p className="text-sm font-black text-slate-900 truncate mt-0.5">{orgName ?? 'Minha Clínica'}</p>
-        </div>
-      </div>
+      {/* ── Top bar ──────────────────────────────────────────────── */}
+      <header
+        className="shrink-0 flex items-center justify-between px-4 h-14 z-40 shadow-[0_2px_12px_rgba(5,150,105,0.18)]"
+        style={{ background: 'linear-gradient(90deg, #059669 0%, #047857 100%)' }}
+      >
+        {/* Left: hamburger (mobile) + logo */}
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setMobileOpen(v => !v)}
+            className="lg:hidden w-8 h-8 flex items-center justify-center rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
+          >
+            {mobileOpen ? <X className="w-4 h-4 text-white" /> : <Menu className="w-4 h-4 text-white" />}
+          </button>
 
-      {/* Nav */}
-      <nav className="flex-1 px-3 pt-7 pb-4 space-y-2">
-        {navItems.map(({ href, label, icon: Icon }) => {
-          const active = location.pathname === href
-          return (
-            <Link
-              key={href}
-              to={href}
-              onClick={() => setSidebarOpen(false)}
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 bg-white/15 rounded-xl flex items-center justify-center border border-white/20">
+              <Bot className="w-4 h-4 text-white" />
+            </div>
+            <div className="hidden sm:block">
+              <p className="text-[10px] font-black text-emerald-200 uppercase tracking-widest leading-none">AgenteClin</p>
+              <p className="text-sm font-black text-white truncate max-w-[160px] mt-0.5">{orgName ?? 'Minha Clínica'}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Right: bell + avatar */}
+        <div className="flex items-center gap-2">
+          <button className="w-8 h-8 flex items-center justify-center rounded-xl bg-white/10 hover:bg-white/20 transition-colors relative">
+            <Bell className="w-4 h-4 text-white" />
+          </button>
+          <div className="w-8 h-8 rounded-xl bg-white/20 border border-white/30 flex items-center justify-center text-white text-xs font-black">
+            {orgInitial}
+          </div>
+        </div>
+      </header>
+
+      {/* ── Body (sidebar + content) ──────────────────────────────── */}
+      <div className="flex flex-1 min-h-0">
+
+        {/* ── Desktop collapsible sidebar ──────────────────────────── */}
+        <aside
+          className={cn(
+            'hidden lg:flex flex-col shrink-0 bg-white border-r border-slate-100 transition-all duration-300 ease-in-out',
+            'shadow-[2px_0_12px_rgba(0,0,0,0.04)]',
+            expanded ? 'w-52' : 'w-[68px]',
+          )}
+        >
+          {/* Toggle button */}
+          <button
+            onClick={() => setExpanded(v => !v)}
+            className={cn(
+              'flex items-center h-12 px-4 border-b border-slate-100 text-slate-400',
+              'hover:text-emerald-600 transition-colors duration-150',
+              expanded ? 'justify-end' : 'justify-center',
+            )}
+          >
+            <ChevronRight className={cn(
+              'w-4 h-4 transition-transform duration-300',
+              expanded && 'rotate-180',
+            )} />
+          </button>
+
+          {/* Nav items */}
+          <nav className="flex-1 py-4 space-y-1 px-2 overflow-hidden">
+            {navItems.map(({ href, label, icon: Icon }) => {
+              const active = location.pathname === href
+              return (
+                <Link
+                  key={href}
+                  to={href}
+                  title={!expanded ? label : undefined}
+                  className={cn(
+                    'flex items-center rounded-xl transition-all duration-150 overflow-hidden',
+                    expanded ? 'gap-3 px-3 py-2.5' : 'justify-center p-3',
+                    active
+                      ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-200'
+                      : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900',
+                  )}
+                >
+                  <Icon className={cn(
+                    'shrink-0 transition-colors',
+                    expanded ? 'w-4 h-4' : 'w-5 h-5',
+                    active ? 'text-emerald-100' : 'text-slate-400',
+                  )} />
+                  {expanded && (
+                    <span className="text-[0.875rem] font-bold whitespace-nowrap">{label}</span>
+                  )}
+                </Link>
+              )
+            })}
+          </nav>
+
+          {/* Sign out */}
+          <div className="py-3 px-2 border-t border-slate-100">
+            <button
+              onClick={handleSignOut}
+              title={!expanded ? 'Sair' : undefined}
               className={cn(
-                'flex items-center gap-3 px-3 py-2.5 rounded-xl text-[0.875rem] font-bold transition-all duration-150',
-                active
-                  ? 'bg-gray-900 text-white shadow-sm'
-                  : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
+                'flex items-center w-full rounded-xl text-slate-400 hover:bg-slate-50 hover:text-red-500 transition-all duration-150',
+                expanded ? 'gap-3 px-3 py-2.5' : 'justify-center p-3',
               )}
             >
-              <Icon className={cn('w-4 h-4 shrink-0', active ? 'text-emerald-400' : 'text-slate-400')} />
-              {label}
-            </Link>
-          )
-        })}
-      </nav>
-
-      {/* Sign out */}
-      <div className="p-3 border-t border-slate-100">
-        <button
-          onClick={handleSignOut}
-          className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-sm font-bold text-slate-500 hover:bg-slate-50 hover:text-slate-900 transition-all duration-150"
-        >
-          <LogOut className="w-4 h-4 text-slate-400 shrink-0" />
-          Sair
-        </button>
-      </div>
-    </aside>
-  )
-
-  return (
-    <div className="flex h-screen bg-[#f8f9fb]">
-
-      {/* Desktop sidebar */}
-      <div className="hidden lg:flex shrink-0 shadow-[2px_0_12px_rgba(0,0,0,0.04)]">
-        <Sidebar />
-      </div>
-
-      {/* Mobile sidebar */}
-      {sidebarOpen && (
-        <>
-          <div className="fixed inset-0 z-40 bg-black/40 lg:hidden" onClick={() => setSidebarOpen(false)} />
-          <div className="fixed inset-y-0 left-0 z-50 lg:hidden shadow-xl">
-            <Sidebar />
+              <LogOut className={cn('shrink-0', expanded ? 'w-4 h-4' : 'w-5 h-5')} />
+              {expanded && <span className="text-[0.875rem] font-bold whitespace-nowrap">Sair</span>}
+            </button>
           </div>
-        </>
-      )}
+        </aside>
 
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        {/* Mobile header */}
-        <header className="bg-white border-b border-slate-100 px-4 py-3 flex items-center gap-3 lg:hidden shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
-          <button
-            onClick={() => setSidebarOpen(v => !v)}
-            className="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-50 hover:bg-slate-100 transition-colors"
-          >
-            {sidebarOpen ? <X className="w-4 h-4 text-slate-600" /> : <Menu className="w-4 h-4 text-slate-600" />}
-          </button>
-          <span className="font-black text-slate-900 tracking-tighter">{orgName ?? 'AgenteClin'}</span>
-        </header>
+        {/* ── Mobile sidebar overlay ───────────────────────────────── */}
+        {mobileOpen && (
+          <>
+            <div
+              className="fixed inset-0 z-30 bg-black/40 lg:hidden"
+              onClick={() => setMobileOpen(false)}
+            />
+            <aside className="fixed inset-y-0 left-0 z-40 lg:hidden w-52 flex flex-col bg-white shadow-2xl">
+              <div
+                className="flex items-center gap-2.5 px-4 h-14 shrink-0"
+                style={{ background: 'linear-gradient(90deg, #059669 0%, #047857 100%)' }}
+              >
+                <div className="w-8 h-8 bg-white/15 rounded-xl flex items-center justify-center border border-white/20">
+                  <Bot className="w-4 h-4 text-white" />
+                </div>
+                <div>
+                  <p className="text-[10px] font-black text-emerald-200 uppercase tracking-widest leading-none">AgenteClin</p>
+                  <p className="text-sm font-black text-white truncate max-w-[140px] mt-0.5">{orgName ?? 'Minha Clínica'}</p>
+                </div>
+              </div>
+              <nav className="flex-1 py-4 space-y-1 px-2">
+                {navItems.map(({ href, label, icon: Icon }) => {
+                  const active = location.pathname === href
+                  return (
+                    <Link
+                      key={href}
+                      to={href}
+                      onClick={() => setMobileOpen(false)}
+                      className={cn(
+                        'flex items-center gap-3 px-3 py-2.5 rounded-xl text-[0.875rem] font-bold transition-all duration-150',
+                        active
+                          ? 'bg-emerald-600 text-white shadow-sm'
+                          : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900',
+                      )}
+                    >
+                      <Icon className={cn('w-4 h-4 shrink-0', active ? 'text-emerald-100' : 'text-slate-400')} />
+                      {label}
+                    </Link>
+                  )
+                })}
+              </nav>
+              <div className="py-3 px-2 border-t border-slate-100">
+                <button
+                  onClick={handleSignOut}
+                  className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-sm font-bold text-slate-400 hover:bg-slate-50 hover:text-red-500 transition-all duration-150"
+                >
+                  <LogOut className="w-4 h-4 shrink-0" />
+                  Sair
+                </button>
+              </div>
+            </aside>
+          </>
+        )}
 
-        <main className="flex-1 overflow-y-auto p-6">
+        {/* ── Main content ─────────────────────────────────────────── */}
+        <main className="flex-1 overflow-y-auto p-6 min-w-0">
           {children}
         </main>
       </div>
