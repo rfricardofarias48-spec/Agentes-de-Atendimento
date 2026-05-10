@@ -11,7 +11,7 @@ function formatApptDate(iso: string): string {
   const month = String(d.getMonth() + 1).padStart(2, '0')
   const h = d.getHours()
   const m = d.getMinutes()
-  return m === 0 ? `${day}/${month} ${h}h` : `${day}/${month} ${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+  return m === 0 ? `${day}/${month} · ${h}h` : `${day}/${month} · ${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
 }
 import { Badge } from '../../components/ui/badge'
 import { cn } from '../../lib/utils'
@@ -250,7 +250,6 @@ export default function ClientDashboard() {
               <h3 className="text-[13px] font-bold text-gray-900">Próximos Agendamentos</h3>
             </div>
             <div className="flex items-center gap-3">
-              <span className="text-[11px] font-semibold uppercase tracking-widest text-slate-400">{periodLabel}</span>
               <a href="/dashboard/appointments"
                 className="flex items-center gap-1 text-[11px] font-bold text-brand-500 hover:text-brand-600 transition-colors">
                 Ver todos <ArrowRight className="w-3 h-3" />
