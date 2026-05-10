@@ -429,26 +429,32 @@ interface MetricCardProps {
 function MetricCard({ label, value, icon, accent }: MetricCardProps) {
   return (
     <div
-      className="relative bg-white rounded-2xl p-5 overflow-hidden border border-slate-100/80 shadow-[0_1px_4px_rgba(0,0,0,0.05),0_4px_16px_rgba(0,0,0,0.04)] hover:shadow-[0_6px_24px_rgba(0,0,0,0.09)] hover:-translate-y-[2px] transition-all duration-200 cursor-default"
+      className="relative rounded-2xl p-5 overflow-hidden cursor-default transition-all duration-200 hover:-translate-y-[3px]"
+      style={{
+        background: `linear-gradient(145deg, #ffffff 60%, ${accent.border}0d 100%)`,
+        border: `1px solid ${accent.border}28`,
+        boxShadow: `0 1px 3px rgba(0,0,0,0.04), 0 6px 20px ${accent.border}12`,
+      }}
+      onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.boxShadow = `0 8px 32px ${accent.border}28, 0 2px 8px rgba(0,0,0,0.06)` }}
+      onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.boxShadow = `0 1px 3px rgba(0,0,0,0.04), 0 6px 20px ${accent.border}12` }}
     >
-      {/* Ambient corner glow */}
-      <div className="absolute -top-6 -right-6 w-24 h-24 rounded-full blur-2xl pointer-events-none"
-        style={{ background: accent.border, opacity: 0.08 }} />
-
-      {/* Top row: icon + value */}
-      <div className="flex items-start justify-between mb-3">
-        <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: accent.iconBg }}>
-          {icon}
-        </div>
-        <p className="text-[2rem] font-black text-gray-900 leading-none tabular-nums">{value}</p>
+      {/* Icon — top right, no box */}
+      <div className="absolute top-4 right-4" style={{ color: accent.iconColor, opacity: 0.55 }}>
+        {icon}
       </div>
 
-      {/* Label */}
-      <p className="text-[12px] font-semibold text-slate-400">{label}</p>
+      {/* Decorative ring */}
+      <div className="absolute -bottom-5 -right-5 w-24 h-24 rounded-full pointer-events-none"
+        style={{ border: `28px solid ${accent.border}`, opacity: 0.06 }} />
 
-      {/* Bottom accent strip */}
-      <div className="absolute bottom-0 left-0 w-full h-[2px] rounded-b-2xl"
-        style={{ background: `linear-gradient(90deg, ${accent.border} 0%, transparent 70%)` }} />
+      {/* Label */}
+      <p className="text-[10px] font-bold uppercase tracking-[0.14em] mb-3"
+        style={{ color: accent.border, opacity: 0.75 }}>
+        {label}
+      </p>
+
+      {/* Number */}
+      <p className="text-[2.6rem] font-black leading-none tabular-nums text-gray-900">{value}</p>
     </div>
   )
 }
