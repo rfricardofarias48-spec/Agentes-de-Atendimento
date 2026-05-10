@@ -315,7 +315,6 @@ function AgentCard({ org, conversations }: { org: Organization | null; conversat
   const pct    = Math.min((used / limit) * 100, 100)
   const remaining = Math.max(limit - used, 0)
 
-  const barColor = pct > 85 ? '#f43f5e' : pct > 65 ? '#f59e0b' : '#2C82B5'
   const barGradient = pct > 85
     ? 'linear-gradient(90deg, #f43f5e, #fb7185)'
     : pct > 65
