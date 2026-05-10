@@ -111,13 +111,9 @@ export default function ClientDashboard() {
       {/* ── Greeting + period ───────────────────────────────────── */}
       <div className="flex items-end justify-between gap-4 flex-wrap">
         <div>
-          <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-400 mb-1">
-            Bem-vindo de volta
-          </p>
           <h1 className="text-[1.75rem] font-black text-gray-900 leading-none">
             Olá, {firstName}
           </h1>
-          <p className="text-[13px] text-slate-400 mt-1.5">Veja suas atividades no painel</p>
         </div>
 
         {/* Period switcher */}
