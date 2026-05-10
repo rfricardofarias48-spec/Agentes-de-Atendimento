@@ -1,5 +1,5 @@
 import { type ReactNode, useEffect, useState, useMemo } from 'react'
-import { MessageSquare, Calendar, CheckCircle, XCircle, TrendingUp, ArrowRight, Zap, ExternalLink, AlertTriangle } from 'lucide-react'
+import { CalendarDays, BadgeCheck, CircleX, TrendingUp, ArrowRight, Zap, ExternalLink, AlertTriangle, Inbox } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { type Appointment, type Conversation, type Organization } from '../../types'
@@ -146,13 +146,13 @@ export default function ClientDashboard() {
       {/* ── 4 Metric Cards ─────────────────────────────────────── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <MetricCard label="Conversas"     value={filtered.conversations} accent={CARD_ACCENTS.brand}
-          icon={<MessageSquare className="w-[17px] h-[17px]" style={{ color: CARD_ACCENTS.brand.iconColor }} />} />
+          icon={<Inbox className="w-5 h-5" style={{ color: CARD_ACCENTS.brand.iconColor }} />} />
         <MetricCard label="Agendamentos"  value={filtered.appointments}  accent={CARD_ACCENTS.violet}
-          icon={<Calendar className="w-[17px] h-[17px]" style={{ color: CARD_ACCENTS.violet.iconColor }} />} />
+          icon={<CalendarDays className="w-5 h-5" style={{ color: CARD_ACCENTS.violet.iconColor }} />} />
         <MetricCard label="Realizadas"    value={filtered.completed}     accent={CARD_ACCENTS.emerald}
-          icon={<CheckCircle className="w-[17px] h-[17px]" style={{ color: CARD_ACCENTS.emerald.iconColor }} />} />
+          icon={<BadgeCheck className="w-5 h-5" style={{ color: CARD_ACCENTS.emerald.iconColor }} />} />
         <MetricCard label="Cancelamentos" value={filtered.cancelled}     accent={CARD_ACCENTS.rose}
-          icon={<XCircle className="w-[17px] h-[17px]" style={{ color: CARD_ACCENTS.rose.iconColor }} />} />
+          icon={<CircleX className="w-5 h-5" style={{ color: CARD_ACCENTS.rose.iconColor }} />} />
       </div>
 
       {/* ── Weekly Chart ─────────────────────────────────────────── */}
@@ -395,7 +395,7 @@ function AgentCard({ org, conversations }: { org: Organization | null; conversat
             </div>
           </div>
           <div className="rounded-xl px-3.5 py-3 flex items-center gap-2.5" style={{ background: '#f8fafc', border: '1px solid #f1f5f9' }}>
-            <MessageSquare className="w-3.5 h-3.5 text-brand-400 shrink-0" />
+            <Inbox className="w-3.5 h-3.5 text-brand-400 shrink-0" />
             <div>
               <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-400 leading-none">Escaladas</p>
               <p className="text-[12px] font-black text-gray-900 mt-0.5 leading-none tabular-nums">{escalated} conversas</p>
@@ -438,8 +438,9 @@ function MetricCard({ label, value, icon, accent }: MetricCardProps) {
       onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.boxShadow = `0 8px 32px ${accent.border}28, 0 2px 8px rgba(0,0,0,0.06)` }}
       onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.boxShadow = `0 1px 3px rgba(0,0,0,0.04), 0 6px 20px ${accent.border}12` }}
     >
-      {/* Icon — top right, no box */}
-      <div className="absolute top-4 right-4" style={{ color: accent.iconColor, opacity: 0.55 }}>
+      {/* Icon — top right */}
+      <div className="absolute top-4 right-4 w-9 h-9 rounded-xl flex items-center justify-center"
+        style={{ background: accent.iconBg }}>
         {icon}
       </div>
 
