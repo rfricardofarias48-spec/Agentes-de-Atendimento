@@ -291,7 +291,7 @@ export default function ClientDashboard() {
                     <p className="text-[13px] font-semibold text-gray-900 truncate leading-none">
                       {appt.patient_name}
                       {appt.specialty && (
-                        <span className="font-normal text-slate-400"> ({appt.specialty})</span>
+                        <span className="font-normal text-slate-400"> ({appt.specialty.charAt(0).toUpperCase() + appt.specialty.slice(1).toLowerCase()})</span>
                       )}
                     </p>
                   </div>
