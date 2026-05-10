@@ -1,5 +1,5 @@
 import { type ReactNode, useEffect, useState, useMemo } from 'react'
-import { CalendarDays, BadgeCheck, CircleX, TrendingUp, ArrowRight, Zap, ExternalLink, AlertTriangle, Inbox } from 'lucide-react'
+import { CalendarDays, BadgeCheck, CircleX, TrendingUp, ArrowRight, Zap, ExternalLink, AlertTriangle, Inbox, Calendar } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { type Appointment, type Conversation, type Organization } from '../../types'
