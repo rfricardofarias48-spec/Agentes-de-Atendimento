@@ -1,5 +1,5 @@
 import { type ReactNode, useEffect, useState, useMemo } from 'react'
-import { MessageSquare, Calendar, CheckCircle, XCircle, TrendingUp, ArrowRight, Bot, Zap, ExternalLink, AlertTriangle } from 'lucide-react'
+import { MessageSquare, Calendar, CheckCircle, XCircle, TrendingUp, ArrowRight, Zap, ExternalLink, AlertTriangle } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { type Appointment, type Conversation, type Organization } from '../../types'
@@ -348,22 +348,7 @@ function AgentCard({ org, conversations }: { org: Organization | null; conversat
       </div>
 
       {/* Body */}
-      <div className="px-6 py-5 flex-1 flex flex-col gap-5">
-
-        {/* Bot icon area */}
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-[0_4px_14px_rgba(44,130,181,0.22)]"
-            style={{ background: 'linear-gradient(135deg, #2C82B5, #1e5f88)' }}>
-            <Bot className="w-6 h-6 text-white" />
-          </div>
-          <div>
-            <p className="text-[13px] font-bold text-gray-900 leading-none">Assistente de Atendimento</p>
-            <p className="text-[11px] text-slate-400 mt-0.5">Resposta automática via WhatsApp</p>
-          </div>
-        </div>
-
-        {/* Divider */}
-        <div className="h-px bg-slate-50" />
+      <div className="px-5 py-4 flex flex-col gap-4">
 
         {/* Conversations usage */}
         <div>
@@ -391,25 +376,20 @@ function AgentCard({ org, conversations }: { org: Organization | null; conversat
         </div>
 
         {/* Stats row */}
-        <div className="grid grid-cols-2 gap-3">
-          {/* Response time */}
-          <div className="rounded-xl p-3.5 flex flex-col gap-1.5" style={{ background: '#f8fafc', border: '1px solid #f1f5f9' }}>
-            <div className="flex items-center gap-1.5">
-              <Zap className="w-3.5 h-3.5 text-amber-400" />
-              <span className="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-400">Resposta</span>
+        <div className="grid grid-cols-2 gap-2.5">
+          <div className="rounded-xl px-3.5 py-3 flex items-center gap-2.5" style={{ background: '#f8fafc', border: '1px solid #f1f5f9' }}>
+            <Zap className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-400 leading-none">Resposta</p>
+              <p className="text-[12px] font-black text-gray-900 mt-0.5 leading-none">Instantânea</p>
             </div>
-            <p className="text-[15px] font-black text-gray-900 leading-none">Instantânea</p>
-            <p className="text-[10px] text-slate-400">Via IA automática</p>
           </div>
-
-          {/* Escalated */}
-          <div className="rounded-xl p-3.5 flex flex-col gap-1.5" style={{ background: '#f8fafc', border: '1px solid #f1f5f9' }}>
-            <div className="flex items-center gap-1.5">
-              <MessageSquare className="w-3.5 h-3.5 text-brand-400" />
-              <span className="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-400">Escaladas</span>
+          <div className="rounded-xl px-3.5 py-3 flex items-center gap-2.5" style={{ background: '#f8fafc', border: '1px solid #f1f5f9' }}>
+            <MessageSquare className="w-3.5 h-3.5 text-brand-400 shrink-0" />
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-400 leading-none">Escaladas</p>
+              <p className="text-[12px] font-black text-gray-900 mt-0.5 leading-none tabular-nums">{escalated} conversas</p>
             </div>
-            <p className="text-[15px] font-black text-gray-900 leading-none tabular-nums">{escalated}</p>
-            <p className="text-[10px] text-slate-400">Para humano</p>
           </div>
         </div>
 
@@ -417,7 +397,7 @@ function AgentCard({ org, conversations }: { org: Organization | null; conversat
         <button
           onClick={() => org?.chatwoot_url && window.open(org.chatwoot_url, '_blank')}
           disabled={!org?.chatwoot_url}
-          className="mt-auto w-full flex items-center justify-center gap-2 py-3 rounded-xl text-[13px] font-bold text-white transition-all duration-200 hover:shadow-[0_6px_20px_rgba(44,130,181,0.38)] hover:-translate-y-[1px] active:translate-y-0 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:shadow-none disabled:hover:translate-y-0"
+          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-[13px] font-bold text-white transition-all duration-200 hover:shadow-[0_6px_20px_rgba(44,130,181,0.38)] hover:-translate-y-[1px] active:translate-y-0 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:shadow-none disabled:hover:translate-y-0"
           style={{ background: 'linear-gradient(135deg, #2C82B5, #2570a0)' }}
         >
           <ExternalLink className="w-4 h-4" />
