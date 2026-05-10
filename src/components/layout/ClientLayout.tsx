@@ -6,7 +6,6 @@ import {
 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
-import { planLabel } from '../../lib/utils'
 import { cn } from '../../lib/utils'
 
 const SIDEBAR_BG = '#0f172a'
@@ -27,12 +26,11 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
   const navigate = useNavigate()
   const [mobileOpen, setMobileOpen] = useState(false)
   const [orgName, setOrgName] = useState('')
-  const [orgPlan, setOrgPlan] = useState('')
 
   useEffect(() => {
     if (!orgId) return
-    supabase.from('organizations').select('name,plan').eq('id', orgId).single()
-      .then(({ data }) => { if (data) { setOrgName(data.name); setOrgPlan(data.plan) } })
+    supabase.from('organizations').select('name').eq('id', orgId).single()
+      .then(({ data }) => { if (data) setOrgName(data.name) })
   }, [orgId])
 
   async function handleSignOut() { await signOut(); navigate('/login') }
