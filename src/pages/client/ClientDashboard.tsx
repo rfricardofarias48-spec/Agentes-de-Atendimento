@@ -1,5 +1,5 @@
 import { type ReactNode, useEffect, useState, useMemo } from 'react'
-import { MessageSquare, Calendar, CheckCircle, XCircle, TrendingUp, ArrowRight } from 'lucide-react'
+import { MessageSquare, Calendar, CheckCircle, XCircle, TrendingUp, ArrowRight, Bot, Zap, ExternalLink, AlertTriangle } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { type Appointment, type Conversation, type Organization } from '../../types'
@@ -228,77 +228,204 @@ export default function ClientDashboard() {
         </div>
       </div>
 
-      {/* ── Appointments list ────────────────────────────────────── */}
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-[0_2px_12px_rgba(0,0,0,0.03)] overflow-hidden">
+      {/* ── Bottom row: Appointments + Agent card ───────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-5 items-start">
 
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-50">
-          <div className="flex items-center gap-2.5">
-            <div className="w-1.5 h-4 rounded-full" style={{ background: 'linear-gradient(180deg, #2C82B5, #1e5f88)' }} />
-            <h3 className="text-[13px] font-bold text-gray-900">Agendamentos Recentes</h3>
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="text-[11px] font-semibold uppercase tracking-widest text-slate-400">{periodLabel}</span>
-            <a href="/dashboard/appointments"
-              className="flex items-center gap-1 text-[11px] font-bold text-brand-500 hover:text-brand-600 transition-colors">
-              Ver todos <ArrowRight className="w-3 h-3" />
-            </a>
-          </div>
-        </div>
+        {/* Appointments list — 3 cols */}
+        <div className="lg:col-span-3 bg-white rounded-2xl border border-slate-100 shadow-[0_2px_12px_rgba(0,0,0,0.03)] overflow-hidden">
 
-        {/* Column headers */}
-        <div className="grid grid-cols-[1fr_auto_auto] sm:grid-cols-[1fr_1fr_auto_auto] px-6 py-2.5 border-b border-slate-50">
-          <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">Paciente · Especialidade</p>
-          <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400 hidden sm:block">Médico</p>
-          <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400 text-right">Data</p>
-          <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400 text-right">Status</p>
-        </div>
-
-        {filtered.recentAppts.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12">
-            <div className="w-10 h-10 rounded-2xl bg-slate-50 flex items-center justify-center mb-3 border border-slate-100">
-              <Calendar className="w-5 h-5 text-slate-300" />
+          {/* Header */}
+          <div className="flex items-center justify-between px-6 py-4 border-b border-slate-50">
+            <div className="flex items-center gap-2.5">
+              <div className="w-1.5 h-4 rounded-full" style={{ background: 'linear-gradient(180deg, #2C82B5, #1e5f88)' }} />
+              <h3 className="text-[13px] font-bold text-gray-900">Agendamentos Recentes</h3>
             </div>
-            <p className="text-[13px] font-semibold text-slate-400">Nenhum agendamento {periodLabel}.</p>
+            <div className="flex items-center gap-3">
+              <span className="text-[11px] font-semibold uppercase tracking-widest text-slate-400">{periodLabel}</span>
+              <a href="/dashboard/appointments"
+                className="flex items-center gap-1 text-[11px] font-bold text-brand-500 hover:text-brand-600 transition-colors">
+                Ver todos <ArrowRight className="w-3 h-3" />
+              </a>
+            </div>
           </div>
-        ) : (
-          <div className="divide-y divide-slate-50/80">
-            {filtered.recentAppts.map((appt, i) => (
-              <div key={appt.id}
-                className={cn(
-                  'grid grid-cols-[1fr_auto_auto] sm:grid-cols-[1fr_1fr_auto_auto] items-center px-6 py-3.5 gap-4 transition-colors hover:bg-slate-50/70 group',
-                  i % 2 !== 0 ? 'bg-slate-50/30' : '',
-                )}
-              >
-                {/* Patient + specialty */}
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <div className={cn('w-1.5 h-1.5 rounded-full shrink-0 transition-transform group-hover:scale-125', {
-                    'bg-slate-300':   appt.status === 'scheduled',
-                    'bg-emerald-400': appt.status === 'confirmed',
-                    'bg-rose-400':    appt.status === 'cancelled',
-                    'bg-brand-400':   appt.status === 'completed',
-                  })} />
-                  <div className="min-w-0">
-                    <p className="text-[13px] font-semibold text-gray-900 truncate leading-none">{appt.patient_name}</p>
-                    <p className="text-[11px] text-slate-400 truncate mt-0.5">{appt.specialty}</p>
+
+          {/* Column headers */}
+          <div className="grid grid-cols-[1fr_auto_auto] sm:grid-cols-[1fr_1fr_auto_auto] px-6 py-2.5 border-b border-slate-50">
+            <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">Paciente · Especialidade</p>
+            <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400 hidden sm:block">Médico</p>
+            <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400 text-right">Data</p>
+            <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400 text-right">Status</p>
+          </div>
+
+          {filtered.recentAppts.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12">
+              <div className="w-10 h-10 rounded-2xl bg-slate-50 flex items-center justify-center mb-3 border border-slate-100">
+                <Calendar className="w-5 h-5 text-slate-300" />
+              </div>
+              <p className="text-[13px] font-semibold text-slate-400">Nenhum agendamento {periodLabel}.</p>
+            </div>
+          ) : (
+            <div className="divide-y divide-slate-50/80">
+              {filtered.recentAppts.map((appt, i) => (
+                <div key={appt.id}
+                  className={cn(
+                    'grid grid-cols-[1fr_auto_auto] sm:grid-cols-[1fr_1fr_auto_auto] items-center px-6 py-3.5 gap-4 transition-colors hover:bg-slate-50/70 group',
+                    i % 2 !== 0 ? 'bg-slate-50/30' : '',
+                  )}
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className={cn('w-1.5 h-1.5 rounded-full shrink-0 transition-transform group-hover:scale-125', {
+                      'bg-slate-300':   appt.status === 'scheduled',
+                      'bg-emerald-400': appt.status === 'confirmed',
+                      'bg-rose-400':    appt.status === 'cancelled',
+                      'bg-brand-400':   appt.status === 'completed',
+                    })} />
+                    <div className="min-w-0">
+                      <p className="text-[13px] font-semibold text-gray-900 truncate leading-none">{appt.patient_name}</p>
+                      <p className="text-[11px] text-slate-400 truncate mt-0.5">{appt.specialty}</p>
+                    </div>
+                  </div>
+                  <p className="text-[12px] text-slate-400 truncate hidden sm:block">{appt.doctor_name ?? '—'}</p>
+                  <p className="text-[12px] font-medium text-slate-500 tabular-nums text-right">{formatDate(appt.scheduled_at)}</p>
+                  <div className="flex justify-end">
+                    <Badge variant={statusColors[appt.status] ?? 'outline'} className="text-[10px] font-semibold">
+                      {statusLabel(appt.status)}
+                    </Badge>
                   </div>
                 </div>
-                {/* Doctor */}
-                <p className="text-[12px] text-slate-400 truncate hidden sm:block">{appt.doctor_name ?? '—'}</p>
-                {/* Date */}
-                <p className="text-[12px] font-medium text-slate-500 tabular-nums text-right">{formatDate(appt.scheduled_at)}</p>
-                {/* Badge */}
-                <div className="flex justify-end">
-                  <Badge variant={statusColors[appt.status] ?? 'outline'} className="text-[10px] font-semibold">
-                    {statusLabel(appt.status)}
-                  </Badge>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Agent card — 2 cols */}
+        <AgentCard org={org} conversations={conversations} />
+
       </div>
 
+    </div>
+  )
+}
+
+// ── Agent Card ───────────────────────────────────────────────────
+
+function AgentCard({ org, conversations }: { org: Organization | null; conversations: Conversation[] }) {
+  const used   = org?.conversations_used ?? 0
+  const limit  = org?.max_conversations_month ?? 1
+  const pct    = Math.min((used / limit) * 100, 100)
+  const remaining = Math.max(limit - used, 0)
+
+  const barColor = pct > 85 ? '#f43f5e' : pct > 65 ? '#f59e0b' : '#2C82B5'
+  const barGradient = pct > 85
+    ? 'linear-gradient(90deg, #f43f5e, #fb7185)'
+    : pct > 65
+    ? 'linear-gradient(90deg, #f59e0b, #fbbf24)'
+    : 'linear-gradient(90deg, #2C82B5, #5bafd4)'
+
+  // Escalated this month
+  const now = new Date()
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+  const escalated = conversations.filter(c => c.escalated_to_human && new Date(c.started_at) >= monthStart).length
+
+  const [progressWidth, setProgressWidth] = useState(0)
+  useEffect(() => {
+    const t = setTimeout(() => setProgressWidth(pct), 300)
+    return () => clearTimeout(t)
+  }, [pct])
+
+  return (
+    <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-100 shadow-[0_2px_12px_rgba(0,0,0,0.03)] overflow-hidden flex flex-col">
+
+      {/* Header */}
+      <div className="flex items-center justify-between px-6 py-4 border-b border-slate-50">
+        <div className="flex items-center gap-2.5">
+          <div className="w-1.5 h-4 rounded-full" style={{ background: 'linear-gradient(180deg, #2C82B5, #1e5f88)' }} />
+          <h3 className="text-[13px] font-bold text-gray-900">Agente Bento</h3>
+        </div>
+        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full" style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.18)' }}>
+          <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+          <span className="text-[10px] font-bold text-emerald-600">Online</span>
+        </div>
+      </div>
+
+      {/* Body */}
+      <div className="px-6 py-5 flex-1 flex flex-col gap-5">
+
+        {/* Bot icon area */}
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-[0_4px_14px_rgba(44,130,181,0.22)]"
+            style={{ background: 'linear-gradient(135deg, #2C82B5, #1e5f88)' }}>
+            <Bot className="w-6 h-6 text-white" />
+          </div>
+          <div>
+            <p className="text-[13px] font-bold text-gray-900 leading-none">Assistente de Atendimento</p>
+            <p className="text-[11px] text-slate-400 mt-0.5">Resposta automática via WhatsApp</p>
+          </div>
+        </div>
+
+        {/* Divider */}
+        <div className="h-px bg-slate-50" />
+
+        {/* Conversations usage */}
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">Conversas este mês</span>
+            <span className="text-[12px] font-black text-gray-900 tabular-nums">{used} / {limit}</span>
+          </div>
+          <div className="h-2 rounded-full overflow-hidden" style={{ background: 'rgba(0,0,0,0.05)' }}>
+            <div
+              className="h-full rounded-full transition-all duration-700 ease-out"
+              style={{ width: `${progressWidth}%`, background: barGradient }}
+            />
+          </div>
+          <div className="flex items-center justify-between mt-1.5">
+            <span className="text-[10px] text-slate-400">{remaining} restantes</span>
+            {pct > 85 && (
+              <span className="flex items-center gap-1 text-[10px] font-semibold text-rose-500">
+                <AlertTriangle className="w-3 h-3" /> Limite próximo
+              </span>
+            )}
+            {pct > 65 && pct <= 85 && (
+              <span className="text-[10px] font-semibold text-amber-500">{Math.round(pct)}% usado</span>
+            )}
+          </div>
+        </div>
+
+        {/* Stats row */}
+        <div className="grid grid-cols-2 gap-3">
+          {/* Response time */}
+          <div className="rounded-xl p-3.5 flex flex-col gap-1.5" style={{ background: '#f8fafc', border: '1px solid #f1f5f9' }}>
+            <div className="flex items-center gap-1.5">
+              <Zap className="w-3.5 h-3.5 text-amber-400" />
+              <span className="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-400">Resposta</span>
+            </div>
+            <p className="text-[15px] font-black text-gray-900 leading-none">Instantânea</p>
+            <p className="text-[10px] text-slate-400">Via IA automática</p>
+          </div>
+
+          {/* Escalated */}
+          <div className="rounded-xl p-3.5 flex flex-col gap-1.5" style={{ background: '#f8fafc', border: '1px solid #f1f5f9' }}>
+            <div className="flex items-center gap-1.5">
+              <MessageSquare className="w-3.5 h-3.5 text-brand-400" />
+              <span className="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-400">Escaladas</span>
+            </div>
+            <p className="text-[15px] font-black text-gray-900 leading-none tabular-nums">{escalated}</p>
+            <p className="text-[10px] text-slate-400">Para humano</p>
+          </div>
+        </div>
+
+        {/* CTA */}
+        <button
+          onClick={() => org?.chatwoot_url && window.open(org.chatwoot_url, '_blank')}
+          disabled={!org?.chatwoot_url}
+          className="mt-auto w-full flex items-center justify-center gap-2 py-3 rounded-xl text-[13px] font-bold text-white transition-all duration-200 hover:shadow-[0_6px_20px_rgba(44,130,181,0.38)] hover:-translate-y-[1px] active:translate-y-0 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:shadow-none disabled:hover:translate-y-0"
+          style={{ background: 'linear-gradient(135deg, #2C82B5, #2570a0)' }}
+        >
+          <ExternalLink className="w-4 h-4" />
+          Ver Agente em Ação
+        </button>
+
+      </div>
     </div>
   )
 }
