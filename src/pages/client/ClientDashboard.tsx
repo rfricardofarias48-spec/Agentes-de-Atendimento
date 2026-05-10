@@ -39,10 +39,10 @@ function getPeriodStart(period: Period): Date {
 }
 
 const CARD_ACCENTS = {
-  brand:   { border: '#2C82B5', iconBg: 'rgba(44,130,181,0.10)',  iconColor: '#2C82B5'  },
-  violet:  { border: '#7c3aed', iconBg: 'rgba(124,58,237,0.10)',  iconColor: '#7c3aed'  },
-  emerald: { border: '#10b981', iconBg: 'rgba(16,185,129,0.10)',  iconColor: '#10b981'  },
-  rose:    { border: '#f43f5e', iconBg: 'rgba(244,63,94,0.10)',   iconColor: '#f43f5e'  },
+  brand:   { border: '#2C82B5', iconBg: 'rgba(44,130,181,0.15)',  iconColor: '#2C82B5'  },
+  violet:  { border: '#7c3aed', iconBg: 'rgba(124,58,237,0.15)',  iconColor: '#7c3aed'  },
+  emerald: { border: '#059669', iconBg: 'rgba(5,150,105,0.15)',   iconColor: '#059669'  },
+  rose:    { border: '#e11d48', iconBg: 'rgba(225,29,72,0.12)',   iconColor: '#e11d48'  },
 }
 
 export default function ClientDashboard() {
@@ -431,12 +431,12 @@ function MetricCard({ label, value, icon, accent }: MetricCardProps) {
     <div
       className="relative rounded-2xl p-5 overflow-hidden cursor-default transition-all duration-200 hover:-translate-y-[3px]"
       style={{
-        background: `linear-gradient(145deg, #ffffff 60%, ${accent.border}0d 100%)`,
-        border: `1px solid ${accent.border}28`,
-        boxShadow: `0 1px 3px rgba(0,0,0,0.04), 0 6px 20px ${accent.border}12`,
+        background: `linear-gradient(145deg, #ffffff 50%, ${accent.border}18 100%)`,
+        border: `1px solid ${accent.border}40`,
+        boxShadow: `0 1px 3px rgba(0,0,0,0.05), 0 6px 20px ${accent.border}1a`,
       }}
-      onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.boxShadow = `0 8px 32px ${accent.border}28, 0 2px 8px rgba(0,0,0,0.06)` }}
-      onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.boxShadow = `0 1px 3px rgba(0,0,0,0.04), 0 6px 20px ${accent.border}12` }}
+      onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.boxShadow = `0 8px 32px ${accent.border}35, 0 2px 8px rgba(0,0,0,0.07)` }}
+      onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.boxShadow = `0 1px 3px rgba(0,0,0,0.05), 0 6px 20px ${accent.border}1a` }}
     >
       {/* Icon — top right */}
       <div className="absolute top-4 right-4 w-9 h-9 rounded-xl flex items-center justify-center"
@@ -446,11 +446,11 @@ function MetricCard({ label, value, icon, accent }: MetricCardProps) {
 
       {/* Decorative ring */}
       <div className="absolute -bottom-5 -right-5 w-24 h-24 rounded-full pointer-events-none"
-        style={{ border: `28px solid ${accent.border}`, opacity: 0.06 }} />
+        style={{ border: `28px solid ${accent.border}`, opacity: 0.12 }} />
 
       {/* Label */}
       <p className="text-[10px] font-bold uppercase tracking-[0.14em] mb-3"
-        style={{ color: accent.border, opacity: 0.75 }}>
+        style={{ color: accent.border, opacity: 0.9 }}>
         {label}
       </p>
 
