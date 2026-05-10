@@ -259,10 +259,10 @@ export default function ClientDashboard() {
           </div>
 
           {/* Column headers */}
-          <div className="grid grid-cols-[1fr_auto_auto] sm:grid-cols-[1fr_1fr_auto_auto] px-6 py-2.5 border-b border-slate-50">
+          <div className="grid grid-cols-[2fr_1.5fr_1fr_1fr] px-6 py-2.5 border-b border-slate-50 gap-4">
             <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">Paciente</p>
-            <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400 hidden sm:block">Profissional</p>
-            <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400 text-right">Data</p>
+            <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">Profissional</p>
+            <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">Data</p>
             <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400 text-right">Status</p>
           </div>
 
@@ -278,7 +278,7 @@ export default function ClientDashboard() {
               {filtered.recentAppts.map((appt, i) => (
                 <div key={appt.id}
                   className={cn(
-                    'grid grid-cols-[1fr_auto_auto] sm:grid-cols-[1fr_1fr_auto_auto] items-center px-6 py-3.5 gap-4 transition-colors hover:bg-slate-50/70 group',
+                    'grid grid-cols-[2fr_1.5fr_1fr_1fr] items-center px-6 py-3.5 gap-4 transition-colors hover:bg-slate-50/70 group',
                     i % 2 !== 0 ? 'bg-slate-50/30' : '',
                   )}
                 >
@@ -296,8 +296,8 @@ export default function ClientDashboard() {
                       )}
                     </p>
                   </div>
-                  <p className="text-[12px] text-slate-400 truncate hidden sm:block">{appt.doctor_name ?? '—'}</p>
-                  <p className="text-[12px] font-medium text-slate-500 tabular-nums text-right">{formatApptDate(appt.scheduled_at)}</p>
+                  <p className="text-[12px] text-slate-500 truncate">{appt.doctor_name ?? '—'}</p>
+                  <p className="text-[12px] font-medium text-slate-500 tabular-nums">{formatApptDate(appt.scheduled_at)}</p>
                   <div className="flex justify-end">
                     <Badge variant={statusColors[appt.status] ?? 'outline'} className="text-[10px] font-semibold">
                       {statusLabel(appt.status)}
