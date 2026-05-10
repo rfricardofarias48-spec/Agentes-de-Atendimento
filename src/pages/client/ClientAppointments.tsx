@@ -180,30 +180,9 @@ export default function ClientAppointments() {
   })()
 
   return (
-    <div className="flex flex-col gap-4 h-full">
+    <div className="flex flex-col gap-3 h-full">
 
-      {/* ── Top bar ──────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div>
-          <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400 leading-none mb-1.5">
-            Agenda
-          </p>
-          <h1 className="text-2xl font-black text-gray-900 leading-none">
-            {appointments.length}
-            <span className="text-lg font-medium text-slate-400 ml-2">consultas</span>
-          </h1>
-        </div>
-        <button
-          onClick={openModal}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-bold text-white shadow-[0_4px_14px_rgba(44,130,181,0.30)] hover:shadow-[0_6px_20px_rgba(44,130,181,0.42)] hover:-translate-y-[1px] transition-all duration-200"
-          style={{ background: 'linear-gradient(135deg, #2C82B5 0%, #2570a0 100%)' }}
-        >
-          <Plus className="w-4 h-4" />
-          Novo Agendamento
-        </button>
-      </div>
-
-      {/* ── Controls bar ─────────────────────────────────────────── */}
+      {/* ── Single top bar ───────────────────────────────────────── */}
       <div className="flex items-center gap-2 flex-wrap">
 
         {/* View toggle */}
@@ -214,9 +193,7 @@ export default function ClientAppointments() {
               onClick={() => setView(v)}
               className={cn(
                 'flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-[13px] font-semibold transition-all duration-200',
-                view === v
-                  ? 'text-white shadow-[0_2px_8px_rgba(37,112,160,0.28)]'
-                  : 'text-slate-400 hover:text-slate-600',
+                view === v ? 'text-white shadow-[0_2px_8px_rgba(37,112,160,0.28)]' : 'text-slate-400 hover:text-slate-600',
               )}
               style={view === v ? { background: 'linear-gradient(135deg, #2C82B5, #2570a0)' } : {}}
             >
@@ -226,22 +203,17 @@ export default function ClientAppointments() {
           ))}
         </div>
 
+        {/* Week nav — only in calendar view */}
         {view === 'calendar' && (
           <>
             <div className="flex items-center bg-white border border-slate-200 rounded-2xl p-1 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
-              <button
-                onClick={prev}
-                className="w-7 h-7 flex items-center justify-center rounded-xl hover:bg-slate-100 transition-colors"
-              >
+              <button onClick={prev} className="w-7 h-7 flex items-center justify-center rounded-xl hover:bg-slate-100 transition-colors">
                 <ChevronLeft className="w-4 h-4 text-slate-500" />
               </button>
               <span className="text-[13px] font-semibold text-slate-700 px-2 min-w-[148px] text-center tabular-nums">
                 {rangeLabel}
               </span>
-              <button
-                onClick={next}
-                className="w-7 h-7 flex items-center justify-center rounded-xl hover:bg-slate-100 transition-colors"
-              >
+              <button onClick={next} className="w-7 h-7 flex items-center justify-center rounded-xl hover:bg-slate-100 transition-colors">
                 <ChevronRight className="w-4 h-4 text-slate-500" />
               </button>
             </div>
@@ -254,6 +226,7 @@ export default function ClientAppointments() {
           </>
         )}
 
+        {/* Search — only in list view */}
         {view === 'list' && (
           <div className="relative flex-1 max-w-xs">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -265,6 +238,18 @@ export default function ClientAppointments() {
             />
           </div>
         )}
+
+        {/* Spacer + New button */}
+        <div className="ml-auto">
+          <button
+            onClick={openModal}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-bold text-white shadow-[0_4px_14px_rgba(44,130,181,0.30)] hover:shadow-[0_6px_20px_rgba(44,130,181,0.42)] hover:-translate-y-[1px] transition-all duration-200"
+            style={{ background: 'linear-gradient(135deg, #2C82B5 0%, #2570a0 100%)' }}
+          >
+            <Plus className="w-4 h-4" />
+            Novo Agendamento
+          </button>
+        </div>
       </div>
 
       {/* ── Calendar view ────────────────────────────────────────── */}
@@ -275,7 +260,7 @@ export default function ClientAppointments() {
               <div className="w-5 h-5 border-[2.5px] border-brand-500 border-t-transparent rounded-full animate-spin" />
             </div>
           ) : (
-            <div className="overflow-y-auto" style={{ maxHeight: 'calc(100vh - 200px)' }}>
+            <div className="overflow-y-auto" style={{ maxHeight: 'calc(100vh - 120px)' }}>
               <div className="w-full">
 
                 {/* Day header row */}
