@@ -118,21 +118,6 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
         </button>
       </div>
 
-      {/* User avatar bottom */}
-      <div className="px-5 pb-5 shrink-0">
-        <div className="flex items-center gap-3 pt-3" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-          <div
-            className="w-8 h-8 rounded-xl flex items-center justify-center text-white text-xs font-black shrink-0 shadow-[0_2px_8px_rgba(44,130,181,0.3)]"
-            style={{ background: 'linear-gradient(135deg, #2C82B5, #1e5f88)' }}
-          >
-            {orgInitial}
-          </div>
-          <div className="min-w-0">
-            <p className="text-[12px] font-bold text-white truncate leading-none">{orgName || 'Clínica'}</p>
-            <p className="text-[10px] mt-0.5 truncate" style={{ color: 'rgba(148,163,184,0.5)' }}>Admin</p>
-          </div>
-        </div>
-      </div>
     </>
   )
 
