@@ -429,33 +429,21 @@ interface MetricCardProps {
 function MetricCard({ label, value, icon, accent }: MetricCardProps) {
   return (
     <div
-      className="relative rounded-2xl p-5 overflow-hidden cursor-default transition-all duration-200 hover:-translate-y-[3px]"
-      style={{
-        background: `linear-gradient(145deg, #ffffff 50%, ${accent.border}18 100%)`,
-        border: `1px solid ${accent.border}40`,
-        boxShadow: `0 1px 3px rgba(0,0,0,0.05), 0 6px 20px ${accent.border}1a`,
-      }}
-      onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.boxShadow = `0 8px 32px ${accent.border}35, 0 2px 8px rgba(0,0,0,0.07)` }}
-      onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.boxShadow = `0 1px 3px rgba(0,0,0,0.05), 0 6px 20px ${accent.border}1a` }}
+      className="relative bg-white rounded-2xl px-5 pt-4 pb-5 cursor-default transition-all duration-200 hover:-translate-y-[2px] hover:shadow-[0_6px_20px_rgba(0,0,0,0.08)]"
+      style={{ border: '1px solid #eef0f3', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}
     >
-      {/* Icon — top right */}
-      <div className="absolute top-4 right-4 w-9 h-9 rounded-xl flex items-center justify-center"
-        style={{ background: accent.iconBg }}>
-        {icon}
+      {/* Colored top bar */}
+      <div className="absolute top-0 left-5 right-5 h-[3px] rounded-b-full"
+        style={{ background: accent.border }} />
+
+      {/* Icon + label row */}
+      <div className="flex items-center gap-2 mt-2 mb-4">
+        <div style={{ color: accent.border }}>{icon}</div>
+        <p className="text-[11px] font-semibold text-slate-400 tracking-wide">{label}</p>
       </div>
 
-      {/* Decorative ring */}
-      <div className="absolute -bottom-5 -right-5 w-24 h-24 rounded-full pointer-events-none"
-        style={{ border: `28px solid ${accent.border}`, opacity: 0.12 }} />
-
-      {/* Label */}
-      <p className="text-[10px] font-bold uppercase tracking-[0.14em] mb-3"
-        style={{ color: accent.border, opacity: 0.9 }}>
-        {label}
-      </p>
-
       {/* Number */}
-      <p className="text-[2.6rem] font-black leading-none tabular-nums text-gray-900">{value}</p>
+      <p className="text-[2.4rem] font-black leading-none tabular-nums text-gray-900">{value}</p>
     </div>
   )
 }
