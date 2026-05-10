@@ -106,7 +106,7 @@ export default function ClientDashboard() {
   )
 
   return (
-    <div className="space-y-5 max-w-[1400px]">
+    <div className="space-y-5 w-full">
 
       {/* ── Greeting + period ───────────────────────────────────── */}
       <div className="flex items-end justify-between gap-4 flex-wrap">
