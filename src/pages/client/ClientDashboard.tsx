@@ -146,13 +146,13 @@ export default function ClientDashboard() {
       {/* ── 4 Metric Cards ─────────────────────────────────────── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <MetricCard label="Conversas"     value={filtered.conversations} accent={CARD_ACCENTS.brand}
-          icon={<MessageSquare className="w-4 h-4" style={{ color: CARD_ACCENTS.brand.iconColor }} />} />
+          icon={<MessageSquare className="w-[17px] h-[17px]" style={{ color: CARD_ACCENTS.brand.iconColor }} />} />
         <MetricCard label="Agendamentos"  value={filtered.appointments}  accent={CARD_ACCENTS.violet}
-          icon={<Calendar className="w-4 h-4" style={{ color: CARD_ACCENTS.violet.iconColor }} />} />
+          icon={<Calendar className="w-[17px] h-[17px]" style={{ color: CARD_ACCENTS.violet.iconColor }} />} />
         <MetricCard label="Realizadas"    value={filtered.completed}     accent={CARD_ACCENTS.emerald}
-          icon={<CheckCircle className="w-4 h-4" style={{ color: CARD_ACCENTS.emerald.iconColor }} />} />
+          icon={<CheckCircle className="w-[17px] h-[17px]" style={{ color: CARD_ACCENTS.emerald.iconColor }} />} />
         <MetricCard label="Cancelamentos" value={filtered.cancelled}     accent={CARD_ACCENTS.rose}
-          icon={<XCircle className="w-4 h-4" style={{ color: CARD_ACCENTS.rose.iconColor }} />} />
+          icon={<XCircle className="w-[17px] h-[17px]" style={{ color: CARD_ACCENTS.rose.iconColor }} />} />
       </div>
 
       {/* ── Weekly Chart ─────────────────────────────────────────── */}
@@ -429,14 +429,26 @@ interface MetricCardProps {
 function MetricCard({ label, value, icon, accent }: MetricCardProps) {
   return (
     <div
-      className="bg-white rounded-2xl p-5 border border-slate-100 border-l-[3px] shadow-[0_2px_12px_rgba(0,0,0,0.03)] hover:shadow-[0_6px_20px_rgba(0,0,0,0.07)] hover:-translate-y-[1px] transition-all duration-200 cursor-default"
-      style={{ borderLeftColor: accent.border }}
+      className="relative bg-white rounded-2xl p-5 overflow-hidden border border-slate-100/80 shadow-[0_1px_4px_rgba(0,0,0,0.05),0_4px_16px_rgba(0,0,0,0.04)] hover:shadow-[0_6px_24px_rgba(0,0,0,0.09)] hover:-translate-y-[2px] transition-all duration-200 cursor-default"
     >
-      <div className="w-8 h-8 rounded-xl flex items-center justify-center mb-4" style={{ background: accent.iconBg }}>
-        {icon}
+      {/* Ambient corner glow */}
+      <div className="absolute -top-6 -right-6 w-24 h-24 rounded-full blur-2xl pointer-events-none"
+        style={{ background: accent.border, opacity: 0.08 }} />
+
+      {/* Top row: icon + value */}
+      <div className="flex items-start justify-between mb-3">
+        <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: accent.iconBg }}>
+          {icon}
+        </div>
+        <p className="text-[2rem] font-black text-gray-900 leading-none tabular-nums">{value}</p>
       </div>
-      <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400 mb-1.5">{label}</p>
-      <p className="text-3xl font-black text-gray-900 leading-none tabular-nums">{value}</p>
+
+      {/* Label */}
+      <p className="text-[12px] font-semibold text-slate-400">{label}</p>
+
+      {/* Bottom accent strip */}
+      <div className="absolute bottom-0 left-0 w-full h-[2px] rounded-b-2xl"
+        style={{ background: `linear-gradient(90deg, ${accent.border} 0%, transparent 70%)` }} />
     </div>
   )
 }
