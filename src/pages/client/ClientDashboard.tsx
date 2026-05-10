@@ -3,7 +3,16 @@ import { MessageSquare, Calendar, CheckCircle, XCircle, TrendingUp, ArrowRight, 
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { type Appointment, type Conversation, type Organization } from '../../types'
-import { formatDate, statusLabel } from '../../lib/utils'
+import { statusLabel } from '../../lib/utils'
+
+function formatApptDate(iso: string): string {
+  const d = new Date(iso)
+  const day = String(d.getDate()).padStart(2, '0')
+  const month = String(d.getMonth() + 1).padStart(2, '0')
+  const h = d.getHours()
+  const m = d.getMinutes()
+  return m === 0 ? `${day}/${month} ${h}h` : `${day}/${month} ${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+}
 import { Badge } from '../../components/ui/badge'
 import { cn } from '../../lib/utils'
 
@@ -238,7 +247,7 @@ export default function ClientDashboard() {
           <div className="flex items-center justify-between px-6 py-4 border-b border-slate-50">
             <div className="flex items-center gap-2.5">
               <div className="w-1.5 h-4 rounded-full" style={{ background: 'linear-gradient(180deg, #2C82B5, #1e5f88)' }} />
-              <h3 className="text-[13px] font-bold text-gray-900">Agendamentos Recentes</h3>
+              <h3 className="text-[13px] font-bold text-gray-900">Próximos Agendamentos</h3>
             </div>
             <div className="flex items-center gap-3">
               <span className="text-[11px] font-semibold uppercase tracking-widest text-slate-400">{periodLabel}</span>
@@ -251,8 +260,8 @@ export default function ClientDashboard() {
 
           {/* Column headers */}
           <div className="grid grid-cols-[1fr_auto_auto] sm:grid-cols-[1fr_1fr_auto_auto] px-6 py-2.5 border-b border-slate-50">
-            <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">Paciente · Especialidade</p>
-            <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400 hidden sm:block">Médico</p>
+            <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">Paciente</p>
+            <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400 hidden sm:block">Profissional</p>
             <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400 text-right">Data</p>
             <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400 text-right">Status</p>
           </div>
@@ -280,13 +289,15 @@ export default function ClientDashboard() {
                       'bg-rose-400':    appt.status === 'cancelled',
                       'bg-brand-400':   appt.status === 'completed',
                     })} />
-                    <div className="min-w-0">
-                      <p className="text-[13px] font-semibold text-gray-900 truncate leading-none">{appt.patient_name}</p>
-                      <p className="text-[11px] text-slate-400 truncate mt-0.5">{appt.specialty}</p>
-                    </div>
+                    <p className="text-[13px] font-semibold text-gray-900 truncate leading-none">
+                      {appt.patient_name}
+                      {appt.specialty && (
+                        <span className="font-normal text-slate-400"> ({appt.specialty})</span>
+                      )}
+                    </p>
                   </div>
                   <p className="text-[12px] text-slate-400 truncate hidden sm:block">{appt.doctor_name ?? '—'}</p>
-                  <p className="text-[12px] font-medium text-slate-500 tabular-nums text-right">{formatDate(appt.scheduled_at)}</p>
+                  <p className="text-[12px] font-medium text-slate-500 tabular-nums text-right">{formatApptDate(appt.scheduled_at)}</p>
                   <div className="flex justify-end">
                     <Badge variant={statusColors[appt.status] ?? 'outline'} className="text-[10px] font-semibold">
                       {statusLabel(appt.status)}
