@@ -1,5 +1,5 @@
 import { type ReactNode, useEffect, useState, useMemo } from 'react'
-import { MessageSquare, Calendar, CheckCircle, XCircle, TrendingUp } from 'lucide-react'
+import { MessageSquare, Calendar, CheckCircle, XCircle, TrendingUp, ArrowRight } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { type Appointment, type Conversation, type Organization } from '../../types'
@@ -10,9 +10,9 @@ import { cn } from '../../lib/utils'
 type Period = 'day' | 'week' | 'month'
 
 const PERIODS: { key: Period; label: string }[] = [
-  { key: 'day',   label: 'Hoje' },
+  { key: 'day',   label: 'Hoje'   },
   { key: 'week',  label: 'Semana' },
-  { key: 'month', label: 'Mês' },
+  { key: 'month', label: 'Mês'    },
 ]
 
 const statusColors: Record<string, 'success' | 'secondary' | 'warning' | 'destructive' | 'outline'> = {
@@ -20,28 +20,23 @@ const statusColors: Record<string, 'success' | 'secondary' | 'warning' | 'destru
 }
 
 const PLAN_LABEL: Record<string, string> = {
-  starter: 'Essencial',
-  pro:     'Pro',
-  clinic:  'Max',
+  starter: 'Essencial', pro: 'Pro', clinic: 'Max',
 }
 
 function getPeriodStart(period: Period): Date {
   const now = new Date()
   if (period === 'day') return new Date(now.getFullYear(), now.getMonth(), now.getDate())
   if (period === 'week') {
-    const d = new Date(now)
-    d.setDate(d.getDate() - 6)
-    d.setHours(0, 0, 0, 0)
-    return d
+    const d = new Date(now); d.setDate(d.getDate() - 6); d.setHours(0, 0, 0, 0); return d
   }
   return new Date(now.getFullYear(), now.getMonth(), 1)
 }
 
-// ── Metric card left-border accent colors (inline style for custom brand color)
 const CARD_ACCENTS = {
-  brand:   { border: '#2C82B5', iconBg: 'bg-brand-50',   iconColor: 'text-brand-500'   },
-  violet:  { border: '#7c3aed', iconBg: 'bg-violet-50',  iconColor: 'text-violet-500'  },
-  emerald: { border: '#10b981', iconBg: 'bg-emerald-50', iconColor: 'text-emerald-500' },
+  brand:   { border: '#2C82B5', iconBg: 'rgba(44,130,181,0.10)',  iconColor: '#2C82B5'  },
+  violet:  { border: '#7c3aed', iconBg: 'rgba(124,58,237,0.10)',  iconColor: '#7c3aed'  },
+  emerald: { border: '#10b981', iconBg: 'rgba(16,185,129,0.10)',  iconColor: '#10b981'  },
+  rose:    { border: '#f43f5e', iconBg: 'rgba(244,63,94,0.10)',   iconColor: '#f43f5e'  },
 }
 
 export default function ClientDashboard() {
@@ -80,48 +75,33 @@ export default function ClientDashboard() {
       appointments:  appts.length,
       completed:     appts.filter(a => a.status === 'completed').length,
       cancelled:     appts.filter(a => a.status === 'cancelled').length,
-      recentAppts:   appts.slice(0, 6),
+      recentAppts:   appts.slice(0, 5),
     }
   }, [appointments, conversations, period])
 
-  // Weekly bar chart data — Mon→Sun of current week
+  // Weekly chart data (Mon→Sun current week)
   const weeklyData = useMemo(() => {
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
+    const today = new Date(); today.setHours(0, 0, 0, 0)
     const monday = new Date(today)
     monday.setDate(today.getDate() - ((today.getDay() + 6) % 7))
-    const DAY_LABELS = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom']
+    const LABELS = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom']
     return Array.from({ length: 7 }, (_, i) => {
-      const day = new Date(monday)
-      day.setDate(monday.getDate() + i)
-      const next = new Date(day)
-      next.setDate(day.getDate() + 1)
+      const day = new Date(monday); day.setDate(monday.getDate() + i)
+      const next = new Date(day); next.setDate(day.getDate() + 1)
       const count = appointments.filter(a => {
-        const d = new Date(a.scheduled_at)
-        return d >= day && d < next
+        const d = new Date(a.scheduled_at); return d >= day && d < next
       }).length
-      return {
-        label: DAY_LABELS[i],
-        count,
-        isToday:  day.getTime() === today.getTime(),
-        isPast:   day < today,
-        isFuture: day > today,
-      }
+      return { label: LABELS[i], count, isToday: day.getTime() === today.getTime(), isPast: day < today, isFuture: day > today }
     })
   }, [appointments])
 
-  // Trigger bar animation after data loads
   useEffect(() => {
-    if (!loading) {
-      const t = setTimeout(() => setChartReady(true), 120)
-      return () => clearTimeout(t)
-    }
+    if (!loading) { const t = setTimeout(() => setChartReady(true), 120); return () => clearTimeout(t) }
   }, [loading])
 
   const usagePct = org ? Math.min(100, (org.conversations_used / org.max_conversations_month) * 100) : 0
   const planName = org?.plan ? (PLAN_LABEL[org.plan] ?? org.plan) : '—'
   const firstName = org?.name?.split(' ')[0] ?? '—'
-  const avatarLetter = org?.name?.charAt(0).toUpperCase() ?? '?'
   const periodLabel = period === 'day' ? 'hoje' : period === 'week' ? 'esta semana' : 'este mês'
 
   if (loading) return (
@@ -131,28 +111,18 @@ export default function ClientDashboard() {
   )
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-5 max-w-[1400px]">
 
-      {/* ── Header ─────────────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between gap-4 flex-wrap">
-
-        <div className="flex items-center gap-3.5">
-          {/* Avatar with online dot */}
-          <div className="relative shrink-0">
-            <div
-              className="w-10 h-10 rounded-2xl flex items-center justify-center text-white text-sm font-bold shadow-[0_4px_14px_rgba(44,130,181,0.32)]"
-              style={{ background: 'linear-gradient(135deg, #2C82B5 0%, #1e5f88 100%)' }}
-            >
-              {avatarLetter}
-            </div>
-            <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-400 rounded-full border-2 border-white" />
-          </div>
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400 leading-none mb-1">
-              Bem-vindo de volta
-            </p>
-            <h1 className="text-xl font-bold text-gray-900 leading-none">{firstName}</h1>
-          </div>
+      {/* ── Greeting + period ───────────────────────────────────── */}
+      <div className="flex items-end justify-between gap-4 flex-wrap">
+        <div>
+          <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-400 mb-1">
+            Bem-vindo de volta
+          </p>
+          <h1 className="text-[1.75rem] font-black text-gray-900 leading-none">
+            Olá, {firstName}
+          </h1>
+          <p className="text-[13px] text-slate-400 mt-1.5">Veja suas atividades no painel</p>
         </div>
 
         {/* Period switcher */}
@@ -163,9 +133,7 @@ export default function ClientDashboard() {
               onClick={() => setPeriod(key)}
               className={cn(
                 'px-4 py-1.5 rounded-xl text-[13px] font-semibold transition-all duration-200',
-                period === key
-                  ? 'text-white shadow-[0_2px_8px_rgba(37,112,160,0.28)]'
-                  : 'text-slate-400 hover:text-slate-600'
+                period === key ? 'text-white shadow-[0_2px_8px_rgba(37,112,160,0.28)]' : 'text-slate-400 hover:text-slate-600',
               )}
               style={period === key ? { background: 'linear-gradient(135deg, #2C82B5, #2570a0)' } : {}}
             >
@@ -175,159 +143,49 @@ export default function ClientDashboard() {
         </div>
       </div>
 
-      {/* ── 4 Metric Cards ─────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* ── 5 Metric Cards ─────────────────────────────────────── */}
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+        <MetricCard label="Conversas"    value={filtered.conversations} accent={CARD_ACCENTS.brand}
+          icon={<MessageSquare className="w-4 h-4" style={{ color: CARD_ACCENTS.brand.iconColor }} />} />
+        <MetricCard label="Agendamentos" value={filtered.appointments}  accent={CARD_ACCENTS.violet}
+          icon={<Calendar className="w-4 h-4" style={{ color: CARD_ACCENTS.violet.iconColor }} />} />
+        <MetricCard label="Realizadas"   value={filtered.completed}     accent={CARD_ACCENTS.emerald}
+          icon={<CheckCircle className="w-4 h-4" style={{ color: CARD_ACCENTS.emerald.iconColor }} />} />
+        <MetricCard label="Cancelamentos" value={filtered.cancelled}    accent={CARD_ACCENTS.rose}
+          icon={<XCircle className="w-4 h-4" style={{ color: CARD_ACCENTS.rose.iconColor }} />} />
 
-        <MetricCard
-          label="Conversas"
-          value={filtered.conversations}
-          accent={CARD_ACCENTS.brand}
-          icon={<MessageSquare className="w-[17px] h-[17px] text-brand-500" />}
-        />
-        <MetricCard
-          label="Agendamentos"
-          value={filtered.appointments}
-          accent={CARD_ACCENTS.violet}
-          icon={<Calendar className="w-[17px] h-[17px] text-violet-500" />}
-        />
-        <MetricCard
-          label="Realizadas"
-          value={filtered.completed}
-          accent={CARD_ACCENTS.emerald}
-          icon={<CheckCircle className="w-[17px] h-[17px] text-emerald-500" />}
-        />
-
-        {/* Cancelamentos — dark card */}
+        {/* Plan card — 5th */}
         <div
-          className="relative overflow-hidden rounded-2xl p-5 shadow-[0_2px_16px_rgba(0,0,0,0.14)] hover:shadow-[0_6px_24px_rgba(0,0,0,0.22)] transition-all duration-300 cursor-default"
-          style={{ background: 'linear-gradient(145deg, #18181b 0%, #111113 100%)' }}
-        >
-          {/* Glow top-right */}
-          <div className="absolute -top-8 -right-8 w-28 h-28 rounded-full blur-2xl pointer-events-none" style={{ background: 'rgba(244,63,94,0.12)' }} />
-          {/* Subtle grid texture */}
-          <div
-            className="absolute inset-0 opacity-[0.04] pointer-events-none"
-            style={{
-              backgroundImage: 'repeating-linear-gradient(0deg,rgba(255,255,255,.8) 0,rgba(255,255,255,.8) 1px,transparent 1px,transparent 20px),repeating-linear-gradient(90deg,rgba(255,255,255,.8) 0,rgba(255,255,255,.8) 1px,transparent 1px,transparent 20px)',
-            }}
-          />
-          <div className="relative z-10 flex flex-col h-full">
-            <div className="w-8 h-8 rounded-xl bg-white/[0.08] flex items-center justify-center mb-4 border border-white/10">
-              <XCircle className="w-[17px] h-[17px] text-rose-400" />
-            </div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500 mb-2">Cancelamentos</p>
-            <p className="text-4xl font-black text-white leading-none">{filtered.cancelled}</p>
-          </div>
-        </div>
-      </div>
-
-      {/* ── Bottom Section ──────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-
-        {/* Agendamentos Recentes — 2 cols wide */}
-        <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-100 shadow-[0_2px_12px_rgba(0,0,0,0.03)] overflow-hidden">
-
-          {/* Table header */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-slate-50">
-            <div className="flex items-center gap-2.5">
-              <div className="w-1.5 h-4 rounded-full" style={{ background: 'linear-gradient(180deg, #2C82B5, #1e5f88)' }} />
-              <h3 className="text-[13px] font-bold text-gray-900 tracking-tight">Agendamentos Recentes</h3>
-            </div>
-            <span className="text-[11px] font-semibold uppercase tracking-widest text-slate-400">{periodLabel}</span>
-          </div>
-
-          {filtered.recentAppts.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-14">
-              <div className="w-10 h-10 rounded-2xl bg-slate-50 flex items-center justify-center mb-3 border border-slate-100">
-                <Calendar className="w-5 h-5 text-slate-300" />
-              </div>
-              <p className="text-[13px] font-semibold text-slate-400">Nenhum agendamento {periodLabel}.</p>
-            </div>
-          ) : (
-            <div className="divide-y divide-slate-50/80">
-              {filtered.recentAppts.map((appt, i) => (
-                <div
-                  key={appt.id}
-                  className={cn(
-                    'flex items-center justify-between px-6 py-3.5 transition-colors duration-150 hover:bg-slate-50/70 group',
-                    i % 2 === 0 ? '' : 'bg-slate-50/30',
-                  )}
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    {/* Status dot */}
-                    <div className={cn('w-2 h-2 rounded-full shrink-0 transition-transform duration-200 group-hover:scale-125', {
-                      'bg-slate-300':   appt.status === 'scheduled',
-                      'bg-emerald-400': appt.status === 'confirmed',
-                      'bg-rose-400':    appt.status === 'cancelled',
-                      'bg-brand-400':   appt.status === 'completed',
-                    })} />
-                    <div className="flex items-center gap-1.5 min-w-0">
-                      <p className="text-[13px] font-semibold text-gray-900 truncate">{appt.patient_name}</p>
-                      <span className="text-slate-300 text-[11px] shrink-0 font-light">·</span>
-                      <p className="text-[12px] text-slate-500 truncate">
-                        {appt.specialty}{appt.doctor_name ? ` · ${appt.doctor_name}` : ''}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3 shrink-0 ml-4">
-                    <p className="text-[12px] font-medium text-slate-400 hidden sm:block tabular-nums">
-                      {formatDate(appt.scheduled_at)}
-                    </p>
-                    <Badge variant={statusColors[appt.status] ?? 'outline'} className="text-[10px] font-semibold">
-                      {statusLabel(appt.status)}
-                    </Badge>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Meu Plano — dark card */}
-        <div
-          className="lg:col-span-1 relative overflow-hidden rounded-2xl p-6 flex flex-col justify-between shadow-[0_4px_24px_rgba(0,0,0,0.16)]"
+          className="relative overflow-hidden rounded-2xl p-4 col-span-2 lg:col-span-1 flex flex-col justify-between shadow-[0_2px_16px_rgba(0,0,0,0.14)]"
           style={{ background: 'linear-gradient(160deg, #18181b 0%, #0f0f11 100%)' }}
         >
-          {/* Background glow blobs */}
-          <div className="absolute -bottom-16 -right-16 w-52 h-52 rounded-full blur-3xl pointer-events-none" style={{ background: 'rgba(44,130,181,0.18)' }} />
-          <div className="absolute top-0 left-0 w-36 h-36 rounded-full blur-3xl pointer-events-none" style={{ background: 'rgba(30,95,136,0.25)' }} />
-
-          {/* Subtle grid */}
-          <div
-            className="absolute inset-0 opacity-[0.03] pointer-events-none"
-            style={{
-              backgroundImage: 'repeating-linear-gradient(0deg,rgba(255,255,255,1) 0,rgba(255,255,255,1) 1px,transparent 1px,transparent 24px),repeating-linear-gradient(90deg,rgba(255,255,255,1) 0,rgba(255,255,255,1) 1px,transparent 1px,transparent 24px)',
-            }}
-          />
-
+          <div className="absolute -top-6 -right-6 w-20 h-20 rounded-full blur-2xl pointer-events-none" style={{ background: 'rgba(44,130,181,0.18)' }} />
           <div className="relative z-10">
-            <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500 mb-4">Plano Atual</p>
-            <h3 className="text-[2.5rem] font-black text-white leading-none mb-2">{planName}</h3>
-            <p className="text-[13px] font-medium" style={{ color: 'rgba(148,163,184,0.7)' }}>
-              <span className="text-slate-300 font-bold">{org?.conversations_used ?? 0}</span>
-              <span className="mx-1 text-slate-600">/</span>
-              {org?.max_conversations_month ?? 0} conversas
+            <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500 mb-2">Plano</p>
+            <p className="text-2xl font-black text-white leading-none">{planName}</p>
+            <p className="text-[11px] text-slate-500 mt-1 tabular-nums">
+              {org?.conversations_used ?? 0}/{org?.max_conversations_month ?? 0}
             </p>
           </div>
-
-          {/* Segmented progress bar — the signature detail */}
-          <div className="relative z-10 mt-8">
-            <SegmentedProgress pct={usagePct} />
-            <div className="flex items-center justify-between mt-3">
-              <p className="text-[11px] font-semibold text-slate-600">Uso do período</p>
-              <p
-                className="text-[12px] font-bold tabular-nums"
-                style={{ color: usagePct > 80 ? '#f87171' : '#4d9aca' }}
-              >
-                {usagePct.toFixed(0)}%
-              </p>
+          <div className="relative z-10 mt-3">
+            <div className="w-full h-1 rounded-full" style={{ background: 'rgba(255,255,255,0.08)' }}>
+              <div
+                className="h-full rounded-full transition-all duration-700"
+                style={{
+                  width: `${usagePct}%`,
+                  background: usagePct > 80 ? 'linear-gradient(90deg,#f43f5e,#fb7185)' : 'linear-gradient(90deg,#2C82B5,#4d9aca)',
+                }}
+              />
             </div>
+            <p className="text-[10px] font-bold text-right mt-1.5 tabular-nums"
+              style={{ color: usagePct > 80 ? '#f87171' : '#4d9aca' }}>
+              {usagePct.toFixed(0)}%
+            </p>
           </div>
         </div>
-
       </div>
 
-      {/* ── Weekly Chart ────────────────────────────────────────────────────── */}
+      {/* ── Weekly Chart ─────────────────────────────────────────── */}
       <div
         className="relative overflow-hidden rounded-2xl shadow-[0_4px_32px_rgba(0,0,0,0.22)] border border-white/[0.05]"
         style={{ background: 'linear-gradient(160deg, #18181b 0%, #0f0f11 100%)' }}
@@ -350,27 +208,13 @@ export default function ClientDashboard() {
         `}</style>
 
         {/* Grid texture */}
-        <div
-          className="absolute inset-0 pointer-events-none"
-          style={{
-            opacity: 0.025,
-            backgroundImage: 'repeating-linear-gradient(0deg,#fff 0,#fff 1px,transparent 1px,transparent 28px),repeating-linear-gradient(90deg,#fff 0,#fff 1px,transparent 1px,transparent 28px)',
-          }}
-        />
-        {/* Radial ambient glow at bottom */}
-        <div
-          className="absolute bottom-0 left-0 right-0 h-48 pointer-events-none"
-          style={{ background: 'radial-gradient(ellipse 90% 100% at 50% 100%, rgba(44,130,181,0.14), transparent)' }}
-        />
-        {/* One-shot shimmer after bars rise */}
+        <div className="absolute inset-0 pointer-events-none" style={{ opacity: 0.025, backgroundImage: 'repeating-linear-gradient(0deg,#fff 0,#fff 1px,transparent 1px,transparent 28px),repeating-linear-gradient(90deg,#fff 0,#fff 1px,transparent 1px,transparent 28px)' }} />
+        {/* Ambient glow */}
+        <div className="absolute bottom-0 left-0 right-0 h-48 pointer-events-none" style={{ background: 'radial-gradient(ellipse 90% 100% at 50% 100%, rgba(44,130,181,0.14), transparent)' }} />
+        {/* Shimmer */}
         {chartReady && (
-          <div
-            className="absolute top-0 bottom-0 w-20 pointer-events-none z-20"
-            style={{
-              background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.055), transparent)',
-              animation: 'shimmerPass 1.1s ease-in-out 0.85s both',
-            }}
-          />
+          <div className="absolute top-0 bottom-0 w-20 pointer-events-none z-20"
+            style={{ background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.055), transparent)', animation: 'shimmerPass 1.1s ease-in-out 0.85s both' }} />
         )}
 
         <div className="relative z-10 px-6 pt-6 pb-5">
@@ -393,58 +237,105 @@ export default function ClientDashboard() {
             </div>
           </div>
 
-          {/* Chart */}
+          {/* Chart bars */}
           <div className="relative" style={{ height: '148px' }}>
-            {/* Horizontal guide lines */}
             {[0.75, 0.5, 0.25].map(pct => (
-              <div
-                key={pct}
-                className="absolute left-0 right-0 pointer-events-none"
-                style={{ bottom: `${pct * 148}px`, borderTop: '1px dashed rgba(255,255,255,0.05)' }}
-              />
+              <div key={pct} className="absolute left-0 right-0 pointer-events-none"
+                style={{ bottom: `${pct * 148}px`, borderTop: '1px dashed rgba(255,255,255,0.05)' }} />
             ))}
-
-            {/* Bars */}
             <div className="absolute inset-0 flex items-end gap-2.5">
               {weeklyData.map((day, i) => {
                 const maxCount = Math.max(...weeklyData.map(d => d.count), 1)
-                return (
-                  <ChartBar
-                    key={i}
-                    label={day.label}
-                    count={day.count}
-                    isToday={day.isToday}
-                    isPast={day.isPast}
-                    isFuture={day.isFuture}
-                    index={i}
-                    maxCount={maxCount}
-                    ready={chartReady}
-                  />
-                )
+                return <ChartBar key={i} label={day.label} count={day.count} isToday={day.isToday}
+                  isPast={day.isPast} isFuture={day.isFuture} index={i} maxCount={maxCount} ready={chartReady} />
               })}
             </div>
           </div>
 
-          {/* Baseline */}
+          {/* Baseline + labels */}
           <div className="mt-4 h-px" style={{ background: 'rgba(255,255,255,0.06)' }} />
-
-          {/* Day labels */}
           <div className="flex gap-2.5 mt-3">
             {weeklyData.map((day, i) => (
               <div key={i} className="flex-1 text-center">
-                <span
-                  className={cn(
-                    'text-[10px] font-bold uppercase tracking-[0.1em] transition-opacity duration-300',
-                    day.isToday ? 'text-brand-400' : 'text-slate-600',
-                  )}
-                  style={{ opacity: chartReady ? 1 : 0, transitionDelay: `${i * 55 + 300}ms` }}
-                >
+                <span className={cn('text-[10px] font-bold uppercase tracking-[0.1em] transition-opacity duration-300', day.isToday ? 'text-brand-400' : 'text-slate-600')}
+                  style={{ opacity: chartReady ? 1 : 0, transitionDelay: `${i * 55 + 300}ms` }}>
                   {day.label}
                 </span>
               </div>
             ))}
           </div>
         </div>
+      </div>
+
+      {/* ── Appointments list ────────────────────────────────────── */}
+      <div className="bg-white rounded-2xl border border-slate-100 shadow-[0_2px_12px_rgba(0,0,0,0.03)] overflow-hidden">
+
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-50">
+          <div className="flex items-center gap-2.5">
+            <div className="w-1.5 h-4 rounded-full" style={{ background: 'linear-gradient(180deg, #2C82B5, #1e5f88)' }} />
+            <h3 className="text-[13px] font-bold text-gray-900">Agendamentos Recentes</h3>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-[11px] font-semibold uppercase tracking-widest text-slate-400">{periodLabel}</span>
+            <a href="/dashboard/appointments"
+              className="flex items-center gap-1 text-[11px] font-bold text-brand-500 hover:text-brand-600 transition-colors">
+              Ver todos <ArrowRight className="w-3 h-3" />
+            </a>
+          </div>
+        </div>
+
+        {/* Column headers */}
+        <div className="grid grid-cols-[1fr_auto_auto] sm:grid-cols-[1fr_1fr_auto_auto] px-6 py-2.5 border-b border-slate-50">
+          <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">Paciente · Especialidade</p>
+          <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400 hidden sm:block">Médico</p>
+          <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400 text-right">Data</p>
+          <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400 text-right">Status</p>
+        </div>
+
+        {filtered.recentAppts.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-12">
+            <div className="w-10 h-10 rounded-2xl bg-slate-50 flex items-center justify-center mb-3 border border-slate-100">
+              <Calendar className="w-5 h-5 text-slate-300" />
+            </div>
+            <p className="text-[13px] font-semibold text-slate-400">Nenhum agendamento {periodLabel}.</p>
+          </div>
+        ) : (
+          <div className="divide-y divide-slate-50/80">
+            {filtered.recentAppts.map((appt, i) => (
+              <div key={appt.id}
+                className={cn(
+                  'grid grid-cols-[1fr_auto_auto] sm:grid-cols-[1fr_1fr_auto_auto] items-center px-6 py-3.5 gap-4 transition-colors hover:bg-slate-50/70 group',
+                  i % 2 !== 0 ? 'bg-slate-50/30' : '',
+                )}
+              >
+                {/* Patient + specialty */}
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className={cn('w-1.5 h-1.5 rounded-full shrink-0 transition-transform group-hover:scale-125', {
+                    'bg-slate-300':   appt.status === 'scheduled',
+                    'bg-emerald-400': appt.status === 'confirmed',
+                    'bg-rose-400':    appt.status === 'cancelled',
+                    'bg-brand-400':   appt.status === 'completed',
+                  })} />
+                  <div className="min-w-0">
+                    <p className="text-[13px] font-semibold text-gray-900 truncate leading-none">{appt.patient_name}</p>
+                    <p className="text-[11px] text-slate-400 truncate mt-0.5">{appt.specialty}</p>
+                  </div>
+                </div>
+                {/* Doctor */}
+                <p className="text-[12px] text-slate-400 truncate hidden sm:block">{appt.doctor_name ?? '—'}</p>
+                {/* Date */}
+                <p className="text-[12px] font-medium text-slate-500 tabular-nums text-right">{formatDate(appt.scheduled_at)}</p>
+                {/* Badge */}
+                <div className="flex justify-end">
+                  <Badge variant={statusColors[appt.status] ?? 'outline'} className="text-[10px] font-semibold">
+                    {statusLabel(appt.status)}
+                  </Badge>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
     </div>
@@ -454,71 +345,39 @@ export default function ClientDashboard() {
 // ── Metric Card ──────────────────────────────────────────────────
 
 interface MetricCardProps {
-  label: string
-  value: number
-  icon: ReactNode
+  label: string; value: number; icon: ReactNode
   accent: { border: string; iconBg: string; iconColor: string }
 }
 
 function MetricCard({ label, value, icon, accent }: MetricCardProps) {
   return (
     <div
-      className="bg-white rounded-2xl p-5 border border-slate-100 border-l-[3px] shadow-[0_2px_12px_rgba(0,0,0,0.03)] hover:shadow-[0_6px_20px_rgba(0,0,0,0.07)] hover:-translate-y-[1px] transition-all duration-250 cursor-default"
+      className="bg-white rounded-2xl p-5 border border-slate-100 border-l-[3px] shadow-[0_2px_12px_rgba(0,0,0,0.03)] hover:shadow-[0_6px_20px_rgba(0,0,0,0.07)] hover:-translate-y-[1px] transition-all duration-200 cursor-default"
       style={{ borderLeftColor: accent.border }}
     >
-      <div className={cn('w-8 h-8 rounded-xl flex items-center justify-center mb-5', accent.iconBg)}>
+      <div className="w-8 h-8 rounded-xl flex items-center justify-center mb-4" style={{ background: accent.iconBg }}>
         {icon}
       </div>
-      <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400 mb-2">{label}</p>
-      <p className="text-4xl font-black text-gray-900 leading-none tabular-nums">{value}</p>
+      <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400 mb-1.5">{label}</p>
+      <p className="text-3xl font-black text-gray-900 leading-none tabular-nums">{value}</p>
     </div>
   )
 }
 
-// ── Segmented Progress ───────────────────────────────────────────
-
-function SegmentedProgress({ pct }: { pct: number }) {
-  const total = 20
-  const filled = Math.round((pct / 100) * total)
-  const isHigh = pct > 80
-
-  return (
-    <div className="flex gap-[3px]">
-      {Array.from({ length: total }).map((_, i) => (
-        <div
-          key={i}
-          className="flex-1 h-1.5 rounded-full transition-all duration-500"
-          style={{
-            transitionDelay: `${i * 20}ms`,
-            background: i < filled
-              ? isHigh
-                ? `rgba(248,113,113,${0.6 + (i / total) * 0.4})`
-                : `rgba(44,130,181,${0.45 + (i / total) * 0.55})`
-              : 'rgba(255,255,255,0.08)',
-          }}
-        />
-      ))}
-    </div>
-  )
-}
-
-// ── Animated Number (count-up) ───────────────────────────────────
+// ── Animated Number ───────────────────────────────────────────────
 
 function AnimatedNumber({ value, ready, delay = 0 }: { value: number; ready: boolean; delay?: number }) {
   const [display, setDisplay] = useState(0)
   useEffect(() => {
     if (!ready || value === 0) { setDisplay(value); return }
     setDisplay(0)
-    let startTs: number | null = null
-    let raf: number
-    const duration = 900
+    let startTs: number | null = null; let raf: number
     const timer = setTimeout(() => {
       const animate = (ts: number) => {
         if (startTs === null) startTs = ts
-        const progress = Math.min((ts - startTs) / duration, 1)
-        const eased = 1 - Math.pow(1 - progress, 3)
-        setDisplay(Math.round(eased * value))
-        if (progress < 1) raf = requestAnimationFrame(animate)
+        const p = Math.min((ts - startTs) / 900, 1)
+        setDisplay(Math.round((1 - Math.pow(1 - p, 3)) * value))
+        if (p < 1) raf = requestAnimationFrame(animate)
       }
       raf = requestAnimationFrame(animate)
     }, delay)
@@ -541,15 +400,13 @@ function ChartBar({
   useEffect(() => {
     if (!ready || count === 0) { setDisplayCount(count); return }
     setDisplayCount(0)
-    let startTs: number | null = null
-    let raf: number
-    const duration = 700
+    let startTs: number | null = null; let raf: number
     const timer = setTimeout(() => {
       const animate = (ts: number) => {
         if (startTs === null) startTs = ts
-        const progress = Math.min((ts - startTs) / duration, 1)
-        setDisplayCount(Math.round((1 - Math.pow(1 - progress, 3)) * count))
-        if (progress < 1) raf = requestAnimationFrame(animate)
+        const p = Math.min((ts - startTs) / 700, 1)
+        setDisplayCount(Math.round((1 - Math.pow(1 - p, 3)) * count))
+        if (p < 1) raf = requestAnimationFrame(animate)
       }
       raf = requestAnimationFrame(animate)
     }, index * 55 + 180)
@@ -557,77 +414,42 @@ function ChartBar({
   }, [ready, count, index])
 
   const CHART_H = 148
-  const heightPx = count > 0
-    ? Math.max((count / maxCount) * CHART_H * 0.88, 18)
-    : (isToday || isPast) ? 3 : 0
+  const heightPx = count > 0 ? Math.max((count / maxCount) * CHART_H * 0.88, 18) : (isToday || isPast) ? 3 : 0
 
   const barBg = isToday
     ? 'linear-gradient(180deg, #93d5f0 0%, #5fb3d8 25%, #2C82B5 65%, #1a4f7a 100%)'
-    : isPast && count > 0
-    ? 'linear-gradient(180deg, rgba(93,172,215,0.55) 0%, rgba(44,130,181,0.32) 100%)'
-    : isPast && count === 0
-    ? 'rgba(255,255,255,0.07)'
-    : isFuture && count > 0
-    ? 'linear-gradient(180deg, rgba(93,172,215,0.25) 0%, rgba(44,130,181,0.14) 100%)'
-    : isFuture
-    ? 'rgba(255,255,255,0.03)'
-    : 'transparent'
+    : isPast && count > 0 ? 'linear-gradient(180deg, rgba(93,172,215,0.55) 0%, rgba(44,130,181,0.32) 100%)'
+    : isPast  ? 'rgba(255,255,255,0.07)'
+    : isFuture && count > 0 ? 'linear-gradient(180deg, rgba(93,172,215,0.25) 0%, rgba(44,130,181,0.14) 100%)'
+    : 'rgba(255,255,255,0.03)'
 
   return (
-    <div
-      className="flex-1 relative flex flex-col justify-end"
-      style={{ height: `${CHART_H}px` }}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-    >
-      {/* Hover tooltip */}
+    <div className="flex-1 relative flex flex-col justify-end" style={{ height: `${CHART_H}px` }}
+      onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
+
+      {/* Tooltip */}
       {hovered && count > 0 && (
-        <div
-          className="absolute left-1/2 z-30 pointer-events-none"
-          style={{
-            bottom: `${heightPx + 10}px`,
-            animation: 'floatIn 0.18s ease-out both',
-          }}
-        >
-          <div
-            className="px-2.5 py-1.5 rounded-xl text-[11px] font-bold text-white whitespace-nowrap border border-white/15"
-            style={{
-              background: 'rgba(30,30,35,0.92)',
-              backdropFilter: 'blur(8px)',
-              transform: 'translateX(-50%)',
-              boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
-            }}
-          >
+        <div className="absolute left-1/2 z-30 pointer-events-none"
+          style={{ bottom: `${heightPx + 10}px`, animation: 'floatIn 0.18s ease-out both' }}>
+          <div className="px-2.5 py-1.5 rounded-xl text-[11px] font-bold text-white whitespace-nowrap border border-white/15"
+            style={{ background: 'rgba(20,20,25,0.92)', backdropFilter: 'blur(8px)', transform: 'translateX(-50%)', boxShadow: '0 4px 16px rgba(0,0,0,0.4)' }}>
             {displayCount} {displayCount === 1 ? 'consulta' : 'consultas'}
           </div>
-          {/* Arrow */}
-          <div
-            className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0"
-            style={{ borderLeft: '5px solid transparent', borderRight: '5px solid transparent', borderTop: '5px solid rgba(30,30,35,0.92)' }}
-          />
+          <div className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0"
+            style={{ borderLeft: '5px solid transparent', borderRight: '5px solid transparent', borderTop: '5px solid rgba(20,20,25,0.92)' }} />
         </div>
       )}
 
-      {/* Count label */}
-      <div
-        className="text-center mb-1.5 transition-all duration-200"
-        style={{
-          opacity: ready && count > 0 ? 1 : 0,
-          transitionDelay: `${index * 55 + 450}ms`,
-          transform: hovered ? 'scale(1.2)' : 'scale(1)',
-        }}
-      >
-        <span
-          className="text-[11px] font-bold tabular-nums"
-          style={{ color: isToday ? '#7ec8e3' : 'rgba(148,163,184,0.65)' }}
-        >
+      {/* Count */}
+      <div className="text-center mb-1.5 transition-all duration-200"
+        style={{ opacity: ready && count > 0 ? 1 : 0, transitionDelay: `${index * 55 + 450}ms`, transform: hovered ? 'scale(1.2)' : 'scale(1)' }}>
+        <span className="text-[11px] font-bold tabular-nums" style={{ color: isToday ? '#7ec8e3' : 'rgba(148,163,184,0.65)' }}>
           {displayCount}
         </span>
       </div>
 
       {/* Bar */}
-      <div
-        className="w-full relative overflow-hidden"
+      <div className="w-full relative overflow-hidden"
         style={{
           height: ready ? `${heightPx}px` : '0px',
           background: barBg,
@@ -637,26 +459,14 @@ function ChartBar({
           filter: hovered && count > 0 ? 'brightness(1.35) saturate(1.2)' : 'brightness(1)',
           transform: hovered && count > 0 ? 'scaleX(1.07)' : 'scaleX(1)',
           transformOrigin: 'bottom center',
-        }}
-      >
-        {/* Shine streak (today only) */}
+        }}>
         {isToday && count > 0 && (
-          <div
-            className="absolute top-0 bottom-0 pointer-events-none"
-            style={{
-              left: '18%',
-              width: '20%',
-              background: 'linear-gradient(180deg, rgba(255,255,255,0.38), rgba(255,255,255,0.04))',
-              borderRadius: '0 0 4px 4px',
-            }}
-          />
+          <div className="absolute top-0 bottom-0 pointer-events-none"
+            style={{ left: '18%', width: '20%', background: 'linear-gradient(180deg, rgba(255,255,255,0.38), rgba(255,255,255,0.04))', borderRadius: '0 0 4px 4px' }} />
         )}
-        {/* Top highlight line */}
         {count > 0 && (
-          <div
-            className="absolute top-0 left-[10%] right-[10%] h-px rounded-full"
-            style={{ background: isToday ? 'rgba(255,255,255,0.55)' : 'rgba(255,255,255,0.18)' }}
-          />
+          <div className="absolute top-0 left-[10%] right-[10%] h-px rounded-full"
+            style={{ background: isToday ? 'rgba(255,255,255,0.55)' : 'rgba(255,255,255,0.18)' }} />
         )}
       </div>
     </div>
