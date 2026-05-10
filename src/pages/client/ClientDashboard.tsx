@@ -1,5 +1,5 @@
 import { type ReactNode, useEffect, useState, useMemo } from 'react'
-import { MessageSquare, Calendar, CheckCircle, XCircle } from 'lucide-react'
+import { MessageSquare, Calendar, CheckCircle, XCircle, TrendingUp } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { type Appointment, type Conversation, type Organization } from '../../types'
@@ -51,6 +51,7 @@ export default function ClientDashboard() {
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [period, setPeriod] = useState<Period>('month')
   const [loading, setLoading] = useState(true)
+  const [chartReady, setChartReady] = useState(false)
 
   useEffect(() => {
     if (!orgId) return
@@ -82,6 +83,40 @@ export default function ClientDashboard() {
       recentAppts:   appts.slice(0, 6),
     }
   }, [appointments, conversations, period])
+
+  // Weekly bar chart data — Mon→Sun of current week
+  const weeklyData = useMemo(() => {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const monday = new Date(today)
+    monday.setDate(today.getDate() - ((today.getDay() + 6) % 7))
+    const DAY_LABELS = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom']
+    return Array.from({ length: 7 }, (_, i) => {
+      const day = new Date(monday)
+      day.setDate(monday.getDate() + i)
+      const next = new Date(day)
+      next.setDate(day.getDate() + 1)
+      const count = appointments.filter(a => {
+        const d = new Date(a.scheduled_at)
+        return d >= day && d < next
+      }).length
+      return {
+        label: DAY_LABELS[i],
+        count,
+        isToday:  day.getTime() === today.getTime(),
+        isPast:   day < today,
+        isFuture: day > today,
+      }
+    })
+  }, [appointments])
+
+  // Trigger bar animation after data loads
+  useEffect(() => {
+    if (!loading) {
+      const t = setTimeout(() => setChartReady(true), 120)
+      return () => clearTimeout(t)
+    }
+  }, [loading])
 
   const usagePct = org ? Math.min(100, (org.conversations_used / org.max_conversations_month) * 100) : 0
   const planName = org?.plan ? (PLAN_LABEL[org.plan] ?? org.plan) : '—'
@@ -291,6 +326,132 @@ export default function ClientDashboard() {
         </div>
 
       </div>
+
+      {/* ── Weekly Chart ────────────────────────────────────────────────────── */}
+      <div
+        className="relative overflow-hidden rounded-2xl border border-slate-100 shadow-[0_2px_12px_rgba(0,0,0,0.03)]"
+        style={{ background: 'linear-gradient(160deg, #18181b 0%, #111113 100%)' }}
+      >
+        {/* Background grid texture */}
+        <div
+          className="absolute inset-0 opacity-[0.03] pointer-events-none"
+          style={{
+            backgroundImage: 'repeating-linear-gradient(0deg,rgba(255,255,255,1) 0,rgba(255,255,255,1) 1px,transparent 1px,transparent 28px),repeating-linear-gradient(90deg,rgba(255,255,255,1) 0,rgba(255,255,255,1) 1px,transparent 1px,transparent 28px)',
+          }}
+        />
+        {/* Glow blob */}
+        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-96 h-32 rounded-full blur-3xl pointer-events-none" style={{ background: 'rgba(44,130,181,0.12)' }} />
+
+        <div className="relative z-10 p-6">
+          {/* Header */}
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-2.5">
+              <div className="w-7 h-7 rounded-xl bg-white/[0.08] flex items-center justify-center border border-white/10">
+                <TrendingUp className="w-3.5 h-3.5 text-brand-400" />
+              </div>
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500 leading-none mb-0.5">Esta semana</p>
+                <p className="text-[13px] font-bold text-white leading-none">Agendamentos por dia</p>
+              </div>
+            </div>
+            <div className="text-right">
+              <p className="text-2xl font-black text-white leading-none tabular-nums">
+                {weeklyData.reduce((s, d) => s + d.count, 0)}
+              </p>
+              <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest mt-0.5">total</p>
+            </div>
+          </div>
+
+          {/* Bars */}
+          <div className="flex items-end gap-2 h-32">
+            {weeklyData.map((day, i) => {
+              const maxCount = Math.max(...weeklyData.map(d => d.count), 1)
+              const heightPct = day.count > 0 ? Math.max((day.count / maxCount) * 100, 8) : 0
+              const minNubHeight = !day.isFuture && day.count === 0 ? 3 : 0
+
+              return (
+                <div key={i} className="flex-1 flex flex-col items-center gap-1.5">
+                  {/* Count label */}
+                  <span
+                    className="text-[11px] font-bold tabular-nums transition-all duration-300"
+                    style={{
+                      color: day.isToday ? '#4d9aca' : day.count > 0 ? 'rgba(148,163,184,0.7)' : 'transparent',
+                      opacity: chartReady ? 1 : 0,
+                      transitionDelay: `${i * 60 + 400}ms`,
+                    }}
+                  >
+                    {day.count}
+                  </span>
+
+                  {/* Bar container */}
+                  <div className="w-full flex items-end" style={{ height: '88px' }}>
+                    <div className="w-full relative">
+                      {/* Zero nub for past/today */}
+                      {day.count === 0 && !day.isFuture && (
+                        <div
+                          className="w-full rounded-full"
+                          style={{
+                            height: `${minNubHeight}px`,
+                            background: 'rgba(255,255,255,0.08)',
+                          }}
+                        />
+                      )}
+
+                      {/* Main bar */}
+                      {(day.count > 0 || day.isFuture) && (
+                        <div
+                          className="w-full rounded-t-xl overflow-hidden"
+                          style={{
+                            height: chartReady ? `${heightPct * 0.88}px` : '0px',
+                            minHeight: day.isFuture && day.count === 0 ? '0px' : undefined,
+                            transition: `height 0.65s cubic-bezier(0.34,1.56,0.64,1) ${i * 55}ms`,
+                            background: day.isToday
+                              ? 'linear-gradient(180deg, #4d9aca 0%, #2C82B5 100%)'
+                              : day.isPast && day.count > 0
+                              ? 'rgba(44,130,181,0.35)'
+                              : day.isFuture && day.count > 0
+                              ? 'rgba(44,130,181,0.20)'
+                              : 'transparent',
+                            boxShadow: day.isToday
+                              ? '0 0 20px rgba(44,130,181,0.4), 0 4px 12px rgba(44,130,181,0.3)'
+                              : 'none',
+                          }}
+                        >
+                          {/* Shine streak on today's bar */}
+                          {day.isToday && (
+                            <div
+                              className="absolute top-0 left-[15%] w-[25%] h-full opacity-30 rounded-t-xl pointer-events-none"
+                              style={{ background: 'linear-gradient(180deg, rgba(255,255,255,0.6), transparent)' }}
+                            />
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Day label */}
+                  <span
+                    className={cn(
+                      'text-[10px] font-bold uppercase tracking-[0.1em] transition-all duration-300',
+                      day.isToday ? 'text-brand-400' : 'text-slate-600',
+                    )}
+                    style={{
+                      opacity: chartReady ? 1 : 0,
+                      transitionDelay: `${i * 60 + 200}ms`,
+                    }}
+                  >
+                    {day.label}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+
+          {/* Baseline rule */}
+          <div className="mt-2 h-px bg-white/[0.06]" />
+        </div>
+      </div>
+
     </div>
   )
 }
