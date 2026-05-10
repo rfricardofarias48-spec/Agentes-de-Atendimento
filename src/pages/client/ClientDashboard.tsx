@@ -19,9 +19,6 @@ const statusColors: Record<string, 'success' | 'secondary' | 'warning' | 'destru
   scheduled: 'secondary', confirmed: 'success', cancelled: 'destructive', completed: 'outline',
 }
 
-const PLAN_LABEL: Record<string, string> = {
-  starter: 'Essencial', pro: 'Pro', clinic: 'Max',
-}
 
 function getPeriodStart(period: Period): Date {
   const now = new Date()
@@ -99,8 +96,6 @@ export default function ClientDashboard() {
     if (!loading) { const t = setTimeout(() => setChartReady(true), 120); return () => clearTimeout(t) }
   }, [loading])
 
-  const usagePct = org ? Math.min(100, (org.conversations_used / org.max_conversations_month) * 100) : 0
-  const planName = org?.plan ? (PLAN_LABEL[org.plan] ?? org.plan) : '—'
   const firstName = org?.name?.split(' ')[0] ?? '—'
   const periodLabel = period === 'day' ? 'hoje' : period === 'week' ? 'esta semana' : 'este mês'
 
@@ -143,46 +138,16 @@ export default function ClientDashboard() {
         </div>
       </div>
 
-      {/* ── 5 Metric Cards ─────────────────────────────────────── */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
-        <MetricCard label="Conversas"    value={filtered.conversations} accent={CARD_ACCENTS.brand}
+      {/* ── 4 Metric Cards ─────────────────────────────────────── */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <MetricCard label="Conversas"     value={filtered.conversations} accent={CARD_ACCENTS.brand}
           icon={<MessageSquare className="w-4 h-4" style={{ color: CARD_ACCENTS.brand.iconColor }} />} />
-        <MetricCard label="Agendamentos" value={filtered.appointments}  accent={CARD_ACCENTS.violet}
+        <MetricCard label="Agendamentos"  value={filtered.appointments}  accent={CARD_ACCENTS.violet}
           icon={<Calendar className="w-4 h-4" style={{ color: CARD_ACCENTS.violet.iconColor }} />} />
-        <MetricCard label="Realizadas"   value={filtered.completed}     accent={CARD_ACCENTS.emerald}
+        <MetricCard label="Realizadas"    value={filtered.completed}     accent={CARD_ACCENTS.emerald}
           icon={<CheckCircle className="w-4 h-4" style={{ color: CARD_ACCENTS.emerald.iconColor }} />} />
-        <MetricCard label="Cancelamentos" value={filtered.cancelled}    accent={CARD_ACCENTS.rose}
+        <MetricCard label="Cancelamentos" value={filtered.cancelled}     accent={CARD_ACCENTS.rose}
           icon={<XCircle className="w-4 h-4" style={{ color: CARD_ACCENTS.rose.iconColor }} />} />
-
-        {/* Plan card — 5th */}
-        <div
-          className="relative overflow-hidden rounded-2xl p-4 col-span-2 lg:col-span-1 flex flex-col justify-between shadow-[0_2px_16px_rgba(0,0,0,0.14)]"
-          style={{ background: 'linear-gradient(160deg, #18181b 0%, #0f0f11 100%)' }}
-        >
-          <div className="absolute -top-6 -right-6 w-20 h-20 rounded-full blur-2xl pointer-events-none" style={{ background: 'rgba(44,130,181,0.18)' }} />
-          <div className="relative z-10">
-            <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500 mb-2">Plano</p>
-            <p className="text-2xl font-black text-white leading-none">{planName}</p>
-            <p className="text-[11px] text-slate-500 mt-1 tabular-nums">
-              {org?.conversations_used ?? 0}/{org?.max_conversations_month ?? 0}
-            </p>
-          </div>
-          <div className="relative z-10 mt-3">
-            <div className="w-full h-1 rounded-full" style={{ background: 'rgba(255,255,255,0.08)' }}>
-              <div
-                className="h-full rounded-full transition-all duration-700"
-                style={{
-                  width: `${usagePct}%`,
-                  background: usagePct > 80 ? 'linear-gradient(90deg,#f43f5e,#fb7185)' : 'linear-gradient(90deg,#2C82B5,#4d9aca)',
-                }}
-              />
-            </div>
-            <p className="text-[10px] font-bold text-right mt-1.5 tabular-nums"
-              style={{ color: usagePct > 80 ? '#f87171' : '#4d9aca' }}>
-              {usagePct.toFixed(0)}%
-            </p>
-          </div>
-        </div>
       </div>
 
       {/* ── Weekly Chart ─────────────────────────────────────────── */}
