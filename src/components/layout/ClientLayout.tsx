@@ -56,16 +56,6 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
           </div>
         </div>
 
-        {/* Plan badge */}
-        <div
-          className="flex items-center gap-2 px-3 py-2 rounded-xl"
-          style={{ background: 'rgba(44,130,181,0.12)', border: '1px solid rgba(44,130,181,0.18)' }}
-        >
-          <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
-          <span className="text-[11px] font-semibold text-brand-300">
-            Plano {planLabel(orgPlan) || 'Essencial'}
-          </span>
-        </div>
       </div>
 
       {/* Divider */}
