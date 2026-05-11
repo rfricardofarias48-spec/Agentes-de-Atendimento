@@ -32,6 +32,8 @@ export default function ClientBento() {
 
   const [showAddService, setShowAddService] = useState(false)
   const [newService, setNewService]         = useState({ name: '', description: '', price: '' })
+  const [newServicePdf, setNewServicePdf]   = useState<File | null>(null)
+  const newServicePdfRef = useRef<HTMLInputElement>(null)
   const [expandedService, setExpandedService] = useState<string | null>(null)
   const [uploadingPdf, setUploadingPdf]     = useState<string | null>(null)
   const [uploadTarget, setUploadTarget]     = useState<string | null>(null)
@@ -81,17 +83,36 @@ export default function ClientBento() {
     setSaving(false)
   }
 
-  function addService() {
+  async function addService() {
     if (!newService.name.trim()) return
+    const id = crypto.randomUUID()
+    let pdf_url: string | null = null
+    let pdf_name: string | null = null
+
+    if (newServicePdf && orgId) {
+      setUploadingPdf(id)
+      const path = `${orgId}/${id}.pdf`
+      const { error } = await supabase.storage
+        .from('specialty-pdfs')
+        .upload(path, newServicePdf, { upsert: true, contentType: 'application/pdf' })
+      if (!error) {
+        const { data: { publicUrl } } = supabase.storage.from('specialty-pdfs').getPublicUrl(path)
+        pdf_url = publicUrl
+        pdf_name = newServicePdf.name
+      }
+      setUploadingPdf(null)
+    }
+
     setServices(prev => [...prev, {
-      id: crypto.randomUUID(),
+      id,
       name: newService.name.trim(),
       description: newService.description.trim(),
       price: newService.price.trim(),
-      pdf_url: null,
-      pdf_name: null,
+      pdf_url,
+      pdf_name,
     }])
     setNewService({ name: '', description: '', price: '' })
+    setNewServicePdf(null)
     setShowAddService(false)
   }
 
@@ -142,6 +163,7 @@ export default function ClientBento() {
   return (
     <div className="space-y-5">
       <input ref={fileInputRef} type="file" accept=".pdf" className="hidden" onChange={handlePdfFileChange} />
+      <input ref={newServicePdfRef} type="file" accept=".pdf" className="hidden" onChange={e => { setNewServicePdf(e.target.files?.[0] ?? null); e.target.value = '' }} />
 
       {/* Header */}
       <div>
@@ -279,16 +301,35 @@ export default function ClientBento() {
                   className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent"
                 />
               </div>
+              {/* PDF field */}
+              <div>
+                <label className="block text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1.5">PDF (enviado ao paciente)</label>
+                {newServicePdf ? (
+                  <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-white border border-slate-200">
+                    <FileText className="w-4 h-4 text-brand-500 shrink-0" />
+                    <span className="text-sm text-slate-700 truncate flex-1">{newServicePdf.name}</span>
+                    <button type="button" onClick={() => setNewServicePdf(null)} className="text-slate-400 hover:text-rose-500 transition-colors">
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <button type="button" onClick={() => newServicePdfRef.current?.click()}
+                    className="flex items-center gap-2 w-full px-3 py-2.5 rounded-xl border border-dashed border-slate-300 bg-white text-sm text-slate-400 hover:border-brand-400 hover:text-brand-500 transition-all">
+                    <Upload className="w-4 h-4" /> Anexar PDF
+                  </button>
+                )}
+              </div>
               <div className="flex gap-2">
                 <button
                   onClick={addService}
-                  disabled={!newService.name.trim()}
+                  disabled={!newService.name.trim() || !!uploadingPdf}
                   className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold text-white bg-gray-900 hover:bg-gray-800 transition-colors disabled:opacity-40"
                 >
-                  <Plus className="w-3.5 h-3.5" /> Adicionar
+                  {uploadingPdf ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
+                  {uploadingPdf ? 'Enviando…' : 'Adicionar'}
                 </button>
                 <button
-                  onClick={() => setShowAddService(false)}
+                  onClick={() => { setShowAddService(false); setNewServicePdf(null) }}
                   className="px-4 py-2 rounded-xl text-sm font-medium text-slate-500 hover:text-slate-700 transition-colors"
                 >
                   Cancelar

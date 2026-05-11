@@ -141,6 +141,8 @@ export default function AdminClientDetail() {
   const [services, setServices] = useState<Service[]>([])
   const [showAddService, setShowAddService] = useState(false)
   const [newService, setNewService] = useState({ name: '', description: '', price: '' })
+  const [newServicePdf, setNewServicePdf] = useState<File | null>(null)
+  const newServicePdfRef = useRef<HTMLInputElement>(null)
   const [expandedService, setExpandedService] = useState<string | null>(null)
   const [savingAgent, setSavingAgent] = useState(false)
   const [agentMsg, setAgentMsg] = useState<{ ok: boolean; text: string } | null>(null)
@@ -337,17 +339,36 @@ export default function AdminClientDetail() {
     setSavingAgent(false)
   }
 
-  function addService() {
+  async function addService() {
     if (!newService.name.trim()) return
+    const serviceId = crypto.randomUUID()
+    let pdf_url: string | null = null
+    let pdf_name: string | null = null
+
+    if (newServicePdf && id) {
+      setUploadingPdf(serviceId)
+      const path = `${id}/${serviceId}.pdf`
+      const { error } = await supabase.storage
+        .from('specialty-pdfs')
+        .upload(path, newServicePdf, { upsert: true, contentType: 'application/pdf' })
+      if (!error) {
+        const { data: { publicUrl } } = supabase.storage.from('specialty-pdfs').getPublicUrl(path)
+        pdf_url = publicUrl
+        pdf_name = newServicePdf.name
+      }
+      setUploadingPdf(null)
+    }
+
     setServices(prev => [...prev, {
-      id: crypto.randomUUID(),
+      id: serviceId,
       name: newService.name.trim(),
       description: newService.description.trim(),
       price: newService.price.trim(),
-      pdf_url: null,
-      pdf_name: null,
+      pdf_url,
+      pdf_name,
     }])
     setNewService({ name: '', description: '', price: '' })
+    setNewServicePdf(null)
     setShowAddService(false)
   }
 
@@ -919,12 +940,36 @@ export default function AdminClientDetail() {
                         className="input-dark w-full px-3 py-2.5 text-sm"
                       />
                     </div>
+                    {/* PDF field */}
+                    <div>
+                      <label className="block text-[10px] font-semibold uppercase tracking-wider mb-1.5" style={{ color: '#98a2b3' }}>PDF (enviado ao paciente)</label>
+                      <input ref={newServicePdfRef} type="file" accept=".pdf" className="hidden"
+                        onChange={e => { setNewServicePdf(e.target.files?.[0] ?? null); e.target.value = '' }} />
+                      {newServicePdf ? (
+                        <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-white border border-slate-200">
+                          <FileText className="w-4 h-4 shrink-0" style={{ color: '#2C82B5' }} />
+                          <span className="text-sm truncate flex-1" style={{ color: '#344054' }}>{newServicePdf.name}</span>
+                          <button type="button" onClick={() => setNewServicePdf(null)} className="text-slate-400 hover:text-rose-500 transition-colors">
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ) : (
+                        <button type="button" onClick={() => newServicePdfRef.current?.click()}
+                          className="flex items-center gap-2 w-full px-3 py-2.5 rounded-xl text-sm transition-all"
+                          style={{ border: '1.5px dashed #d0d5dd', color: '#98a2b3', background: 'white' }}
+                          onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = '#2C82B5'; (e.currentTarget as HTMLButtonElement).style.color = '#2C82B5' }}
+                          onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = '#d0d5dd'; (e.currentTarget as HTMLButtonElement).style.color = '#98a2b3' }}>
+                          <Upload className="w-4 h-4" /> Anexar PDF
+                        </button>
+                      )}
+                    </div>
                     <div className="flex gap-2">
-                      <button onClick={addService} disabled={!newService.name.trim()}
+                      <button onClick={addService} disabled={!newService.name.trim() || !!uploadingPdf}
                         className="btn-primary flex items-center gap-1.5 px-4 py-2 text-sm disabled:opacity-40">
-                        <Plus className="w-3.5 h-3.5" /> Adicionar
+                        {uploadingPdf ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
+                        {uploadingPdf ? 'Enviando…' : 'Adicionar'}
                       </button>
-                      <button onClick={() => setShowAddService(false)}
+                      <button onClick={() => { setShowAddService(false); setNewServicePdf(null) }}
                         className="px-4 py-2 rounded-xl text-sm font-medium transition-colors" style={{ color: '#98a2b3' }}>
                         Cancelar
                       </button>
