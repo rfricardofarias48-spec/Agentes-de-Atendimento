@@ -15,7 +15,7 @@ services:
       OPENAI_API_KEY: ${OPENAI_API_KEY}
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
-      POSTGRES_DB: mem0
+      POSTGRES_DB: mem0_app
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: mem0pgpass2025
       NEO4J_URI: bolt://neo4j:7687
@@ -31,7 +31,7 @@ services:
   postgres:
     image: pgvector/pgvector:pg16
     environment:
-      POSTGRES_DB: mem0
+      POSTGRES_DB: mem0_app
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: mem0pgpass2025
     volumes:
