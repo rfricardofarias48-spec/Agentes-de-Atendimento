@@ -10,7 +10,7 @@ import { Button } from '../../components/ui/button'
 import { cn } from '../../lib/utils'
 
 // ── Calendar constants ─────────────────────────────────────────
-const HOUR_HEIGHT = 56
+const HOUR_HEIGHT = 64
 const DEFAULT_START = 8
 const END_HOUR = 20
 const TIME_COL_W = 60
