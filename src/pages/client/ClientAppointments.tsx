@@ -16,19 +16,15 @@ const END_HOUR = 20
 const TIME_COL_W = 60
 const DAY_PT = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
 
-const APPT_PALETTES = [
-  { bg: 'bg-brand-50',  bar: 'bg-brand-400',  text: 'text-brand-900',  sub: 'text-brand-600'  },
-  { bg: 'bg-blue-50',   bar: 'bg-blue-400',   text: 'text-blue-900',   sub: 'text-blue-600'   },
-  { bg: 'bg-violet-50', bar: 'bg-violet-400', text: 'text-violet-900', sub: 'text-violet-600' },
-  { bg: 'bg-orange-50', bar: 'bg-orange-400', text: 'text-orange-900', sub: 'text-orange-600' },
-  { bg: 'bg-pink-50',   bar: 'bg-pink-400',   text: 'text-pink-900',   sub: 'text-pink-600'   },
-  { bg: 'bg-teal-50',   bar: 'bg-teal-400',   text: 'text-teal-900',   sub: 'text-teal-600'   },
-  { bg: 'bg-amber-50',  bar: 'bg-amber-400',  text: 'text-amber-900',  sub: 'text-amber-600'  },
-]
+const STATUS_PALETTES: Record<string, { bg: string; bar: string; text: string; sub: string }> = {
+  scheduled: { bg: 'bg-blue-50',   bar: 'bg-blue-400',   text: 'text-blue-900',   sub: 'text-blue-600'   },
+  confirmed: { bg: 'bg-blue-50',   bar: 'bg-blue-400',   text: 'text-blue-900',   sub: 'text-blue-600'   },
+  completed: { bg: 'bg-emerald-50', bar: 'bg-emerald-500', text: 'text-emerald-900', sub: 'text-emerald-600' },
+  cancelled: { bg: 'bg-red-50',    bar: 'bg-red-400',    text: 'text-red-900',    sub: 'text-red-600'    },
+}
 
-function apptPalette(specialty: string) {
-  const hash = specialty.split('').reduce((a, c) => a + c.charCodeAt(0), 0)
-  return APPT_PALETTES[hash % APPT_PALETTES.length]
+function apptPalette(status: string) {
+  return STATUS_PALETTES[status] ?? STATUS_PALETTES.scheduled
 }
 
 function apptTop(iso: string, startHour: number): number | null {
@@ -419,7 +415,7 @@ export default function ClientAppointments() {
                         {dayAppts.map(appt => {
                           const top = apptTop(appt.scheduled_at, startHour)
                           if (top === null) return null
-                          const pal = apptPalette(appt.specialty)
+                          const pal = apptPalette(appt.status)
                           const d = new Date(appt.scheduled_at)
                           const time = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
                           const initials = appt.patient_name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()
@@ -547,7 +543,7 @@ export default function ClientAppointments() {
 
       {/* ── Detail modal ─────────────────────────────────────────── */}
       {detailAppt && (() => {
-        const pal = apptPalette(detailAppt.specialty)
+        const pal = apptPalette(detailAppt.status)
         const d = new Date(detailAppt.scheduled_at)
         const dateStr = d.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
         const timeStr = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
