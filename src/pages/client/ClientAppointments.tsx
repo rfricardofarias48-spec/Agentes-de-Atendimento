@@ -1,5 +1,5 @@
 import { type ReactNode, useEffect, useState, useMemo } from 'react'
-import { Search, Plus, X, ChevronLeft, ChevronRight, Calendar, List, Clock, User, Stethoscope, Phone, FileText, Pencil, Trash2 } from 'lucide-react'
+import { Search, Plus, X, ChevronLeft, ChevronRight, Calendar, List, User, Stethoscope, Phone, FileText, Pencil, Trash2 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { type Appointment } from '../../types'
