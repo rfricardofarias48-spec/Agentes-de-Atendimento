@@ -186,9 +186,11 @@ export default function ClientAppointments() {
 
   async function handleStatusChange(status: Appointment['status']) {
     if (!detailAppt) return
-    await supabase.from('appointments').update({ status }).eq('id', detailAppt.id)
-    setDetailAppt({ ...detailAppt, status })
-    setAppointments(prev => prev.map(a => a.id === detailAppt.id ? { ...a, status } : a))
+    const id = detailAppt.id
+    const { error } = await supabase.from('appointments').update({ status }).eq('id', id)
+    if (error) return
+    setDetailAppt(prev => prev ? { ...prev, status } : null)
+    setAppointments(prev => prev.map(a => a.id === id ? { ...a, status } : a))
   }
 
   async function handleDelete() {
