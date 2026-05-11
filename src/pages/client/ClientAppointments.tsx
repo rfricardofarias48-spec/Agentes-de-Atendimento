@@ -3,7 +3,15 @@ import { Search, Plus, X, ChevronLeft, ChevronRight, Calendar, List, User, Steth
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { type Appointment } from '../../types'
-import { formatDate, statusLabel } from '../../lib/utils'
+import { statusLabel } from '../../lib/utils'
+
+function formatApptDate(iso: string): string {
+  const d = new Date(iso)
+  const day = String(d.getDate()).padStart(2, '0')
+  const month = String(d.getMonth() + 1).padStart(2, '0')
+  const h = d.getHours(), m = d.getMinutes()
+  return m === 0 ? `${day}/${month} · ${h}h` : `${day}/${month} · ${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+}
 import { Badge } from '../../components/ui/badge'
 import { Input } from '../../components/ui/input'
 import { Button } from '../../components/ui/button'
@@ -467,20 +475,11 @@ export default function ClientAppointments() {
         <div className="bg-white rounded-2xl border border-slate-100 shadow-[0_2px_12px_rgba(0,0,0,0.03)] overflow-hidden">
 
           {/* Column headers */}
-          <div className="flex items-center gap-4 px-6 py-3 border-b border-slate-50">
-            <div className="w-2 shrink-0" />
-            <p className="flex-1 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400 min-w-0">
-              Paciente · Especialidade
-            </p>
-            <p className="w-32 shrink-0 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400 hidden md:block">
-              Médico
-            </p>
-            <p className="w-28 shrink-0 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400 hidden sm:block">
-              Data
-            </p>
-            <p className="w-20 shrink-0 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400 text-right">
-              Status
-            </p>
+          <div className="grid grid-cols-[2fr_1.5fr_1fr_1fr] px-6 py-2.5 border-b border-slate-50 gap-4">
+            <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">Paciente</p>
+            <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">Profissional</p>
+            <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">Data</p>
+            <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400 text-right">Status</p>
           </div>
 
           {loading ? (
@@ -501,37 +500,30 @@ export default function ClientAppointments() {
                   key={appt.id}
                   onClick={() => setDetailAppt(appt)}
                   className={cn(
-                    'flex items-center gap-4 px-6 py-3.5 cursor-pointer transition-colors duration-150 hover:bg-slate-50/70 group',
+                    'grid grid-cols-[2fr_1.5fr_1fr_1fr] items-center px-6 py-3.5 gap-4 cursor-pointer transition-colors hover:bg-slate-50/70 group',
                     i % 2 !== 0 ? 'bg-slate-50/30' : '',
                   )}
                 >
-                  {/* Status dot */}
-                  <div className={cn(
-                    'w-2 h-2 rounded-full shrink-0 transition-transform duration-200 group-hover:scale-125',
-                    appt.status === 'scheduled'  ? 'bg-slate-300'   :
-                    appt.status === 'confirmed'  ? 'bg-emerald-400' :
-                    appt.status === 'cancelled'  ? 'bg-rose-400'    : 'bg-brand-400',
-                  )} />
-
                   {/* Patient + specialty */}
-                  <div className="flex-1 flex items-center gap-1.5 min-w-0">
-                    <p className="text-[13px] font-semibold text-gray-900 truncate">{appt.patient_name}</p>
-                    <span className="text-slate-300 text-[11px] shrink-0">·</span>
-                    <p className="text-[12px] text-slate-500 truncate">{appt.specialty}</p>
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className={cn('w-1.5 h-1.5 rounded-full shrink-0 transition-transform group-hover:scale-125', {
+                      'bg-blue-400':    appt.status === 'scheduled' || appt.status === 'confirmed',
+                      'bg-emerald-400': appt.status === 'completed',
+                      'bg-rose-400':    appt.status === 'cancelled',
+                    })} />
+                    <p className="text-[13px] font-semibold text-gray-900 truncate leading-none">
+                      {appt.patient_name}
+                      {appt.specialty && (
+                        <span className="font-normal text-slate-400"> ({appt.specialty.charAt(0).toUpperCase() + appt.specialty.slice(1).toLowerCase()})</span>
+                      )}
+                    </p>
                   </div>
-
                   {/* Doctor */}
-                  <p className="w-32 shrink-0 text-[12px] text-slate-400 truncate hidden md:block">
-                    {appt.doctor_name ?? '—'}
-                  </p>
-
+                  <p className="text-[12px] text-slate-500 truncate">{appt.doctor_name ?? '—'}</p>
                   {/* Date */}
-                  <p className="w-28 shrink-0 text-[12px] font-medium text-slate-500 tabular-nums hidden sm:block">
-                    {formatDate(appt.scheduled_at)}
-                  </p>
-
+                  <p className="text-[12px] font-medium text-slate-500 tabular-nums">{formatApptDate(appt.scheduled_at)}</p>
                   {/* Badge */}
-                  <div className="w-20 shrink-0 flex justify-end">
+                  <div className="flex justify-end">
                     <Badge variant={statusColors[appt.status] ?? 'outline'} className="text-[10px] font-semibold">
                       {statusLabel(appt.status)}
                     </Badge>
