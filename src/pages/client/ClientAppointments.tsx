@@ -94,6 +94,7 @@ export default function ClientAppointments() {
   const [detailAppt, setDetailAppt] = useState<Appointment | null>(null)
   const [editMode, setEditMode] = useState(false)
   const [editForm, setEditForm] = useState<FormData>(EMPTY)
+  const [showStatusPicker, setShowStatusPicker] = useState(false)
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState('')
 
@@ -552,7 +553,7 @@ export default function ClientAppointments() {
         const timeStr = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="absolute inset-0 bg-black/30 backdrop-blur-[2px]" onClick={() => { setDetailAppt(null); setEditMode(false) }} />
+            <div className="absolute inset-0 bg-black/30 backdrop-blur-[2px]" onClick={() => { setDetailAppt(null); setEditMode(false); setShowStatusPicker(false) }} />
             <div className="relative bg-white rounded-2xl shadow-[0_8px_40px_rgba(0,0,0,0.18)] w-full max-w-sm overflow-hidden">
 
               {/* Top action bar */}
@@ -581,23 +582,35 @@ export default function ClientAppointments() {
                     </div>
                   </div>
 
-                  {/* Status picker */}
-                  <div className="px-5 pb-3 flex gap-1.5 flex-wrap">
-                    {STATUS_OPTIONS.map(opt => (
-                      <button
-                        key={opt.value}
-                        onClick={() => handleStatusChange(opt.value as Appointment['status'])}
-                        className={cn(
-                          'px-3 py-1 rounded-full text-[11px] font-semibold border transition-all duration-150',
-                          detailAppt.status === opt.value
-                            ? 'text-white border-transparent shadow-sm'
-                            : 'border-slate-200 text-slate-500 hover:border-slate-300 bg-white',
-                        )}
-                        style={detailAppt.status === opt.value ? { background: 'linear-gradient(135deg, #2C82B5, #2570a0)' } : {}}
-                      >
-                        {opt.label}
-                      </button>
-                    ))}
+                  {/* Status button */}
+                  <div className="px-5 pb-3 relative">
+                    <button
+                      onClick={() => setShowStatusPicker(v => !v)}
+                      className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl border border-slate-200 bg-white text-[12px] font-semibold text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-all"
+                    >
+                      <Badge variant={statusColors[detailAppt.status] ?? 'outline'} className="text-[10px]">
+                        {statusLabel(detailAppt.status)}
+                      </Badge>
+                      Atualizar Status
+                    </button>
+                    {showStatusPicker && (
+                      <div className="absolute left-5 top-full mt-1 z-10 bg-white rounded-xl border border-slate-200 shadow-[0_8px_24px_rgba(0,0,0,0.12)] overflow-hidden">
+                        {STATUS_OPTIONS.map(opt => (
+                          <button
+                            key={opt.value}
+                            onClick={() => { handleStatusChange(opt.value as Appointment['status']); setShowStatusPicker(false) }}
+                            className={cn(
+                              'flex items-center gap-2 w-full px-4 py-2.5 text-[13px] text-left transition-colors hover:bg-slate-50',
+                              detailAppt.status === opt.value ? 'font-semibold text-brand-600 bg-brand-50/50' : 'text-slate-700',
+                            )}
+                          >
+                            {detailAppt.status === opt.value && <span className="w-1.5 h-1.5 rounded-full bg-brand-500 shrink-0" />}
+                            {detailAppt.status !== opt.value && <span className="w-1.5 h-1.5 shrink-0" />}
+                            {opt.label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
 
                   <div className="mx-5 h-px bg-slate-100" />
