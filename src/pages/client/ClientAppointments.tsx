@@ -559,6 +559,32 @@ export default function ClientAppointments() {
               {/* Top action bar */}
               <div className="flex items-center justify-end gap-1 px-4 pt-3 pb-1">
                 {!editMode && <>
+                  {/* Status dropdown */}
+                  <div className="relative mr-1">
+                    <button
+                      onClick={() => setShowStatusPicker(v => !v)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-[12px] font-semibold text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-all"
+                    >
+                      Atualizar Status
+                    </button>
+                    {showStatusPicker && (
+                      <div className="absolute right-0 top-full mt-1 z-10 bg-white rounded-xl border border-slate-200 shadow-[0_8px_24px_rgba(0,0,0,0.12)] overflow-hidden min-w-[160px]">
+                        {STATUS_OPTIONS.map(opt => (
+                          <button
+                            key={opt.value}
+                            onClick={() => { handleStatusChange(opt.value as Appointment['status']); setShowStatusPicker(false) }}
+                            className={cn(
+                              'flex items-center gap-2 w-full px-4 py-2.5 text-[13px] text-left transition-colors hover:bg-slate-50',
+                              detailAppt.status === opt.value ? 'font-semibold text-brand-600 bg-brand-50/50' : 'text-slate-700',
+                            )}
+                          >
+                            <span className={cn('w-1.5 h-1.5 rounded-full shrink-0', detailAppt.status === opt.value ? 'bg-brand-500' : 'bg-slate-200')} />
+                            {opt.label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                   <button onClick={() => openEdit(detailAppt)} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-100 transition-colors text-slate-400 hover:text-brand-500">
                     <Pencil className="w-4 h-4" />
                   </button>
@@ -582,36 +608,6 @@ export default function ClientAppointments() {
                     </div>
                   </div>
 
-                  {/* Status button */}
-                  <div className="px-5 pb-3 relative">
-                    <button
-                      onClick={() => setShowStatusPicker(v => !v)}
-                      className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl border border-slate-200 bg-white text-[12px] font-semibold text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-all"
-                    >
-                      <Badge variant={statusColors[detailAppt.status] ?? 'outline'} className="text-[10px]">
-                        {statusLabel(detailAppt.status)}
-                      </Badge>
-                      Atualizar Status
-                    </button>
-                    {showStatusPicker && (
-                      <div className="absolute left-5 top-full mt-1 z-10 bg-white rounded-xl border border-slate-200 shadow-[0_8px_24px_rgba(0,0,0,0.12)] overflow-hidden">
-                        {STATUS_OPTIONS.map(opt => (
-                          <button
-                            key={opt.value}
-                            onClick={() => { handleStatusChange(opt.value as Appointment['status']); setShowStatusPicker(false) }}
-                            className={cn(
-                              'flex items-center gap-2 w-full px-4 py-2.5 text-[13px] text-left transition-colors hover:bg-slate-50',
-                              detailAppt.status === opt.value ? 'font-semibold text-brand-600 bg-brand-50/50' : 'text-slate-700',
-                            )}
-                          >
-                            {detailAppt.status === opt.value && <span className="w-1.5 h-1.5 rounded-full bg-brand-500 shrink-0" />}
-                            {detailAppt.status !== opt.value && <span className="w-1.5 h-1.5 shrink-0" />}
-                            {opt.label}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
 
                   <div className="mx-5 h-px bg-slate-100" />
 
