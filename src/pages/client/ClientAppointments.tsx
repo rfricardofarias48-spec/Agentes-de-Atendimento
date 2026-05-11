@@ -1,5 +1,5 @@
 import { type ReactNode, useEffect, useState, useMemo } from 'react'
-import { Search, Plus, X, ChevronLeft, ChevronRight, Calendar, List, Clock, User, Stethoscope, Phone, FileText } from 'lucide-react'
+import { Search, Plus, X, ChevronLeft, ChevronRight, Calendar, List, Clock, User, Stethoscope, Phone, FileText, Pencil, Trash2 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { type Appointment } from '../../types'
@@ -499,73 +499,62 @@ export default function ClientAppointments() {
         const d = new Date(detailAppt.scheduled_at)
         const dateStr = d.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
         const timeStr = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
-        const initials = detailAppt.patient_name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div
-              className="absolute inset-0 bg-black/40 backdrop-blur-[3px]"
-              onClick={() => setDetailAppt(null)}
-            />
-            <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden">
+            <div className="absolute inset-0 bg-black/30 backdrop-blur-[2px]" onClick={() => setDetailAppt(null)} />
+            <div className="relative bg-white rounded-2xl shadow-[0_8px_40px_rgba(0,0,0,0.18)] w-full max-w-sm overflow-hidden">
 
-              {/* Colored header */}
-              <div className={cn('px-6 pt-6 pb-5 relative', pal.bg)}>
-                <div className={cn('absolute left-0 top-0 bottom-0 w-[3px]', pal.bar)} />
-                <button
-                  onClick={() => setDetailAppt(null)}
-                  className="absolute top-4 right-4 w-7 h-7 flex items-center justify-center rounded-full bg-black/10 hover:bg-black/20 transition-colors"
-                >
-                  <X className="w-3.5 h-3.5 text-slate-700" />
+              {/* Top action bar */}
+              <div className="flex items-center justify-end gap-1 px-4 pt-3 pb-1">
+                <button className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-100 transition-colors text-slate-400 hover:text-slate-600">
+                  <Pencil className="w-4 h-4" />
                 </button>
-                <div className="flex items-center gap-3">
-                  <div className={cn(
-                    'w-12 h-12 rounded-2xl flex items-center justify-center text-sm font-black text-white shadow-sm shrink-0',
-                    pal.bar,
-                  )}>
-                    {initials}
-                  </div>
-                  <div>
-                    <p className={cn('font-bold text-base leading-tight', pal.text)}>
-                      {detailAppt.patient_name}
-                    </p>
-                    <div className="mt-1.5">
-                      <Badge variant={statusColors[detailAppt.status] ?? 'outline'} className="text-[10px]">
-                        {statusLabel(detailAppt.status)}
-                      </Badge>
-                    </div>
+                <button className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-100 transition-colors text-slate-400 hover:text-rose-500">
+                  <Trash2 className="w-4 h-4" />
+                </button>
+                <button onClick={() => setDetailAppt(null)} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-100 transition-colors text-slate-400 hover:text-slate-700">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Title row */}
+              <div className="flex items-start gap-3 px-5 pb-4">
+                <div className={cn('w-3 h-3 rounded-sm mt-1.5 shrink-0', pal.bar)} />
+                <div>
+                  <p className="text-[17px] font-semibold text-gray-900 leading-snug">{detailAppt.patient_name}</p>
+                  <p className="text-[13px] text-slate-500 mt-0.5 capitalize">{dateStr} · {timeStr}</p>
+                  <div className="mt-2">
+                    <Badge variant={statusColors[detailAppt.status] ?? 'outline'} className="text-[10px]">
+                      {statusLabel(detailAppt.status)}
+                    </Badge>
                   </div>
                 </div>
               </div>
 
+              {/* Divider */}
+              <div className="mx-5 h-px bg-slate-100" />
+
               {/* Detail rows */}
-              <div className="px-6 py-5 space-y-3.5">
-                <DetailRow icon={<Clock className="w-3.5 h-3.5" />} label="Data e horário">
-                  <span className="capitalize">{dateStr}</span> às <strong>{timeStr}</strong>
-                </DetailRow>
-                <DetailRow icon={<Stethoscope className="w-3.5 h-3.5" />} label="Especialidade">
-                  {detailAppt.specialty}
-                </DetailRow>
+              <div className="px-5 py-4 space-y-3">
+                <GCalRow icon={<Stethoscope className="w-4 h-4" />}>
+                  {detailAppt.specialty.charAt(0).toUpperCase() + detailAppt.specialty.slice(1).toLowerCase()}
+                </GCalRow>
                 {detailAppt.doctor_name && (
-                  <DetailRow icon={<User className="w-3.5 h-3.5" />} label="Médico">
-                    {detailAppt.doctor_name}
-                  </DetailRow>
+                  <GCalRow icon={<User className="w-4 h-4" />}>{detailAppt.doctor_name}</GCalRow>
                 )}
                 {detailAppt.patient_phone && (
-                  <DetailRow icon={<Phone className="w-3.5 h-3.5" />} label="Telefone">
-                    {detailAppt.patient_phone}
-                  </DetailRow>
+                  <GCalRow icon={<Phone className="w-4 h-4" />}>{detailAppt.patient_phone}</GCalRow>
                 )}
                 {detailAppt.notes && (
-                  <DetailRow icon={<FileText className="w-3.5 h-3.5" />} label="Observações">
-                    {detailAppt.notes}
-                  </DetailRow>
+                  <GCalRow icon={<FileText className="w-4 h-4" />}>{detailAppt.notes}</GCalRow>
                 )}
               </div>
 
-              <div className="px-6 pb-6">
+              {/* Footer */}
+              <div className="px-5 pb-5 pt-1">
                 <button
                   onClick={() => setDetailAppt(null)}
-                  className="w-full py-2.5 rounded-2xl text-[13px] font-semibold text-slate-600 border border-slate-200 hover:bg-slate-50 transition-colors"
+                  className="w-full py-2 rounded-xl text-[13px] font-medium text-slate-600 border border-slate-200 hover:bg-slate-50 transition-colors"
                 >
                   Fechar
                 </button>
@@ -725,18 +714,11 @@ export default function ClientAppointments() {
 
 // ── Helpers ────────────────────────────────────────────────────
 
-function DetailRow({ icon, label, children }: {
-  icon: ReactNode; label: string; children: ReactNode
-}) {
+function GCalRow({ icon, children }: { icon: ReactNode; children: ReactNode }) {
   return (
     <div className="flex items-start gap-3">
-      <div className="w-7 h-7 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400 shrink-0 mt-0.5">
-        {icon}
-      </div>
-      <div className="min-w-0">
-        <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-400 leading-none mb-1">{label}</p>
-        <p className="text-[13px] text-slate-700 leading-snug">{children}</p>
-      </div>
+      <div className="text-slate-400 shrink-0 mt-0.5">{icon}</div>
+      <p className="text-[13px] text-slate-700 leading-snug">{children}</p>
     </div>
   )
 }
