@@ -46,12 +46,9 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
             className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 shadow-[0_4px_12px_rgba(44,130,181,0.4)]"
             style={{ background: 'linear-gradient(135deg, #2C82B5, #1e5f88)' }}
           >
-            <Bot className="w-4.5 h-4.5 text-white w-[18px] h-[18px]" />
+            <Bot className="w-[18px] h-[18px] text-white" />
           </div>
-          <div className="min-w-0">
-            <p className="text-[9px] font-black uppercase tracking-[0.18em] text-slate-500 leading-none">AgenteClin</p>
-            <p className="text-[13px] font-bold text-white truncate leading-snug mt-0.5">{orgName || 'Minha Clínica'}</p>
-          </div>
+          <p className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-400 leading-none">AgenteClin</p>
         </div>
 
       </div>

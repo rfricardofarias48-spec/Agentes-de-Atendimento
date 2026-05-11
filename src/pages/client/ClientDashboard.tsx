@@ -120,7 +120,7 @@ export default function ClientDashboard() {
       {/* ── Greeting + period ───────────────────────────────────── */}
       <div className="flex items-end justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-[1.75rem] font-black text-gray-900 leading-none">
+          <h1 className="text-[1.35rem] font-black text-gray-900 leading-none">
             Olá, {firstName}
           </h1>
         </div>
