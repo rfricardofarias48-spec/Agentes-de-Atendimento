@@ -605,6 +605,11 @@ export default function ClientAppointments() {
                     <div>
                       <p className="text-[17px] font-semibold text-gray-900 leading-snug">{detailAppt.patient_name}</p>
                       <p className="text-[13px] text-slate-500 mt-0.5 capitalize">{dateStr} · {timeStr}</p>
+                      <div className="mt-2">
+                        <Badge variant={statusColors[detailAppt.status] ?? 'outline'} className="text-[10px]">
+                          {statusLabel(detailAppt.status)}
+                        </Badge>
+                      </div>
                     </div>
                   </div>
 
