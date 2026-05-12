@@ -7,18 +7,10 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { generatePaymentLink, PLAN_PRICES, PLAN_LABELS } from '../services/asaasService.js';
 import { supabaseAdmin } from '../lib/supabaseAdmin.js';
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID } from 'crypto';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
-
-  const { data: { session } } = await (await import('@supabase/supabase-js')).createClient(
-    process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || '',
-    process.env.VITE_SUPABASE_ANON_KEY || '',
-  ).auth.getSession();
-
-  const authHeader = req.headers.authorization;
-  if (!authHeader) return res.status(401).json({ error: 'Unauthorized' });
 
   const { clientName, clientEmail, plan, billing } = req.body as {
     clientName?: string;
@@ -39,12 +31,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ error: 'Billing inválido' });
   }
 
-  const saleId = uuidv4();
+  const saleId = randomUUID();
 
   try {
     const link = await generatePaymentLink({ clientName, clientEmail, plan, billing, saleId });
 
-    // Salva registro da venda pendente
     await supabaseAdmin.from('sales').insert({
       id: saleId,
       client_name: clientName,
