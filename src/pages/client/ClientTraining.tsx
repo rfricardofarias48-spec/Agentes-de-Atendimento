@@ -20,7 +20,6 @@ export default function ClientBento() {
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [agentId, setAgentId]               = useState<string | null>(null)
-  const [agentName, setAgentName]           = useState('Assistente')
   const [agentGreeting, setAgentGreeting]   = useState('')
   const [agentTone, setAgentTone]           = useState<'friendly' | 'formal'>('friendly')
   const [agentInstructions, setAgentInstructions] = useState('')
@@ -44,7 +43,6 @@ export default function ClientBento() {
       .then(({ data }) => {
         if (data) {
           setAgentId(data.id)
-          setAgentName(data.agent_name || 'Assistente')
           setAgentGreeting(data.greeting_message || '')
           setAgentTone(data.tone === 'formal' ? 'formal' : 'friendly')
           setAgentInstructions(data.custom_instructions || '')
@@ -60,7 +58,7 @@ export default function ClientBento() {
     setMsg(null)
     const payload = {
       org_id: orgId,
-      agent_name: agentName,
+      agent_name: 'Bento',
       greeting_message: agentGreeting,
       tone: agentTone,
       custom_instructions: agentInstructions,
@@ -179,17 +177,6 @@ export default function ClientBento() {
           {/* Perfil do Agente */}
           <div className="bg-white rounded-[2rem] border border-slate-100 shadow-[0px_4px_20px_rgba(0,0,0,0.02)] p-6 space-y-5">
             <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">Perfil do Agente</p>
-
-            <div className="space-y-1.5">
-              <label className="block text-sm font-medium text-slate-700">Nome do Agente</label>
-              <input
-                type="text"
-                value={agentName}
-                onChange={e => setAgentName(e.target.value)}
-                placeholder="Assistente"
-                className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent transition-all"
-              />
-            </div>
 
             <div className="space-y-1.5">
               <label className="block text-sm font-medium text-slate-700">Tom de Voz</label>
