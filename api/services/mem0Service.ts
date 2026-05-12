@@ -21,10 +21,10 @@ export async function searchMemory(
 ): Promise<string[]> {
   if (!MEM0_URL) return [];
   try {
-    const res = await fetch(`${MEM0_URL}/v1/memories/search/`, {
+    const res = await fetch(`${MEM0_URL}/search`, {
       method: 'POST',
       headers: headers(),
-      body: JSON.stringify({ query, user_id: userId, limit }),
+      body: JSON.stringify({ query, filters: { user_id: userId }, limit }),
     });
     if (!res.ok) return [];
     const data = await res.json() as { results?: Array<{ memory: string }> };
@@ -41,7 +41,7 @@ export async function addMemory(
 ): Promise<void> {
   if (!MEM0_URL) return;
   try {
-    await fetch(`${MEM0_URL}/v1/memories/`, {
+    await fetch(`${MEM0_URL}/memories`, {
       method: 'POST',
       headers: headers(),
       body: JSON.stringify({ messages, user_id: userId }),
@@ -53,12 +53,12 @@ export async function addMemory(
 export async function getMemories(userId: string): Promise<string[]> {
   if (!MEM0_URL) return [];
   try {
-    const res = await fetch(`${MEM0_URL}/v1/memories/?user_id=${encodeURIComponent(userId)}`, {
+    const res = await fetch(`${MEM0_URL}/memories?user_id=${encodeURIComponent(userId)}`, {
       headers: headers(),
     });
     if (!res.ok) return [];
-    const data = await res.json() as Array<{ memory: string }>;
-    return data.map(r => r.memory);
+    const data = await res.json() as { results?: Array<{ memory: string }> };
+    return (data.results || []).map(r => r.memory);
   } catch {
     return [];
   }
