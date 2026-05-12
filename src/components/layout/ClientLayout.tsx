@@ -1,10 +1,9 @@
-import { type ReactNode, useState, useEffect } from 'react'
+import { type ReactNode, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, Calendar, CreditCard, Settings, LogOut,
   Bot, Menu, X,
 } from 'lucide-react'
-import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { cn } from '../../lib/utils'
 
@@ -21,17 +20,10 @@ const navItems = [
 interface ClientLayoutProps { children: ReactNode }
 
 export default function ClientLayout({ children }: ClientLayoutProps) {
-  const { signOut, orgId } = useAuth()
+  const { signOut } = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
   const [mobileOpen, setMobileOpen] = useState(false)
-  const [orgName, setOrgName] = useState('')
-
-  useEffect(() => {
-    if (!orgId) return
-    supabase.from('organizations').select('name').eq('id', orgId).single()
-      .then(({ data }) => { if (data) setOrgName(data.name) })
-  }, [orgId])
 
   async function handleSignOut() { await signOut(); navigate('/login') }
 
