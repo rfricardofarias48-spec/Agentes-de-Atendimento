@@ -49,38 +49,50 @@ export default function Login() {
   return (
     <div
       className="min-h-screen flex items-center justify-center p-4"
-      style={{ background: 'var(--c-bg)' }}
+      style={{ background: '#0a0a0a' }}
     >
-      <div className="w-full max-w-[360px] animate-scale-in">
+      {/* Subtle radial glow */}
+      <div
+        className="fixed inset-0 pointer-events-none"
+        style={{
+          background: 'radial-gradient(ellipse 60% 50% at 50% 0%, rgba(44,130,181,0.12) 0%, transparent 70%)',
+        }}
+      />
+
+      <div className="relative w-full max-w-[380px]">
+
+        {/* Logo */}
+        <div className="flex justify-center mb-8">
+          <img
+            src="https://ik.imagekit.io/xsbrdnr0y/Logo%20sem%20fundo.png"
+            alt="Gestor"
+            className="h-14 w-auto object-contain"
+          />
+        </div>
+
+        {/* Card */}
         <div
           className="rounded-2xl overflow-hidden"
           style={{
-            background: '#ffffff',
-            border: '1px solid #e4e7ec',
-            boxShadow: '0 4px 24px rgba(16,24,40,0.08), 0 1px 4px rgba(16,24,40,0.04)',
+            background: '#141414',
+            border: '1px solid rgba(255,255,255,0.08)',
+            boxShadow: '0 24px 64px rgba(0,0,0,0.5)',
           }}
         >
-          <div className="px-8 py-9">
-            {/* Logo */}
-            <div className="flex flex-col items-center mb-8">
-              <img
-                src="https://ik.imagekit.io/xsbrdnr0y/Logo%20sem%20fundo.png"
-                alt="Gestor"
-                className="h-14 w-auto mb-3 object-contain"
-              />
-              <h1 className="text-xl font-bold tracking-tight" style={{ color: '#101828' }}>
-                Gestor
-              </h1>
-              <p className="text-sm mt-1" style={{ color: '#98a2b3' }}>
-                {forgotMode ? 'Recuperação de senha' : 'Painel de controle'}
-              </p>
-            </div>
+          <div className="px-8 py-8">
+
+            <h2 className="text-base font-semibold text-white mb-1">
+              {forgotMode ? 'Recuperar senha' : 'Entrar na sua conta'}
+            </h2>
+            <p className="text-sm mb-6" style={{ color: 'rgba(255,255,255,0.35)' }}>
+              {forgotMode ? 'Enviaremos um link para seu e-mail.' : 'Bem-vindo de volta.'}
+            </p>
 
             {/* ── LOGIN ── */}
             {!forgotMode && (
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                  <label className="block text-xs font-semibold mb-1.5 uppercase tracking-wider" style={{ color: '#475467' }}>
+                  <label className="block text-[11px] font-semibold mb-1.5 uppercase tracking-widest" style={{ color: 'rgba(255,255,255,0.35)' }}>
                     E-mail
                   </label>
                   <input
@@ -89,22 +101,29 @@ export default function Login() {
                     value={email}
                     onChange={e => setEmail(e.target.value)}
                     required autoFocus
-                    className="input-dark w-full px-4 py-2.5 text-sm"
+                    className="w-full px-4 py-2.5 text-sm rounded-xl outline-none transition-all"
+                    style={{
+                      background: 'rgba(255,255,255,0.05)',
+                      border: '1px solid rgba(255,255,255,0.09)',
+                      color: '#fff',
+                    }}
+                    onFocus={e => (e.currentTarget.style.borderColor = 'rgba(44,130,181,0.6)')}
+                    onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.09)')}
                   />
                 </div>
 
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
-                    <label className="block text-xs font-semibold uppercase tracking-wider" style={{ color: '#475467' }}>
+                    <label className="block text-[11px] font-semibold uppercase tracking-widest" style={{ color: 'rgba(255,255,255,0.35)' }}>
                       Senha
                     </label>
                     <button
                       type="button"
                       onClick={() => { setForgotMode(true); setForgotEmail(email); setForgotMsg(null) }}
-                      className="text-xs font-medium transition-colors"
-                      style={{ color: '#2C82B5' }}
-                      onMouseEnter={e => (e.currentTarget.style.color = '#2570a0')}
-                      onMouseLeave={e => (e.currentTarget.style.color = '#2C82B5')}
+                      className="text-[11px] font-medium transition-colors"
+                      style={{ color: 'rgba(44,130,181,0.8)' }}
+                      onMouseEnter={e => (e.currentTarget.style.color = '#2C82B5')}
+                      onMouseLeave={e => (e.currentTarget.style.color = 'rgba(44,130,181,0.8)')}
                     >
                       Esqueci minha senha
                     </button>
@@ -115,14 +134,21 @@ export default function Login() {
                     value={password}
                     onChange={e => setPassword(e.target.value)}
                     required
-                    className="input-dark w-full px-4 py-2.5 text-sm"
+                    className="w-full px-4 py-2.5 text-sm rounded-xl outline-none transition-all"
+                    style={{
+                      background: 'rgba(255,255,255,0.05)',
+                      border: '1px solid rgba(255,255,255,0.09)',
+                      color: '#fff',
+                    }}
+                    onFocus={e => (e.currentTarget.style.borderColor = 'rgba(44,130,181,0.6)')}
+                    onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.09)')}
                   />
                 </div>
 
                 {error && (
                   <div
-                    className="flex items-center gap-2 px-3.5 py-2.5 rounded-lg text-xs font-medium"
-                    style={{ background: '#fef2f2', border: '1px solid #fecaca', color: '#dc2626' }}
+                    className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs font-medium"
+                    style={{ background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.2)', color: '#f87171' }}
                   >
                     <AlertCircle className="w-3.5 h-3.5 shrink-0" />
                     {error}
@@ -132,10 +158,13 @@ export default function Login() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="btn-primary w-full flex items-center justify-center gap-2 py-2.5 text-sm mt-1"
+                  className="w-full flex items-center justify-center gap-2 py-2.5 text-sm font-semibold rounded-xl transition-all mt-1 disabled:opacity-50"
+                  style={{ background: '#2C82B5', color: '#fff' }}
+                  onMouseEnter={e => { if (!loading) (e.currentTarget as HTMLElement).style.background = '#2570a0' }}
+                  onMouseLeave={e => { if (!loading) (e.currentTarget as HTMLElement).style.background = '#2C82B5' }}
                 >
                   {loading
-                    ? <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                    ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                     : <><span>Entrar</span><ArrowRight className="w-4 h-4" /></>
                   }
                 </button>
@@ -146,7 +175,7 @@ export default function Login() {
             {forgotMode && (
               <form onSubmit={handleForgot} className="space-y-4">
                 <div>
-                  <label className="block text-xs font-semibold mb-1.5 uppercase tracking-wider" style={{ color: '#475467' }}>
+                  <label className="block text-[11px] font-semibold mb-1.5 uppercase tracking-widest" style={{ color: 'rgba(255,255,255,0.35)' }}>
                     Seu e-mail
                   </label>
                   <input
@@ -155,20 +184,23 @@ export default function Login() {
                     value={forgotEmail}
                     onChange={e => setForgotEmail(e.target.value)}
                     required autoFocus
-                    className="input-dark w-full px-4 py-2.5 text-sm"
+                    className="w-full px-4 py-2.5 text-sm rounded-xl outline-none transition-all"
+                    style={{
+                      background: 'rgba(255,255,255,0.05)',
+                      border: '1px solid rgba(255,255,255,0.09)',
+                      color: '#fff',
+                    }}
+                    onFocus={e => (e.currentTarget.style.borderColor = 'rgba(44,130,181,0.6)')}
+                    onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.09)')}
                   />
                 </div>
 
-                <p className="text-xs" style={{ color: '#98a2b3' }}>
-                  Enviaremos um link para redefinir sua senha.
-                </p>
-
                 {forgotMsg && (
                   <div
-                    className="flex items-center gap-2 px-3.5 py-2.5 rounded-lg text-xs font-medium"
+                    className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs font-medium"
                     style={forgotMsg.ok
-                      ? { background: '#f0fdf4', border: '1px solid #b3d4ec', color: '#2570a0' }
-                      : { background: '#fef2f2', border: '1px solid #fecaca', color: '#dc2626' }
+                      ? { background: 'rgba(44,130,181,0.12)', border: '1px solid rgba(44,130,181,0.25)', color: '#7ec8e3' }
+                      : { background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.2)', color: '#f87171' }
                     }
                   >
                     {forgotMsg.ok
@@ -183,10 +215,13 @@ export default function Login() {
                   <button
                     type="submit"
                     disabled={forgotLoading}
-                    className="btn-primary w-full flex items-center justify-center gap-2 py-2.5 text-sm"
+                    className="w-full flex items-center justify-center gap-2 py-2.5 text-sm font-semibold rounded-xl transition-all disabled:opacity-50"
+                    style={{ background: '#2C82B5', color: '#fff' }}
+                    onMouseEnter={e => { if (!forgotLoading) (e.currentTarget as HTMLElement).style.background = '#2570a0' }}
+                    onMouseLeave={e => { if (!forgotLoading) (e.currentTarget as HTMLElement).style.background = '#2C82B5' }}
                   >
                     {forgotLoading
-                      ? <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                      ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                       : <><span>Enviar link</span><ArrowRight className="w-4 h-4" /></>
                     }
                   </button>
@@ -195,10 +230,10 @@ export default function Login() {
                 <button
                   type="button"
                   onClick={() => { setForgotMode(false); setForgotMsg(null) }}
-                  className="w-full text-center text-xs font-medium transition-colors"
-                  style={{ color: '#98a2b3' }}
-                  onMouseEnter={e => (e.currentTarget.style.color = '#344054')}
-                  onMouseLeave={e => (e.currentTarget.style.color = '#98a2b3')}
+                  className="w-full text-center text-xs font-medium transition-colors py-1"
+                  style={{ color: 'rgba(255,255,255,0.3)' }}
+                  onMouseEnter={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.6)')}
+                  onMouseLeave={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.3)')}
                 >
                   ← Voltar ao login
                 </button>
@@ -207,7 +242,7 @@ export default function Login() {
           </div>
         </div>
 
-        <p className="text-center text-xs mt-5" style={{ color: '#d0d5dd' }}>
+        <p className="text-center text-[11px] mt-6" style={{ color: 'rgba(255,255,255,0.15)' }}>
           Gestor © {new Date().getFullYear()}
         </p>
       </div>
