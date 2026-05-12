@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Check, Zap } from 'lucide-react'
+import { Check, Zap, Loader2 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { type Organization } from '../../types'
@@ -73,6 +73,8 @@ export default function ClientPayments() {
   const { orgId } = useAuth()
   const [org, setOrg] = useState<Organization | null>(null)
   const [annual, setAnnual] = useState(false)
+  const [loadingPlan, setLoadingPlan] = useState<string | null>(null)
+  const [ctaError, setCtaError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!orgId) return
@@ -82,6 +84,33 @@ export default function ClientPayments() {
 
   const planMeta = org ? (PLAN_META[org.plan] ?? { label: org.plan, price: 0 }) : null
   const usagePct = org ? Math.min(100, (org.conversations_used / org.max_conversations_month) * 100) : 0
+
+  async function handleSubscribe(planKey: string) {
+    setCtaError(null)
+    setLoadingPlan(planKey)
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user?.email) throw new Error('Usuário não identificado')
+
+      const res = await fetch('/api/sales/generate-link', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          clientName: org?.name ?? user.email,
+          clientEmail: user.email,
+          plan: planKey,
+          billing: annual ? 'anual' : 'mensal',
+        }),
+      })
+      const data = await res.json() as { url?: string; error?: string }
+      if (!res.ok || !data.url) throw new Error(data.error || 'Erro ao gerar link')
+      window.open(data.url, '_blank')
+    } catch (e) {
+      setCtaError(String(e))
+    } finally {
+      setLoadingPlan(null)
+    }
+  }
 
   return (
     <div className="space-y-4">
@@ -244,22 +273,32 @@ export default function ClientPayments() {
 
               {/* CTA */}
               <button
-                disabled={isCurrent}
+                disabled={isCurrent || loadingPlan === plan.key}
+                onClick={() => !isCurrent && handleSubscribe(plan.key)}
                 className={cn(
-                  'w-full py-3 rounded-2xl font-bold text-sm transition-all',
+                  'w-full py-3 rounded-2xl font-bold text-sm transition-all flex items-center justify-center gap-2',
                   isCurrent
                     ? 'bg-brand-400/20 text-brand-600 cursor-default border border-brand-400/30'
                     : plan.highlight
-                      ? 'bg-brand-400 text-gray-900 hover:bg-brand-300 active:bg-brand-500'
-                      : 'border border-slate-200 text-gray-900 bg-white hover:bg-slate-50 hover:border-slate-300',
+                      ? 'bg-brand-400 text-gray-900 hover:bg-brand-300 active:bg-brand-500 disabled:opacity-60'
+                      : 'border border-slate-200 text-gray-900 bg-white hover:bg-slate-50 hover:border-slate-300 disabled:opacity-60',
                 )}
               >
-                {isCurrent ? 'Plano Atual' : plan.cta}
+                {loadingPlan === plan.key
+                  ? <><Loader2 className="w-4 h-4 animate-spin" /> Aguarde...</>
+                  : isCurrent ? 'Plano Atual' : plan.cta
+                }
               </button>
             </div>
           )
         })}
       </div>
+
+      {ctaError && (
+        <p className="text-xs text-center font-medium text-red-500 bg-red-50 px-4 py-2.5 rounded-xl">
+          {ctaError}
+        </p>
+      )}
     </div>
   )
 }
