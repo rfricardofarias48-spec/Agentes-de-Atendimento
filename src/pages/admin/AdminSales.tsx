@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import {
-  Link2, Copy, Check, Loader2, ExternalLink,
-  ChevronDown, DollarSign,
+  Link2, Copy, Check, Loader2, ExternalLink, DollarSign,
 } from 'lucide-react'
 
 type Plan = 'starter' | 'pro' | 'clinic'
