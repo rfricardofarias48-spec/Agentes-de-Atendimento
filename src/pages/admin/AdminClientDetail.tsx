@@ -563,6 +563,16 @@ export default function AdminClientDetail() {
                     </div>
                   </Field>
                 )}
+                {isNew && (
+                  <>
+                    <Field label="E-mail de acesso">
+                      <TextInput type="email" value={newEmail} onChange={setNewEmail} placeholder="dono@clinica.com" />
+                    </Field>
+                    <Field label="Senha inicial">
+                      <TextInput type="password" value={newPassword} onChange={setNewPassword} placeholder="Mínimo 6 caracteres" />
+                    </Field>
+                  </>
+                )}
                 <div className="grid grid-cols-2 gap-4">
                   <Field label="Nome da Clínica">
                     <TextInput value={org.name ?? ''} onChange={v => setOrg(o => ({ ...o, name: v }))} placeholder="Clínica São Lucas" />
@@ -611,53 +621,6 @@ export default function AdminClientDetail() {
                 </Field>
               </Card>
 
-              {/* Acesso ao Dashboard (novo) */}
-              {isNew && (
-                <Card title="Acesso ao Dashboard">
-                  <div className="grid grid-cols-2 gap-4">
-                    <Field label="E-mail de login">
-                      <TextInput type="email" value={newEmail} onChange={setNewEmail} placeholder="dono@clinica.com" />
-                    </Field>
-                    <Field label="Senha inicial">
-                      <TextInput type="password" value={newPassword} onChange={setNewPassword} placeholder="Mínimo 6 caracteres" />
-                    </Field>
-                  </div>
-                  <p className="text-xs" style={{ color: '#98a2b3' }}>
-                    O usuário poderá alterar a senha após o primeiro acesso.
-                  </p>
-                </Card>
-              )}
-
-              {/* Configuração do Agente — visível na criação E na aba Geral */}
-              {isNew && (
-                <Card title="Agente">
-                  <Field label="Nome do Agente">
-                    <TextInput value={agentName} onChange={setAgentName} placeholder="Assistente" />
-                  </Field>
-                  <Field label="Tom de Voz">
-                    <ToggleGroup
-                      options={[{ value: 'friendly', label: 'Amigável' }, { value: 'formal', label: 'Formal' }]}
-                      value={agentTone}
-                      onChange={v => setAgentTone(v as 'friendly' | 'formal')}
-                    />
-                  </Field>
-                  <Field label="Saudação inicial">
-                    <textarea
-                      value={agentGreeting}
-                      onChange={e => setAgentGreeting(e.target.value)}
-                      placeholder={`Olá! Sou o assistente da ${org.name || 'Clínica'}. Como posso ajudar?`}
-                      rows={3}
-                      className="input-dark w-full px-3.5 py-2.5 text-sm resize-none"
-                    />
-                  </Field>
-                  <div className="flex items-start gap-2 p-3 rounded-xl" style={{ background: '#fffbeb', border: '1px solid #fde68a' }}>
-                    <Zap className="w-3.5 h-3.5 text-amber-500 mt-0.5 shrink-0" />
-                    <p className="text-xs" style={{ color: '#92400e' }}>
-                      O agente só ficará ativo após preencher os dados da Evolution API e rodar o setup.
-                    </p>
-                  </div>
-                </Card>
-              )}
 
               {/* Redefinir senha (edição) */}
               {!isNew && (
@@ -727,8 +690,8 @@ export default function AdminClientDetail() {
                 )}
               </Card>
 
-              {/* Chatwoot — apenas em edição, para override manual */}
-              {!isNew && (
+              {/* Chatwoot */}
+              {(
                 <Card title="Chatwoot">
                   <div className="grid grid-cols-2 gap-4">
                     <Field label="Account ID">
