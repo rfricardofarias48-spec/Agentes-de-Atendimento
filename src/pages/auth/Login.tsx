@@ -67,9 +67,12 @@ export default function Login() {
             <img
               src="https://ik.imagekit.io/xsbrdnr0y/Logo%20sem%20fundo.png"
               alt="Gestor"
-              className="h-14 w-auto object-contain"
+              className="h-20 w-auto object-contain"
             />
           </div>
+
+          {/* Divider */}
+          <div className="mx-8 mb-6" style={{ height: '1px', background: 'rgba(255,255,255,0.07)' }} />
 
           <div className="px-8 pb-8">
 
