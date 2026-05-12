@@ -2,7 +2,7 @@ import { type ReactNode, useState, useEffect } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, Calendar, CreditCard, Settings, LogOut,
-  Menu, X,
+  Bot, Menu, X,
 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
@@ -35,7 +35,6 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
 
   async function handleSignOut() { await signOut(); navigate('/login') }
 
-  const orgInitial = orgName.charAt(0).toUpperCase() || 'C'
 
   const SidebarContent = ({ onNavClick }: { onNavClick?: () => void }) => (
     <>
