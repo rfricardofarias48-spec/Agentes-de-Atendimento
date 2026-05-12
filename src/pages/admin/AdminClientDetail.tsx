@@ -693,14 +693,6 @@ export default function AdminClientDetail() {
               {/* Asaas — preenchido automaticamente pelo webhook */}
               {!isNew && (
                 <Card title="Asaas">
-                  <Field label="Token da API (Asaas)">
-                    <TextInput
-                      type="password"
-                      value={org.asaas_key ?? ''}
-                      onChange={v => setOrg(o => ({ ...o, asaas_key: v }))}
-                      placeholder="$aact_..."
-                    />
-                  </Field>
                   <div className="grid grid-cols-2 gap-4">
                     <Field label="Customer ID">
                       <div className="flex items-center px-3.5 py-2.5 rounded-[0.625rem] text-sm font-mono truncate"
