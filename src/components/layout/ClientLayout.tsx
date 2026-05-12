@@ -31,11 +31,11 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
   const SidebarContent = ({ onNavClick }: { onNavClick?: () => void }) => (
     <>
       {/* Logo */}
-      <div className="px-4 pt-6 pb-4 shrink-0">
+      <div className="flex justify-center px-4 pt-6 pb-4 shrink-0">
         <img
           src="https://ik.imagekit.io/xsbrdnr0y/Logo%20sem%20fundo.png"
           alt="Gestor"
-          className="h-16 w-auto object-contain"
+          className="h-20 w-auto object-contain"
         />
       </div>
 
