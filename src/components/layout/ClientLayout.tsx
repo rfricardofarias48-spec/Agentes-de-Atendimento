@@ -2,7 +2,7 @@ import { type ReactNode, useState, useEffect } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, Calendar, CreditCard, Settings, LogOut,
-  Bot, Menu, X,
+  Menu, X,
 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
@@ -39,18 +39,13 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
 
   const SidebarContent = ({ onNavClick }: { onNavClick?: () => void }) => (
     <>
-      {/* Logo + org */}
-      <div className="px-5 pt-7 pb-5 shrink-0">
-        <div className="flex items-center gap-3 mb-5">
-          <div
-            className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 shadow-[0_4px_12px_rgba(44,130,181,0.4)]"
-            style={{ background: 'linear-gradient(135deg, #2C82B5, #1e5f88)' }}
-          >
-            <Bot className="w-[18px] h-[18px] text-white" />
-          </div>
-          <p className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-400 leading-none">AgenteClin</p>
-        </div>
-
+      {/* Logo */}
+      <div className="px-5 pt-6 pb-4 shrink-0">
+        <img
+          src="https://ik.imagekit.io/xsbrdnr0y/Logo%20sem%20fundo.png"
+          alt="Gestor"
+          className="h-10 w-auto object-contain"
+        />
       </div>
 
       {/* Divider */}
@@ -145,12 +140,11 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
           >
             {mobileOpen ? <X className="w-4 h-4 text-white" /> : <Menu className="w-4 h-4 text-white" />}
           </button>
-          <div
-            className="w-7 h-7 rounded-xl flex items-center justify-center text-white text-xs font-black"
-            style={{ background: 'linear-gradient(135deg, #2C82B5, #1e5f88)' }}
-          >
-            {orgInitial}
-          </div>
+          <img
+            src="https://ik.imagekit.io/xsbrdnr0y/Logo%20sem%20fundo.png"
+            alt="Gestor"
+            className="h-7 w-auto object-contain"
+          />
         </div>
 
         {/* Content */}

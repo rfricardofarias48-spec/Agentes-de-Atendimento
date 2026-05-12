@@ -1,6 +1,6 @@
 import { type ReactNode, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, Users, LogOut, Menu, X, Bot, Settings, DollarSign, ShoppingCart } from 'lucide-react'
+import { LayoutDashboard, Users, LogOut, Menu, X, Settings, DollarSign, ShoppingCart } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { cn } from '../../lib/utils'
 
@@ -33,23 +33,15 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
       style={{ background: '#ffffff', borderRight: '1px solid #e4e7ec' }}
     >
       {/* Logo */}
-      <div className="px-5 py-5" style={{ borderBottom: '1px solid #e4e7ec' }}>
-        <div className="flex items-center gap-2.5">
-          <div
-            className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
-            style={{ background: '#2C82B5' }}
-          >
-            <Bot className="w-4 h-4 text-white" />
-          </div>
-          <div>
-            <p className="font-semibold text-[13.5px] tracking-tight leading-none" style={{ color: '#101828' }}>
-              AgenteClin
-            </p>
-            <p className="text-[10px] font-medium mt-[4px] uppercase tracking-widest" style={{ color: '#2C82B5' }}>
-              Admin Panel
-            </p>
-          </div>
-        </div>
+      <div className="px-5 py-4" style={{ borderBottom: '1px solid #e4e7ec' }}>
+        <img
+          src="https://ik.imagekit.io/xsbrdnr0y/Logo%20sem%20fundo.png"
+          alt="Gestor"
+          className="h-9 w-auto object-contain"
+        />
+        <p className="text-[10px] font-medium mt-1.5 uppercase tracking-widest" style={{ color: '#2C82B5' }}>
+          Admin Panel
+        </p>
       </div>
 
       {/* Nav */}
@@ -113,7 +105,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
           >
             {open ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
           </button>
-          <span className="font-semibold text-slate-800 text-sm">AgenteClin</span>
+          <img src="https://ik.imagekit.io/xsbrdnr0y/Logo%20sem%20fundo.png" alt="Gestor" className="h-7 w-auto object-contain" />
         </header>
 
         <main className="flex-1 overflow-y-auto p-6 lg:p-8">

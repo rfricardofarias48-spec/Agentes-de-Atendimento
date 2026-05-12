@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Bot, ArrowRight, AlertCircle, CheckCircle2 } from 'lucide-react'
+import { ArrowRight, AlertCircle, CheckCircle2 } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { supabase } from '../../lib/supabase'
 
@@ -63,14 +63,13 @@ export default function Login() {
           <div className="px-8 py-9">
             {/* Logo */}
             <div className="flex flex-col items-center mb-8">
-              <div
-                className="w-11 h-11 rounded-xl flex items-center justify-center mb-4"
-                style={{ background: '#2C82B5', boxShadow: '0 4px 12px rgba(44,130,181,0.3)' }}
-              >
-                <Bot className="w-5 h-5 text-white" />
-              </div>
+              <img
+                src="https://ik.imagekit.io/xsbrdnr0y/Logo%20sem%20fundo.png"
+                alt="Gestor"
+                className="h-14 w-auto mb-3 object-contain"
+              />
               <h1 className="text-xl font-bold tracking-tight" style={{ color: '#101828' }}>
-                AgenteClin
+                Gestor
               </h1>
               <p className="text-sm mt-1" style={{ color: '#98a2b3' }}>
                 {forgotMode ? 'Recuperação de senha' : 'Painel de controle'}
@@ -209,7 +208,7 @@ export default function Login() {
         </div>
 
         <p className="text-center text-xs mt-5" style={{ color: '#d0d5dd' }}>
-          AgenteClin © {new Date().getFullYear()}
+          Gestor © {new Date().getFullYear()}
         </p>
       </div>
     </div>
