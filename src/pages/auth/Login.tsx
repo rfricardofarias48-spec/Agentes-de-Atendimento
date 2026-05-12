@@ -49,37 +49,29 @@ export default function Login() {
   return (
     <div
       className="min-h-screen flex items-center justify-center p-4"
-      style={{ background: '#0a0a0a' }}
+      style={{ background: '#f0f2f5' }}
     >
-      {/* Subtle radial glow */}
-      <div
-        className="fixed inset-0 pointer-events-none"
-        style={{
-          background: 'radial-gradient(ellipse 60% 50% at 50% 0%, rgba(44,130,181,0.12) 0%, transparent 70%)',
-        }}
-      />
-
       <div className="relative w-full max-w-[380px]">
-
-        {/* Logo */}
-        <div className="flex justify-center mb-8">
-          <img
-            src="https://ik.imagekit.io/xsbrdnr0y/Logo%20sem%20fundo.png"
-            alt="Gestor"
-            className="h-14 w-auto object-contain"
-          />
-        </div>
 
         {/* Card */}
         <div
           className="rounded-2xl overflow-hidden"
           style={{
             background: '#141414',
-            border: '1px solid rgba(255,255,255,0.08)',
-            boxShadow: '0 24px 64px rgba(0,0,0,0.5)',
+            border: '1px solid rgba(255,255,255,0.06)',
+            boxShadow: '0 24px 64px rgba(0,0,0,0.18)',
           }}
         >
-          <div className="px-8 py-8">
+          {/* Logo area inside card */}
+          <div className="flex justify-center pt-8 pb-6">
+            <img
+              src="https://ik.imagekit.io/xsbrdnr0y/Logo%20sem%20fundo.png"
+              alt="Gestor"
+              className="h-14 w-auto object-contain"
+            />
+          </div>
+
+          <div className="px-8 pb-8">
 
             <h2 className="text-base font-semibold text-white mb-1">
               {forgotMode ? 'Recuperar senha' : 'Entrar na sua conta'}
@@ -242,7 +234,7 @@ export default function Login() {
           </div>
         </div>
 
-        <p className="text-center text-[11px] mt-6" style={{ color: 'rgba(255,255,255,0.15)' }}>
+        <p className="text-center text-[11px] mt-5" style={{ color: '#b0b8c4' }}>
           Gestor © {new Date().getFullYear()}
         </p>
       </div>
