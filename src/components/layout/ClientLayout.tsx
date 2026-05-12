@@ -71,7 +71,7 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
               to={href}
               onClick={onNavClick}
               className={cn(
-                'flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-semibold transition-all duration-150',
+                'flex items-center gap-3 px-3 py-2.5 rounded-xl text-[15px] font-semibold transition-all duration-150',
                 active
                   ? 'text-white shadow-[0_4px_14px_rgba(44,130,181,0.35)]'
                   : 'hover:bg-white/[0.06]',
@@ -93,7 +93,7 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
       <div className="p-3 shrink-0" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
         <button
           onClick={handleSignOut}
-          className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-[13px] font-semibold transition-all duration-150 hover:bg-white/[0.06]"
+          className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-[15px] font-semibold transition-all duration-150 hover:bg-white/[0.06]"
           style={{ color: 'rgba(148,163,184,0.55)' }}
           onMouseEnter={e => (e.currentTarget.style.color = '#f87171')}
           onMouseLeave={e => (e.currentTarget.style.color = 'rgba(148,163,184,0.55)')}
