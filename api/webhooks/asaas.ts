@@ -10,7 +10,7 @@
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { supabaseAdmin } from '../lib/supabaseAdmin.js';
-import { validateWebhookToken, decodeMeta, PLAN_LABELS } from '../services/asaasService.js';
+import { validateWebhookToken } from '../services/asaasService.js';
 
 const maxConvByPlan: Record<string, number> = {
   starter: 600,
@@ -56,22 +56,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).json({ ok: true, note: 'Sem dados relevantes' });
   }
 
+  // Busca a venda pelo saleId (externalReference)
+  const saleId = payment.externalReference ?? null;
+
   // ── PAYMENT_OVERDUE: suspender org ──────────────────────────────────────
   if (event === 'PAYMENT_OVERDUE') {
-    const meta = payment.externalReference ? decodeMeta(payment.externalReference) : null;
-    if (meta?.clientEmail) {
-      const { data: org } = await supabaseAdmin
-        .from('organizations')
-        .select('id')
-        .eq('billing_email', meta.clientEmail as string)
-        .maybeSingle();
-
-      if (org) {
+    if (saleId) {
+      const { data: sale } = await supabaseAdmin
+        .from('sales').select('client_email').eq('id', saleId).maybeSingle();
+      if (sale?.client_email) {
         await supabaseAdmin
           .from('organizations')
           .update({ status: 'suspended', asaas_status: 'overdue' })
-          .eq('id', org.id);
-        console.log(`[Asaas] Org ${org.id} suspensa por inadimplência`);
+          .eq('billing_email', sale.client_email);
       }
     }
     return res.status(200).json({ ok: true });
@@ -79,13 +76,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   // ── PAYMENT_RESTORED: reativar org ─────────────────────────────────────
   if (event === 'PAYMENT_RESTORED') {
-    const meta = payment.externalReference ? decodeMeta(payment.externalReference) : null;
-    if (meta?.clientEmail) {
-      await supabaseAdmin
-        .from('organizations')
-        .update({ status: 'active', asaas_status: 'active' })
-        .eq('billing_email', meta.clientEmail as string)
-        .eq('status', 'suspended');
+    if (saleId) {
+      const { data: sale } = await supabaseAdmin
+        .from('sales').select('client_email').eq('id', saleId).maybeSingle();
+      if (sale?.client_email) {
+        await supabaseAdmin
+          .from('organizations')
+          .update({ status: 'active', asaas_status: 'active' })
+          .eq('billing_email', sale.client_email)
+          .eq('status', 'suspended');
+      }
     }
     return res.status(200).json({ ok: true });
   }
@@ -95,18 +95,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).json({ ok: true, note: 'Evento ignorado' });
   }
 
-  const meta = payment.externalReference ? decodeMeta(payment.externalReference) : null;
-  if (!meta?.clientEmail) {
-    return res.status(200).json({ ok: true, note: 'Sem metadata de cliente' });
+  if (!saleId) {
+    return res.status(200).json({ ok: true, note: 'Sem externalReference' });
   }
 
-  const { clientName, clientEmail, plan, billing, saleId } = meta as {
-    clientName: string;
-    clientEmail: string;
-    plan: string;
-    billing: string;
-    saleId: string;
-  };
+  const { data: sale } = await supabaseAdmin
+    .from('sales')
+    .select('client_name, client_email, plan, billing, status')
+    .eq('id', saleId)
+    .maybeSingle();
+
+  if (!sale?.client_email) {
+    return res.status(200).json({ ok: true, note: 'Venda não encontrada' });
+  }
+
+  const { client_name: clientName, client_email: clientEmail, plan, billing } = sale;
 
   const periodEnd = calcPeriodEnd(billing, payment.dueDate);
   const asaasData = {

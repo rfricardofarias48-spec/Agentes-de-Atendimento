@@ -76,14 +76,6 @@ export async function generatePaymentLink(params: {
   const planLabel = PLAN_LABELS[plan] ?? plan;
   const billingLabel = billing === 'anual' ? 'Anual' : 'Mensal';
 
-  const meta = encodeMeta({
-    clientName,
-    clientEmail,
-    plan,
-    billing,
-    saleId,
-  });
-
   const body = {
     name: `AgenteClin ${planLabel} ${billingLabel} — ${clientName}`,
     description: `Assinatura ${planLabel} ${billingLabel} — AgenteClin`,
@@ -93,7 +85,7 @@ export async function generatePaymentLink(params: {
     cycle,
     dueDateLimitDays: 3,
     isAddNewPaymentEnabled: false,
-    externalReference: meta,
+    externalReference: saleId, // UUID (36 chars) — dados completos ficam na tabela sales
   };
 
   const data = await asaasRequest('POST', '/paymentLinks', body) as AsaasPaymentLink;
