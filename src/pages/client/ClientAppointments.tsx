@@ -817,7 +817,7 @@ export default function ClientAppointments() {
               ) : (
                 <form onSubmit={handleUpdate} className="px-5 pb-5 space-y-3">
                   <p className="text-[13px] font-bold text-gray-900 mb-1">Editar agendamento</p>
-                  <FormField label="Nome do paciente" required>
+                  <FormField label="Nome" required>
                     <input className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent"
                       value={editForm.patient_name} onChange={e => setEditForm(f => ({ ...f, patient_name: e.target.value }))} />
                   </FormField>
@@ -884,7 +884,7 @@ export default function ClientAppointments() {
               </button>
             </div>
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
-              <FormField label="Nome do paciente" required>
+              <FormField label="Nome" required>
                 <Input placeholder="Nome completo" value={form.patient_name}
                   onChange={e => setForm(f => ({ ...f, patient_name: e.target.value }))}
                   className="rounded-xl border-slate-200 focus-visible:ring-brand-400 h-10 text-sm" />
@@ -901,8 +901,8 @@ export default function ClientAppointments() {
                     className="rounded-xl border-slate-200 focus-visible:ring-brand-400 h-10 text-sm" />
                 </FormField>
               </div>
-              <FormField label="Médico responsável">
-                <Input placeholder="Nome do médico" value={form.doctor_name}
+              <FormField label="Profissional">
+                <Input placeholder="Quem irá atendê-lo" value={form.doctor_name}
                   onChange={e => setForm(f => ({ ...f, doctor_name: e.target.value }))}
                   className="rounded-xl border-slate-200 focus-visible:ring-brand-400 h-10 text-sm" />
               </FormField>
