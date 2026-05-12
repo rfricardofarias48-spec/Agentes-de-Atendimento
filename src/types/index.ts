@@ -17,6 +17,11 @@ export interface Organization {
   chatwoot_inbox_id: number | null
   chatwoot_url: string | null
   asaas_key: string | null
+  billing_email: string | null
+  asaas_customer_id: string | null
+  asaas_subscription_id: string | null
+  asaas_status: string | null
+  subscription_period_end: string | null
   google_calendar_id: string | null
   agent_tone: 'formal' | 'friendly'
   max_conversations_month: number

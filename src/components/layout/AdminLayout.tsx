@@ -1,12 +1,13 @@
 import { type ReactNode, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, Users, LogOut, Menu, X, Bot, Settings, DollarSign } from 'lucide-react'
+import { LayoutDashboard, Users, LogOut, Menu, X, Bot, Settings, DollarSign, ShoppingCart } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { cn } from '../../lib/utils'
 
 const navItems = [
   { href: '/admin',          label: 'Visão Geral',   icon: LayoutDashboard },
   { href: '/admin/clients',  label: 'Usuários',      icon: Users },
+  { href: '/admin/sales',    label: 'Vendas',        icon: ShoppingCart },
   { href: '/admin/billing',  label: 'Faturamento',   icon: DollarSign },
   { href: '/admin/settings', label: 'Configurações', icon: Settings },
 ]

@@ -11,6 +11,7 @@ import AdminDashboard from './pages/admin/AdminDashboard'
 import AdminClients from './pages/admin/AdminClients'
 import AdminClientDetail from './pages/admin/AdminClientDetail'
 import AdminBilling from './pages/admin/AdminBilling'
+import AdminSales from './pages/admin/AdminSales'
 
 import ClientDashboard from './pages/client/ClientDashboard'
 import ClientAppointments from './pages/client/ClientAppointments'
@@ -48,6 +49,11 @@ export default function App() {
           <Route path="/admin/clients/:id" element={
             <ProtectedRoute requiredRole="admin">
               <AdminLayout><AdminClientDetail /></AdminLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/sales" element={
+            <ProtectedRoute requiredRole="admin">
+              <AdminLayout><AdminSales /></AdminLayout>
             </ProtectedRoute>
           } />
           <Route path="/admin/billing" element={
