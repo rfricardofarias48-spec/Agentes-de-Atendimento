@@ -21,7 +21,7 @@ import { cn } from '../../lib/utils'
 interface BlockedSlot {
   id: string
   org_id: string
-  date: string       // YYYY-MM-DD
+  date: string
   all_day: boolean
   start_time: string | null
   end_time: string | null
@@ -30,14 +30,17 @@ interface BlockedSlot {
 
 interface BlockForm {
   date: string
+  date_end: string
   all_day: boolean
   start_time: string
   end_time: string
   reason: string
 }
 
+interface PendingBlock extends BlockForm { key: string }
+
 const EMPTY_BLOCK: BlockForm = {
-  date: '', all_day: true, start_time: '08:00', end_time: '18:00', reason: '',
+  date: '', date_end: '', all_day: true, start_time: '08:00', end_time: '18:00', reason: '',
 }
 
 // ── Calendar constants ─────────────────────────────────────────
@@ -106,6 +109,10 @@ function useNowLine(startHour: number) {
   return pct
 }
 
+function fmtBlockDate(dateStr: string) {
+  return new Date(dateStr + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: 'short' })
+}
+
 // ── Component ──────────────────────────────────────────────────
 export default function ClientAppointments() {
   const { orgId } = useAuth()
@@ -129,14 +136,14 @@ export default function ClientAppointments() {
   // Block modal
   const [showBlockModal, setShowBlockModal] = useState(false)
   const [blockForm, setBlockForm] = useState<BlockForm>(EMPTY_BLOCK)
+  const [pendingBlocks, setPendingBlocks] = useState<PendingBlock[]>([])
   const [savingBlock, setSavingBlock] = useState(false)
   const [blockError, setBlockError] = useState('')
 
-  // "Novo" dropdown
+  // Dropdown
   const [showMenu, setShowMenu] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
 
-  // Close dropdown on outside click
   useEffect(() => {
     function handle(e: MouseEvent) {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) setShowMenu(false)
@@ -162,15 +169,9 @@ export default function ClientAppointments() {
     setBlockedSlots(data ?? [])
   }
 
-  useEffect(() => {
-    fetchAppointments()
-    fetchBlockedSlots()
-  }, [orgId])
+  useEffect(() => { fetchAppointments(); fetchBlockedSlots() }, [orgId])
 
-  const days = useMemo(
-    () => Array.from({ length: 7 }, (_, i) => addDays(startDate, i)),
-    [startDate],
-  )
+  const days = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(startDate, i)), [startDate])
 
   const apptsByDay = useMemo(() => {
     const map: Record<string, Appointment[]> = {}
@@ -194,8 +195,7 @@ export default function ClientAppointments() {
   const startHour = useMemo(() => {
     const visibleAppts = days.flatMap(d => apptsByDay[dayKey(d)] ?? [])
     const earliest = visibleAppts.reduce((min, a) => {
-      const h = new Date(a.scheduled_at).getHours()
-      return h < min ? h : min
+      const h = new Date(a.scheduled_at).getHours(); return h < min ? h : min
     }, DEFAULT_START)
     return Math.min(earliest, DEFAULT_START)
   }, [apptsByDay, days])
@@ -221,23 +221,82 @@ export default function ClientAppointments() {
   function closeModal() { setShowModal(false) }
 
   function openBlockModal() {
-    setBlockForm({ ...EMPTY_BLOCK, date: new Date().toISOString().slice(0, 10) })
+    const today = new Date().toISOString().slice(0, 10)
+    setBlockForm({ ...EMPTY_BLOCK, date: today })
+    setPendingBlocks([])
     setBlockError('')
     setShowBlockModal(true)
     setShowMenu(false)
   }
 
+  function addToPending() {
+    if (!blockForm.date) { setBlockError('Selecione uma data.'); return }
+    if (!blockForm.all_day && (!blockForm.start_time || !blockForm.end_time)) {
+      setBlockError('Informe horário de início e fim.'); return
+    }
+    if (!blockForm.all_day && blockForm.start_time >= blockForm.end_time) {
+      setBlockError('O início deve ser anterior ao fim.'); return
+    }
+    setBlockError('')
+
+    const start = new Date(blockForm.date + 'T12:00:00')
+    const end = blockForm.date_end ? new Date(blockForm.date_end + 'T12:00:00') : start
+
+    if (end < start) { setBlockError('A data fim deve ser posterior à data início.'); return }
+
+    const entries: PendingBlock[] = []
+    let cur = new Date(start)
+    while (cur <= end) {
+      const dateStr = cur.toISOString().slice(0, 10)
+      // avoid duplicates
+      const alreadyPending = pendingBlocks.some(p => p.date === dateStr && p.all_day === blockForm.all_day && p.start_time === blockForm.start_time)
+      const alreadySaved = blockedSlots.some(b => b.date === dateStr)
+      if (!alreadyPending && !alreadySaved) {
+        entries.push({ ...blockForm, date: dateStr, key: crypto.randomUUID() })
+      }
+      cur = addDays(cur, 1)
+    }
+
+    if (entries.length === 0) {
+      setBlockError('Todos os dias selecionados já possuem bloqueio.')
+      return
+    }
+
+    setPendingBlocks(prev => [...prev, ...entries])
+    setBlockForm(f => ({ ...EMPTY_BLOCK, all_day: f.all_day, start_time: f.start_time, end_time: f.end_time }))
+  }
+
+  async function handleSaveAllBlocks() {
+    if (!orgId || pendingBlocks.length === 0) return
+    setSavingBlock(true); setBlockError('')
+    const inserts = pendingBlocks.map(b => ({
+      org_id: orgId,
+      date: b.date,
+      all_day: b.all_day,
+      start_time: b.all_day ? null : b.start_time,
+      end_time: b.all_day ? null : b.end_time,
+      reason: b.reason.trim() || null,
+    }))
+    const { error } = await supabase.from('blocked_slots').insert(inserts)
+    setSavingBlock(false)
+    if (error) { setBlockError(`Erro: ${error.message}`); return }
+    setPendingBlocks([])
+    await fetchBlockedSlots()
+  }
+
+  async function handleDeleteBlock(id: string) {
+    await supabase.from('blocked_slots').delete().eq('id', id)
+    setBlockedSlots(prev => prev.filter(b => b.id !== id))
+  }
+
   function openEdit(appt: Appointment) {
     const d = new Date(appt.scheduled_at)
     setEditForm({
-      patient_name: appt.patient_name,
-      patient_phone: appt.patient_phone ?? '',
-      specialty: appt.specialty,
-      doctor_name: appt.doctor_name ?? '',
+      patient_name: appt.patient_name, patient_phone: appt.patient_phone ?? '',
+      specialty: appt.specialty, doctor_name: appt.doctor_name ?? '',
       date: d.toISOString().slice(0, 10),
       time: `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`,
-      notes: appt.notes ?? '',
-      status: appt.status,
+      notes: appt.notes ?? '', status: appt.status,
     })
     setEditMode(true)
   }
@@ -250,13 +309,9 @@ export default function ClientAppointments() {
     }
     setSaving(true); setFormError('')
     const { error } = await supabase.from('appointments').update({
-      patient_name: editForm.patient_name.trim(),
-      patient_phone: editForm.patient_phone.trim() || '',
-      specialty: editForm.specialty.trim(),
-      doctor_name: editForm.doctor_name.trim() || null,
-      scheduled_at: `${editForm.date}T${editForm.time}:00`,
-      notes: editForm.notes.trim() || null,
-      status: editForm.status,
+      patient_name: editForm.patient_name.trim(), patient_phone: editForm.patient_phone.trim() || '',
+      specialty: editForm.specialty.trim(), doctor_name: editForm.doctor_name.trim() || null,
+      scheduled_at: `${editForm.date}T${editForm.time}:00`, notes: editForm.notes.trim() || null, status: editForm.status,
     }).eq('id', detailAppt.id)
     setSaving(false)
     if (error) { setFormError(`Erro: ${error.message}`); return }
@@ -266,8 +321,7 @@ export default function ClientAppointments() {
   async function handleStatusChange(status: Appointment['status']) {
     if (!detailAppt) return
     const id = detailAppt.id
-    const { error } = await supabase.from('appointments').update({ status }).eq('id', id)
-    if (error) return
+    await supabase.from('appointments').update({ status }).eq('id', id)
     setDetailAppt(prev => prev ? { ...prev, status } : null)
     setAppointments(prev => prev.map(a => a.id === id ? { ...a, status } : a))
   }
@@ -282,53 +336,17 @@ export default function ClientAppointments() {
     e.preventDefault()
     if (!orgId) return
     if (!form.patient_name.trim() || !form.specialty.trim() || !form.date || !form.time) {
-      setFormError('Preencha: nome, especialidade, data e horário.')
-      return
+      setFormError('Preencha: nome, especialidade, data e horário.'); return
     }
     setSaving(true); setFormError('')
     const { error } = await supabase.from('appointments').insert({
-      org_id: orgId,
-      patient_name: form.patient_name.trim(),
-      patient_phone: form.patient_phone.trim() || '',
-      specialty: form.specialty.trim(),
-      doctor_name: form.doctor_name.trim() || null,
-      scheduled_at: `${form.date}T${form.time}:00`,
-      notes: form.notes.trim() || null,
-      status: form.status,
+      org_id: orgId, patient_name: form.patient_name.trim(), patient_phone: form.patient_phone.trim() || '',
+      specialty: form.specialty.trim(), doctor_name: form.doctor_name.trim() || null,
+      scheduled_at: `${form.date}T${form.time}:00`, notes: form.notes.trim() || null, status: form.status,
     })
     setSaving(false)
     if (error) { setFormError(`Erro: ${error.message}`); return }
     closeModal(); fetchAppointments()
-  }
-
-  async function handleSaveBlock(e: React.FormEvent) {
-    e.preventDefault()
-    if (!orgId) return
-    if (!blockForm.date) { setBlockError('Selecione uma data.'); return }
-    if (!blockForm.all_day && (!blockForm.start_time || !blockForm.end_time)) {
-      setBlockError('Informe o horário de início e fim.'); return
-    }
-    if (!blockForm.all_day && blockForm.start_time >= blockForm.end_time) {
-      setBlockError('O horário de início deve ser anterior ao fim.'); return
-    }
-    setSavingBlock(true); setBlockError('')
-    const { error } = await supabase.from('blocked_slots').insert({
-      org_id: orgId,
-      date: blockForm.date,
-      all_day: blockForm.all_day,
-      start_time: blockForm.all_day ? null : blockForm.start_time,
-      end_time: blockForm.all_day ? null : blockForm.end_time,
-      reason: blockForm.reason.trim() || null,
-    })
-    setSavingBlock(false)
-    if (error) { setBlockError(`Erro: ${error.message}`); return }
-    await fetchBlockedSlots()
-    setBlockForm({ ...EMPTY_BLOCK, date: blockForm.date })
-  }
-
-  async function handleDeleteBlock(id: string) {
-    await supabase.from('blocked_slots').delete().eq('id', id)
-    setBlockedSlots(prev => prev.filter(b => b.id !== id))
   }
 
   function blockTop(time: string): number {
@@ -348,7 +366,6 @@ export default function ClientAppointments() {
     return `${f(startDate)} – ${f(end)}`
   })()
 
-  // Blocked slots in visible week (for legend/count)
   const visibleBlockCount = days.filter(d => (blocksByDay[dayKey(d)] ?? []).length > 0).length
 
   return (
@@ -356,46 +373,32 @@ export default function ClientAppointments() {
 
       {/* ── Top bar ───────────────────────────────────────────── */}
       <div className="flex items-center gap-2 flex-wrap">
-
-        {/* View toggle */}
         <div className="flex items-center bg-white border border-slate-200 rounded-2xl p-1 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
           {(['calendar', 'list'] as ViewMode[]).map((v) => (
-            <button
-              key={v}
-              onClick={() => setView(v)}
-              className={cn(
-                'flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-[13px] font-semibold transition-all duration-200',
-                view === v ? 'text-white shadow-[0_2px_8px_rgba(37,112,160,0.28)]' : 'text-slate-400 hover:text-slate-600',
-              )}
-              style={view === v ? { background: 'linear-gradient(135deg, #2C82B5, #2570a0)' } : {}}
-            >
+            <button key={v} onClick={() => setView(v)}
+              className={cn('flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-[13px] font-semibold transition-all duration-200',
+                view === v ? 'text-white shadow-[0_2px_8px_rgba(37,112,160,0.28)]' : 'text-slate-400 hover:text-slate-600')}
+              style={view === v ? { background: 'linear-gradient(135deg, #2C82B5, #2570a0)' } : {}}>
               {v === 'calendar' ? <Calendar className="w-3.5 h-3.5" /> : <List className="w-3.5 h-3.5" />}
               {v === 'calendar' ? 'Calendário' : 'Lista'}
             </button>
           ))}
         </div>
 
-        {/* Week nav */}
         {view === 'calendar' && (
           <>
             <div className="flex items-center bg-white border border-slate-200 rounded-2xl p-1 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
               <button onClick={prev} className="w-7 h-7 flex items-center justify-center rounded-xl hover:bg-slate-100 transition-colors">
                 <ChevronLeft className="w-4 h-4 text-slate-500" />
               </button>
-              <span className="text-[13px] font-semibold text-slate-700 px-2 min-w-[148px] text-center tabular-nums">
-                {rangeLabel}
-              </span>
+              <span className="text-[13px] font-semibold text-slate-700 px-2 min-w-[148px] text-center tabular-nums">{rangeLabel}</span>
               <button onClick={next} className="w-7 h-7 flex items-center justify-center rounded-xl hover:bg-slate-100 transition-colors">
                 <ChevronRight className="w-4 h-4 text-slate-500" />
               </button>
             </div>
-            <button
-              onClick={goToday}
-              className="px-3.5 py-1.5 rounded-xl border border-slate-200 bg-white text-[13px] font-semibold text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-all shadow-[0_2px_8px_rgba(0,0,0,0.04)]"
-            >
+            <button onClick={goToday} className="px-3.5 py-1.5 rounded-xl border border-slate-200 bg-white text-[13px] font-semibold text-slate-600 hover:bg-slate-50 transition-all shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
               Hoje
             </button>
-            {/* Blocked legend */}
             {visibleBlockCount > 0 && (
               <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-200">
                 <div className="w-2.5 h-2.5 rounded-sm bg-amber-400" />
@@ -407,47 +410,33 @@ export default function ClientAppointments() {
           </>
         )}
 
-        {/* Search — list view */}
         {view === 'list' && (
           <div className="relative flex-1 max-w-xs">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <Input
-              placeholder="Buscar paciente, especialidade..."
-              className="pl-10 h-9 rounded-2xl border-slate-200 bg-white text-sm focus-visible:ring-brand-400 shadow-[0_2px_8px_rgba(0,0,0,0.04)]"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-            />
+            <Input placeholder="Buscar paciente, especialidade..." className="pl-10 h-9 rounded-2xl border-slate-200 bg-white text-sm focus-visible:ring-brand-400"
+              value={search} onChange={e => setSearch(e.target.value)} />
           </div>
         )}
 
         {/* Novo dropdown */}
         <div className="ml-auto relative" ref={menuRef}>
-          <button
-            onClick={() => setShowMenu(v => !v)}
+          <button onClick={() => setShowMenu(v => !v)}
             className="flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-bold text-white shadow-[0_4px_14px_rgba(44,130,181,0.30)] hover:shadow-[0_6px_20px_rgba(44,130,181,0.42)] hover:-translate-y-[1px] transition-all duration-200"
-            style={{ background: 'linear-gradient(135deg, #2C82B5 0%, #2570a0 100%)' }}
-          >
+            style={{ background: 'linear-gradient(135deg, #2C82B5 0%, #2570a0 100%)' }}>
             <Plus className="w-4 h-4" />
             Novo
             <ChevronDown className={cn('w-3.5 h-3.5 transition-transform duration-150', showMenu && 'rotate-180')} />
           </button>
-
           {showMenu && (
             <div className="absolute right-0 top-full mt-2 z-50 bg-white rounded-2xl border border-slate-100 shadow-[0_8px_32px_rgba(0,0,0,0.12)] overflow-hidden min-w-[200px]">
-              <button
-                onClick={openModal}
-                className="flex items-center gap-3 w-full px-4 py-3 text-[13px] font-semibold text-slate-700 hover:bg-slate-50 transition-colors text-left"
-              >
+              <button onClick={openModal} className="flex items-center gap-3 w-full px-4 py-3 text-[13px] font-semibold text-slate-700 hover:bg-slate-50 transition-colors text-left">
                 <div className="w-7 h-7 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
                   <Calendar className="w-3.5 h-3.5 text-blue-500" />
                 </div>
                 Agendamento Manual
               </button>
               <div className="mx-4 h-px bg-slate-100" />
-              <button
-                onClick={openBlockModal}
-                className="flex items-center gap-3 w-full px-4 py-3 text-[13px] font-semibold text-slate-700 hover:bg-slate-50 transition-colors text-left"
-              >
+              <button onClick={openBlockModal} className="flex items-center gap-3 w-full px-4 py-3 text-[13px] font-semibold text-slate-700 hover:bg-slate-50 transition-colors text-left">
                 <div className="w-7 h-7 rounded-xl bg-amber-50 flex items-center justify-center shrink-0">
                   <Lock className="w-3.5 h-3.5 text-amber-500" />
                 </div>
@@ -458,7 +447,7 @@ export default function ClientAppointments() {
         </div>
       </div>
 
-      {/* ── Calendar view ────────────────────────────────────────── */}
+      {/* ── Calendar ─────────────────────────────────────────────── */}
       {view === 'calendar' && (
         <div className="bg-white rounded-2xl border border-slate-100 shadow-[0_2px_16px_rgba(0,0,0,0.04)] overflow-hidden">
           {loading ? (
@@ -468,38 +457,22 @@ export default function ClientAppointments() {
           ) : (
             <div className="overflow-y-auto" style={{ maxHeight: 'calc(100vh - 120px)' }}>
               <div className="w-full">
-
-                {/* Day header */}
                 <div className="sticky top-0 z-30 flex bg-white border-b border-slate-100 w-full">
                   <div style={{ width: TIME_COL_W, minWidth: TIME_COL_W }} className="shrink-0 border-r border-slate-100" />
                   {days.map((day, i) => {
                     const isToday = dayKey(day) === todayKey
                     const isWeekend = day.getDay() === 0 || day.getDay() === 6
-                    const dayBlocks = blocksByDay[dayKey(day)] ?? []
-                    const hasBlock = dayBlocks.length > 0
+                    const hasBlock = (blocksByDay[dayKey(day)] ?? []).length > 0
                     return (
-                      <div
-                        key={i}
-                        className={cn(
-                          'flex-1 border-l border-slate-100 py-3 text-center min-w-0',
-                          isWeekend && !isToday ? 'bg-slate-50/60' : '',
-                          hasBlock ? 'bg-amber-50/40' : '',
-                        )}
-                      >
-                        <p className={cn(
-                          'text-[10px] font-bold uppercase tracking-[0.12em]',
-                          isToday ? 'text-brand-500' : hasBlock ? 'text-amber-600' : 'text-slate-400',
-                        )}>
-                          {DAY_PT[day.getDay()]}
-                          {hasBlock && <span className="ml-1">🔒</span>}
+                      <div key={i} className={cn('flex-1 border-l border-slate-100 py-3 text-center min-w-0',
+                        isWeekend && !isToday ? 'bg-slate-50/60' : '', hasBlock ? 'bg-amber-50/40' : '')}>
+                        <p className={cn('text-[10px] font-bold uppercase tracking-[0.12em]',
+                          isToday ? 'text-brand-500' : hasBlock ? 'text-amber-600' : 'text-slate-400')}>
+                          {DAY_PT[day.getDay()]}{hasBlock && <span className="ml-1">🔒</span>}
                         </p>
-                        <div
-                          className={cn(
-                            'mt-1.5 mx-auto w-8 h-8 flex items-center justify-center rounded-full text-[13px] font-bold transition-all duration-200',
-                            isToday ? 'text-white shadow-[0_4px_10px_rgba(44,130,181,0.35)]' : 'text-slate-600 hover:bg-slate-100',
-                          )}
-                          style={isToday ? { background: 'linear-gradient(135deg, #2C82B5, #2570a0)' } : {}}
-                        >
+                        <div className={cn('mt-1.5 mx-auto w-8 h-8 flex items-center justify-center rounded-full text-[13px] font-bold transition-all duration-200',
+                          isToday ? 'text-white shadow-[0_4px_10px_rgba(44,130,181,0.35)]' : 'text-slate-600 hover:bg-slate-100')}
+                          style={isToday ? { background: 'linear-gradient(135deg, #2C82B5, #2570a0)' } : {}}>
                           {day.getDate()}
                         </div>
                       </div>
@@ -507,9 +480,7 @@ export default function ClientAppointments() {
                   })}
                 </div>
 
-                {/* Time grid */}
                 <div className="flex w-full relative" style={{ height: totalHeight }}>
-                  {/* Time labels */}
                   <div className="relative shrink-0 bg-white border-r border-slate-100" style={{ width: TIME_COL_W, minWidth: TIME_COL_W }}>
                     {hours.map(h => (
                       <div key={h} className="absolute right-3 flex items-start justify-end" style={{ top: (h - startHour) * HOUR_HEIGHT, height: HOUR_HEIGHT }}>
@@ -518,22 +489,15 @@ export default function ClientAppointments() {
                     ))}
                   </div>
 
-                  {/* Day columns */}
                   {days.map((day, i) => {
                     const isToday = dayKey(day) === todayKey
                     const isWeekend = day.getDay() === 0 || day.getDay() === 6
                     const dayAppts = apptsByDay[dayKey(day)] ?? []
                     const dayBlocks = blocksByDay[dayKey(day)] ?? []
                     return (
-                      <div
-                        key={i}
-                        className={cn(
-                          'relative flex-1 min-w-0 border-l border-slate-100',
-                          isToday ? 'bg-brand-50/20' : isWeekend ? 'bg-slate-50/40' : '',
-                        )}
-                        style={{ height: totalHeight }}
-                      >
-                        {/* Grid lines */}
+                      <div key={i} className={cn('relative flex-1 min-w-0 border-l border-slate-100',
+                        isToday ? 'bg-brand-50/20' : isWeekend ? 'bg-slate-50/40' : '')}
+                        style={{ height: totalHeight }}>
                         {hours.map(h => (
                           <div key={h}>
                             <div className="absolute left-0 right-0 border-t border-slate-100" style={{ top: (h - startHour) * HOUR_HEIGHT }} />
@@ -541,29 +505,16 @@ export default function ClientAppointments() {
                           </div>
                         ))}
 
-                        {/* Blocked slots — yellow */}
                         {dayBlocks.map(b => (
                           b.all_day ? (
-                            <div
-                              key={b.id}
-                              className="absolute inset-0 pointer-events-none"
-                              style={{ background: 'rgba(251,191,36,0.12)', borderLeft: '3px solid #fbbf24' }}
-                            />
+                            <div key={b.id} className="absolute inset-0 pointer-events-none"
+                              style={{ background: 'rgba(251,191,36,0.12)', borderLeft: '3px solid #fbbf24' }} />
                           ) : (b.start_time && b.end_time) ? (
-                            <div
-                              key={b.id}
-                              className="absolute left-0 right-0 pointer-events-none"
-                              style={{
-                                top: blockTop(b.start_time),
-                                height: blockHeight(b.start_time, b.end_time),
-                                background: 'rgba(251,191,36,0.18)',
-                                borderLeft: '3px solid #fbbf24',
-                              }}
-                            />
+                            <div key={b.id} className="absolute left-0 right-0 pointer-events-none"
+                              style={{ top: blockTop(b.start_time), height: blockHeight(b.start_time, b.end_time), background: 'rgba(251,191,36,0.18)', borderLeft: '3px solid #fbbf24' }} />
                           ) : null
                         ))}
 
-                        {/* Now line */}
                         {isToday && nowLine !== null && (
                           <div className="absolute left-0 right-0 z-20 pointer-events-none" style={{ top: nowLine }}>
                             <div className="absolute -left-1 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-brand-500" />
@@ -571,7 +522,6 @@ export default function ClientAppointments() {
                           </div>
                         )}
 
-                        {/* Appointment cards */}
                         {dayAppts.map(appt => {
                           const top = apptTop(appt.scheduled_at, startHour)
                           if (top === null) return null
@@ -580,25 +530,17 @@ export default function ClientAppointments() {
                           const time = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
                           const initials = appt.patient_name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()
                           return (
-                            <div
-                              key={appt.id}
-                              onClick={() => setDetailAppt(appt)}
-                              className={cn(
-                                'absolute left-1 right-1 rounded-xl overflow-hidden cursor-pointer z-10',
-                                'shadow-[0_1px_4px_rgba(0,0,0,0.07)] hover:shadow-[0_4px_14px_rgba(0,0,0,0.12)] hover:-translate-y-px transition-all duration-150',
-                                pal.bg,
-                              )}
-                              style={{ top: top + 2, minHeight: HOUR_HEIGHT / 2 - 4 }}
-                            >
+                            <div key={appt.id} onClick={() => setDetailAppt(appt)}
+                              className={cn('absolute left-1 right-1 rounded-xl overflow-hidden cursor-pointer z-10',
+                                'shadow-[0_1px_4px_rgba(0,0,0,0.07)] hover:shadow-[0_4px_14px_rgba(0,0,0,0.12)] hover:-translate-y-px transition-all duration-150', pal.bg)}
+                              style={{ top: top + 2, minHeight: HOUR_HEIGHT / 2 - 4 }}>
                               <div className={cn('absolute left-0 top-0 bottom-0 w-[3px] rounded-l-xl', pal.bar)} />
                               <div className="pl-3 pr-2 py-1.5 flex items-start gap-1.5">
                                 <div className="flex-1 min-w-0">
                                   <p className={cn('text-[11px] font-bold truncate leading-tight', pal.text)}>{appt.patient_name}</p>
                                   <p className={cn('text-[10px] truncate leading-tight mt-0.5 font-medium', pal.sub)}>{time} · {appt.specialty}</p>
                                 </div>
-                                <span className={cn('shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-black text-white', pal.bar)}>
-                                  {initials}
-                                </span>
+                                <span className={cn('shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-black text-white', pal.bar)}>{initials}</span>
                               </div>
                             </div>
                           )
@@ -617,52 +559,33 @@ export default function ClientAppointments() {
       {view === 'list' && (
         <div className="bg-white rounded-2xl border border-slate-100 shadow-[0_2px_12px_rgba(0,0,0,0.03)] overflow-hidden">
           <div className="grid grid-cols-[2fr_1.5fr_1fr_1fr] px-6 py-2.5 border-b border-slate-50 gap-4">
-            <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">Paciente</p>
-            <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">Profissional</p>
-            <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">Data</p>
-            <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400 text-right">Status</p>
+            {['Paciente', 'Profissional', 'Data', 'Status'].map((h, i) => (
+              <p key={h} className={cn('text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400', i === 3 && 'text-right')}>{h}</p>
+            ))}
           </div>
           {loading ? (
-            <div className="flex justify-center py-12">
-              <div className="w-5 h-5 border-[2.5px] border-brand-500 border-t-transparent rounded-full animate-spin" />
-            </div>
+            <div className="flex justify-center py-12"><div className="w-5 h-5 border-[2.5px] border-brand-500 border-t-transparent rounded-full animate-spin" /></div>
           ) : filtered.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-14">
-              <div className="w-10 h-10 rounded-2xl bg-slate-50 flex items-center justify-center mb-3 border border-slate-100">
-                <Calendar className="w-5 h-5 text-slate-300" />
-              </div>
+              <div className="w-10 h-10 rounded-2xl bg-slate-50 flex items-center justify-center mb-3 border border-slate-100"><Calendar className="w-5 h-5 text-slate-300" /></div>
               <p className="text-[13px] font-semibold text-slate-400">Nenhum agendamento encontrado.</p>
             </div>
           ) : (
             <div className="divide-y divide-slate-50/80">
               {filtered.map((appt, i) => (
-                <div
-                  key={appt.id}
-                  onClick={() => setDetailAppt(appt)}
-                  className={cn(
-                    'grid grid-cols-[2fr_1.5fr_1fr_1fr] items-center px-6 py-3.5 gap-4 cursor-pointer transition-colors hover:bg-slate-50/70 group',
-                    i % 2 !== 0 ? 'bg-slate-50/30' : '',
-                  )}
-                >
+                <div key={appt.id} onClick={() => setDetailAppt(appt)}
+                  className={cn('grid grid-cols-[2fr_1.5fr_1fr_1fr] items-center px-6 py-3.5 gap-4 cursor-pointer transition-colors hover:bg-slate-50/70 group', i % 2 !== 0 ? 'bg-slate-50/30' : '')}>
                   <div className="flex items-center gap-2.5 min-w-0">
-                    <div className={cn('w-1.5 h-1.5 rounded-full shrink-0 transition-transform group-hover:scale-125', {
-                      'bg-blue-400':    appt.status === 'scheduled' || appt.status === 'confirmed',
-                      'bg-emerald-400': appt.status === 'completed',
-                      'bg-rose-400':    appt.status === 'cancelled',
-                    })} />
+                    <div className={cn('w-1.5 h-1.5 rounded-full shrink-0', { 'bg-blue-400': appt.status === 'scheduled' || appt.status === 'confirmed', 'bg-emerald-400': appt.status === 'completed', 'bg-rose-400': appt.status === 'cancelled' })} />
                     <p className="text-[13px] font-semibold text-gray-900 truncate leading-none">
                       {appt.patient_name}
-                      {appt.specialty && (
-                        <span className="font-normal text-slate-400"> ({appt.specialty.charAt(0).toUpperCase() + appt.specialty.slice(1).toLowerCase()})</span>
-                      )}
+                      {appt.specialty && <span className="font-normal text-slate-400"> ({appt.specialty.charAt(0).toUpperCase() + appt.specialty.slice(1).toLowerCase()})</span>}
                     </p>
                   </div>
                   <p className="text-[12px] text-slate-500 truncate">{appt.doctor_name ?? '—'}</p>
                   <p className="text-[12px] font-medium text-slate-500 tabular-nums">{formatApptDate(appt.scheduled_at)}</p>
                   <div className="flex justify-end">
-                    <Badge variant={statusColors[appt.status] ?? 'outline'} className="text-[10px] font-semibold">
-                      {statusLabel(appt.status)}
-                    </Badge>
+                    <Badge variant={statusColors[appt.status] ?? 'outline'} className="text-[10px] font-semibold">{statusLabel(appt.status)}</Badge>
                   </div>
                 </div>
               ))}
@@ -671,154 +594,160 @@ export default function ClientAppointments() {
         </div>
       )}
 
-      {/* ── Block Agenda Modal ───────────────────────────────────── */}
+      {/* ── Bloquear Agenda Modal ────────────────────────────────── */}
       {showBlockModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" onClick={() => setShowBlockModal(false)} />
-          <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+          <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
 
             {/* Header */}
-            <div
-              className="flex items-center justify-between px-6 py-5 rounded-t-3xl"
-              style={{ background: 'linear-gradient(135deg, #d97706 0%, #b45309 100%)' }}
-            >
+            <div className="flex items-center justify-between px-6 py-5 rounded-t-3xl"
+              style={{ background: 'linear-gradient(135deg, #d97706 0%, #b45309 100%)' }}>
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-xl bg-white/15 flex items-center justify-center border border-white/20">
                   <Lock className="w-4 h-4 text-white" />
                 </div>
                 <h2 className="text-base font-bold text-white">Bloquear Agenda</h2>
               </div>
-              <button
-                onClick={() => setShowBlockModal(false)}
-                className="w-8 h-8 flex items-center justify-center rounded-xl bg-white/10 hover:bg-white/20 transition-colors"
-              >
+              <button onClick={() => setShowBlockModal(false)} className="w-8 h-8 flex items-center justify-center rounded-xl bg-white/10 hover:bg-white/20 transition-colors">
                 <X className="w-4 h-4 text-white" />
               </button>
             </div>
 
-            <form onSubmit={handleSaveBlock} className="p-6 space-y-4">
+            <div className="p-6 space-y-4">
 
-              <FormField label="Data" required>
-                <Input
-                  type="date"
-                  value={blockForm.date}
-                  onChange={e => setBlockForm(f => ({ ...f, date: e.target.value }))}
-                  className="rounded-xl border-slate-200 focus-visible:ring-amber-400 h-10 text-sm"
-                />
-              </FormField>
-
-              {/* Toggle dia inteiro vs horário */}
+              {/* Tipo: dia inteiro / horário */}
               <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setBlockForm(f => ({ ...f, all_day: true }))}
-                  className={cn(
-                    'flex-1 py-2.5 rounded-xl text-[13px] font-semibold border-2 transition-all',
-                    blockForm.all_day
-                      ? 'border-amber-400 bg-amber-50 text-amber-800'
-                      : 'border-slate-200 text-slate-500 hover:border-slate-300',
-                  )}
-                >
-                  Dia inteiro
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setBlockForm(f => ({ ...f, all_day: false }))}
-                  className={cn(
-                    'flex-1 py-2.5 rounded-xl text-[13px] font-semibold border-2 transition-all',
-                    !blockForm.all_day
-                      ? 'border-amber-400 bg-amber-50 text-amber-800'
-                      : 'border-slate-200 text-slate-500 hover:border-slate-300',
-                  )}
-                >
-                  Horário específico
-                </button>
+                {[{ v: true, l: 'Dia inteiro' }, { v: false, l: 'Horário específico' }].map(opt => (
+                  <button key={String(opt.v)} type="button"
+                    onClick={() => setBlockForm(f => ({ ...f, all_day: opt.v }))}
+                    className={cn('flex-1 py-2.5 rounded-xl text-[13px] font-semibold border-2 transition-all',
+                      blockForm.all_day === opt.v
+                        ? 'border-amber-400 bg-amber-50 text-amber-800'
+                        : 'border-slate-200 text-slate-500 hover:border-slate-300 bg-white')}>
+                    {opt.l}
+                  </button>
+                ))}
               </div>
 
+              {/* Datas */}
+              <div className={cn('grid gap-3', blockForm.all_day ? 'grid-cols-2' : 'grid-cols-2')}>
+                <FormField label="Data início" required>
+                  <Input type="date" value={blockForm.date}
+                    onChange={e => setBlockForm(f => ({ ...f, date: e.target.value }))}
+                    className="rounded-xl border-slate-200 focus-visible:ring-amber-400 h-10 text-sm" />
+                </FormField>
+                <FormField label="Data fim (opcional)">
+                  <Input type="date" value={blockForm.date_end} min={blockForm.date}
+                    onChange={e => setBlockForm(f => ({ ...f, date_end: e.target.value }))}
+                    className="rounded-xl border-slate-200 focus-visible:ring-amber-400 h-10 text-sm" />
+                </FormField>
+              </div>
+
+              {/* Horário — só quando específico */}
               {!blockForm.all_day && (
                 <div className="grid grid-cols-2 gap-3">
                   <FormField label="Início" required>
-                    <Input
-                      type="time"
-                      value={blockForm.start_time}
+                    <Input type="time" value={blockForm.start_time}
                       onChange={e => setBlockForm(f => ({ ...f, start_time: e.target.value }))}
-                      className="rounded-xl border-slate-200 focus-visible:ring-amber-400 h-10 text-sm"
-                    />
+                      className="rounded-xl border-slate-200 focus-visible:ring-amber-400 h-10 text-sm" />
                   </FormField>
                   <FormField label="Fim" required>
-                    <Input
-                      type="time"
-                      value={blockForm.end_time}
+                    <Input type="time" value={blockForm.end_time}
                       onChange={e => setBlockForm(f => ({ ...f, end_time: e.target.value }))}
-                      className="rounded-xl border-slate-200 focus-visible:ring-amber-400 h-10 text-sm"
-                    />
+                      className="rounded-xl border-slate-200 focus-visible:ring-amber-400 h-10 text-sm" />
                   </FormField>
                 </div>
               )}
 
+              {/* Motivo */}
               <FormField label="Motivo (opcional)">
-                <Input
-                  placeholder="Ex: Férias, evento externo..."
+                <Input placeholder="Ex: Férias, evento externo..."
                   value={blockForm.reason}
                   onChange={e => setBlockForm(f => ({ ...f, reason: e.target.value }))}
-                  className="rounded-xl border-slate-200 focus-visible:ring-amber-400 h-10 text-sm"
-                />
+                  className="rounded-xl border-slate-200 focus-visible:ring-amber-400 h-10 text-sm" />
               </FormField>
 
               {blockError && (
                 <div className="flex items-center gap-2 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
-                  <AlertTriangle className="w-4 h-4 shrink-0" />
-                  {blockError}
+                  <AlertTriangle className="w-4 h-4 shrink-0" />{blockError}
                 </div>
               )}
 
-              <div className="flex gap-3">
-                <Button type="button" variant="outline" onClick={() => setShowBlockModal(false)} className="flex-1 rounded-2xl border-slate-200 text-[13px] font-semibold">
-                  Fechar
-                </Button>
-                <button
-                  type="submit"
-                  disabled={savingBlock}
-                  className="flex-1 py-2.5 rounded-2xl text-sm font-bold text-white disabled:opacity-60 transition-all hover:-translate-y-[1px]"
-                  style={{ background: 'linear-gradient(135deg, #d97706, #b45309)' }}
-                >
-                  {savingBlock ? 'Salvando...' : 'Adicionar Bloqueio'}
-                </button>
-              </div>
-            </form>
+              {/* Adicionar à lista */}
+              <button type="button" onClick={addToPending}
+                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-2xl text-sm font-bold border-2 border-dashed border-amber-300 text-amber-700 hover:bg-amber-50 transition-all">
+                <Plus className="w-4 h-4" />
+                Adicionar à lista
+              </button>
 
-            {/* Lista de bloqueios existentes */}
-            {blockedSlots.length > 0 && (
-              <div className="px-6 pb-6">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-3">Bloqueios cadastrados</p>
-                <div className="space-y-2 max-h-48 overflow-y-auto">
-                  {blockedSlots.map(b => {
-                    const dateStr = new Date(b.date + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })
-                    return (
-                      <div
-                        key={b.id}
-                        className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl bg-amber-50 border border-amber-100"
-                      >
-                        <Lock className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[12px] font-semibold text-amber-900">{dateStr}</p>
-                          <p className="text-[11px] text-amber-600">
-                            {b.all_day ? 'Dia inteiro' : `${b.start_time} – ${b.end_time}`}
+              {/* Lista pendente */}
+              {pendingBlocks.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                    A salvar ({pendingBlocks.length} bloqueio{pendingBlocks.length > 1 ? 's' : ''})
+                  </p>
+                  <div className="space-y-1.5 max-h-36 overflow-y-auto">
+                    {pendingBlocks.map(b => (
+                      <div key={b.key} className="flex items-center gap-2.5 px-3.5 py-2 rounded-xl bg-amber-50 border border-amber-100">
+                        <div className="w-2 h-2 rounded-full bg-amber-400 shrink-0" />
+                        <p className="flex-1 text-[12px] font-semibold text-amber-900">
+                          {fmtBlockDate(b.date)}
+                          <span className="font-normal text-amber-600 ml-1.5">
+                            {b.all_day ? '· Dia inteiro' : `· ${b.start_time} – ${b.end_time}`}
                             {b.reason ? ` · ${b.reason}` : ''}
-                          </p>
-                        </div>
-                        <button
-                          onClick={() => handleDeleteBlock(b.id)}
-                          className="w-6 h-6 flex items-center justify-center rounded-lg hover:bg-amber-200 transition-colors text-amber-400 hover:text-red-500"
-                        >
-                          <X className="w-3.5 h-3.5" />
+                          </span>
+                        </p>
+                        <button onClick={() => setPendingBlocks(prev => prev.filter(p => p.key !== b.key))}
+                          className="w-5 h-5 flex items-center justify-center rounded-md hover:bg-amber-200 text-amber-400 hover:text-red-500 transition-colors">
+                          <X className="w-3 h-3" />
                         </button>
                       </div>
-                    )
-                  })}
+                    ))}
+                  </div>
                 </div>
+              )}
+
+              {/* Botões */}
+              <div className="flex gap-3 pt-1">
+                <Button type="button" variant="outline" onClick={() => setShowBlockModal(false)}
+                  className="flex-1 rounded-2xl border-slate-200 text-[13px] font-semibold">
+                  Fechar
+                </Button>
+                <button type="button" onClick={handleSaveAllBlocks}
+                  disabled={savingBlock || pendingBlocks.length === 0}
+                  className="flex-1 py-2.5 rounded-2xl text-sm font-bold text-white disabled:opacity-40 transition-all hover:-translate-y-[1px]"
+                  style={{ background: 'linear-gradient(135deg, #d97706, #b45309)' }}>
+                  {savingBlock ? 'Salvando...' : `Salvar ${pendingBlocks.length > 0 ? pendingBlocks.length : ''} bloqueio${pendingBlocks.length !== 1 ? 's' : ''}`}
+                </button>
               </div>
-            )}
+
+              {/* Bloqueios já salvos */}
+              {blockedSlots.length > 0 && (
+                <div className="pt-2">
+                  <div className="h-px bg-slate-100 mb-4" />
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2">Bloqueios salvos</p>
+                  <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                    {blockedSlots.map(b => (
+                      <div key={b.id} className="flex items-center gap-2.5 px-3.5 py-2 rounded-xl border border-slate-100 hover:bg-slate-50 transition-colors">
+                        <Lock className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                        <p className="flex-1 text-[12px] font-medium text-slate-700">
+                          {fmtBlockDate(b.date)}
+                          <span className="text-slate-400 ml-1.5">
+                            {b.all_day ? '· Dia inteiro' : `· ${b.start_time} – ${b.end_time}`}
+                            {b.reason ? ` · ${b.reason}` : ''}
+                          </span>
+                        </p>
+                        <button onClick={() => handleDeleteBlock(b.id)}
+                          className="w-6 h-6 flex items-center justify-center rounded-lg hover:bg-red-50 text-slate-300 hover:text-red-400 transition-colors">
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -836,23 +765,16 @@ export default function ClientAppointments() {
               <div className="flex items-center justify-end gap-1 px-4 pt-3 pb-1">
                 {!editMode && <>
                   <div className="relative mr-1">
-                    <button
-                      onClick={() => setShowStatusPicker(v => !v)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-[12px] font-semibold text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-all"
-                    >
+                    <button onClick={() => setShowStatusPicker(v => !v)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-[12px] font-semibold text-slate-600 hover:bg-slate-50 transition-all">
                       Atualizar Status
                     </button>
                     {showStatusPicker && (
                       <div className="absolute right-0 top-full mt-1 z-10 bg-white rounded-xl border border-slate-200 shadow-[0_8px_24px_rgba(0,0,0,0.12)] overflow-hidden min-w-[160px]">
                         {STATUS_OPTIONS.map(opt => (
-                          <button
-                            key={opt.value}
-                            onClick={() => { handleStatusChange(opt.value as Appointment['status']); setShowStatusPicker(false) }}
-                            className={cn(
-                              'flex items-center gap-2 w-full px-4 py-2.5 text-[13px] text-left transition-colors hover:bg-slate-50',
-                              detailAppt.status === opt.value ? 'font-semibold text-brand-600 bg-brand-50/50' : 'text-slate-700',
-                            )}
-                          >
+                          <button key={opt.value} onClick={() => { handleStatusChange(opt.value as Appointment['status']); setShowStatusPicker(false) }}
+                            className={cn('flex items-center gap-2 w-full px-4 py-2.5 text-[13px] text-left transition-colors hover:bg-slate-50',
+                              detailAppt.status === opt.value ? 'font-semibold text-brand-600 bg-brand-50/50' : 'text-slate-700')}>
                             <span className={cn('w-1.5 h-1.5 rounded-full shrink-0', detailAppt.status === opt.value ? 'bg-brand-500' : 'bg-slate-200')} />
                             {opt.label}
                           </button>
@@ -871,7 +793,6 @@ export default function ClientAppointments() {
                   <X className="w-4 h-4" />
                 </button>
               </div>
-
               {!editMode ? (
                 <>
                   <div className="flex items-start gap-3 px-5 pb-3">
@@ -879,26 +800,18 @@ export default function ClientAppointments() {
                     <div>
                       <p className="text-[17px] font-semibold text-gray-900 leading-snug">{detailAppt.patient_name}</p>
                       <p className="text-[13px] text-slate-500 mt-0.5 capitalize">{dateStr} · {timeStr}</p>
-                      <div className="mt-2">
-                        <Badge variant={statusColors[detailAppt.status] ?? 'outline'} className="text-[10px]">
-                          {statusLabel(detailAppt.status)}
-                        </Badge>
-                      </div>
+                      <div className="mt-2"><Badge variant={statusColors[detailAppt.status] ?? 'outline'} className="text-[10px]">{statusLabel(detailAppt.status)}</Badge></div>
                     </div>
                   </div>
                   <div className="mx-5 h-px bg-slate-100" />
                   <div className="px-5 py-4 space-y-3">
-                    <GCalRow icon={<Stethoscope className="w-4 h-4" />}>
-                      {detailAppt.specialty.charAt(0).toUpperCase() + detailAppt.specialty.slice(1).toLowerCase()}
-                    </GCalRow>
+                    <GCalRow icon={<Stethoscope className="w-4 h-4" />}>{detailAppt.specialty.charAt(0).toUpperCase() + detailAppt.specialty.slice(1).toLowerCase()}</GCalRow>
                     {detailAppt.doctor_name && <GCalRow icon={<User className="w-4 h-4" />}>{detailAppt.doctor_name}</GCalRow>}
                     {detailAppt.patient_phone && <GCalRow icon={<Phone className="w-4 h-4" />}>{detailAppt.patient_phone}</GCalRow>}
                     {detailAppt.notes && <GCalRow icon={<FileText className="w-4 h-4" />}>{detailAppt.notes}</GCalRow>}
                   </div>
                   <div className="px-5 pb-5 pt-1">
-                    <button onClick={() => setDetailAppt(null)} className="w-full py-2 rounded-xl text-[13px] font-medium text-slate-600 border border-slate-200 hover:bg-slate-50 transition-colors">
-                      Fechar
-                    </button>
+                    <button onClick={() => setDetailAppt(null)} className="w-full py-2 rounded-xl text-[13px] font-medium text-slate-600 border border-slate-200 hover:bg-slate-50 transition-colors">Fechar</button>
                   </div>
                 </>
               ) : (
@@ -939,9 +852,7 @@ export default function ClientAppointments() {
                   {formError && <p className="text-[12px] text-rose-500">{formError}</p>}
                   <div className="flex gap-2 pt-1">
                     <button type="button" onClick={() => setEditMode(false)}
-                      className="flex-1 py-2 rounded-xl text-[13px] font-medium text-slate-600 border border-slate-200 hover:bg-slate-50 transition-colors">
-                      Cancelar
-                    </button>
+                      className="flex-1 py-2 rounded-xl text-[13px] font-medium text-slate-600 border border-slate-200 hover:bg-slate-50 transition-colors">Cancelar</button>
                     <button type="submit" disabled={saving}
                       className="flex-1 py-2 rounded-xl text-[13px] font-bold text-white disabled:opacity-60 transition-all hover:-translate-y-[1px]"
                       style={{ background: 'linear-gradient(135deg, #2C82B5, #2570a0)' }}>
@@ -960,10 +871,8 @@ export default function ClientAppointments() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" onClick={closeModal} />
           <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-            <div
-              className="flex items-center justify-between px-6 py-5 rounded-t-3xl"
-              style={{ background: 'linear-gradient(135deg, #2C82B5 0%, #1e5f88 100%)' }}
-            >
+            <div className="flex items-center justify-between px-6 py-5 rounded-t-3xl"
+              style={{ background: 'linear-gradient(135deg, #2C82B5 0%, #1e5f88 100%)' }}>
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-xl bg-white/15 flex items-center justify-center border border-white/20">
                   <Calendar className="w-4 h-4 text-white" />
@@ -974,7 +883,6 @@ export default function ClientAppointments() {
                 <X className="w-4 h-4 text-white" />
               </button>
             </div>
-
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
               <FormField label="Nome do paciente" required>
                 <Input placeholder="Nome completo" value={form.patient_name}
@@ -1015,12 +923,8 @@ export default function ClientAppointments() {
                   {STATUS_OPTIONS.map(opt => (
                     <button key={opt.value} type="button"
                       onClick={() => setForm(f => ({ ...f, status: opt.value as FormData['status'] }))}
-                      className={cn(
-                        'px-3.5 py-1.5 rounded-xl text-[13px] font-semibold border transition-all duration-200',
-                        form.status === opt.value
-                          ? 'text-white border-transparent shadow-[0_2px_8px_rgba(44,130,181,0.26)]'
-                          : 'border-slate-200 text-slate-600 hover:border-slate-300 bg-white',
-                      )}
+                      className={cn('px-3.5 py-1.5 rounded-xl text-[13px] font-semibold border transition-all duration-200',
+                        form.status === opt.value ? 'text-white border-transparent shadow-[0_2px_8px_rgba(44,130,181,0.26)]' : 'border-slate-200 text-slate-600 hover:border-slate-300 bg-white')}
                       style={form.status === opt.value ? { background: 'linear-gradient(135deg, #2C82B5, #2570a0)' } : {}}>
                       {opt.label}
                     </button>
@@ -1028,8 +932,7 @@ export default function ClientAppointments() {
                 </div>
               </FormField>
               <FormField label="Observações">
-                <textarea
-                  className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm min-h-[72px] resize-y focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent transition-all"
+                <textarea className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm min-h-[72px] resize-y focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent transition-all"
                   placeholder="Informações adicionais..." value={form.notes}
                   onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
               </FormField>
