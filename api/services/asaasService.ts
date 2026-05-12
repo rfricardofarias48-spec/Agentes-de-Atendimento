@@ -7,15 +7,31 @@ const ASAAS_URL = (process.env.ASAAS_API_URL || 'https://api.asaas.com/v3').repl
 const ASAAS_KEY = process.env.ASAAS_API_KEY || '';
 const WEBHOOK_TOKEN = process.env.ASAAS_WEBHOOK_TOKEN || '';
 
-// Planos em reais
+export const ANNUAL_DISCOUNT = 0.20
+
+// Preços mensais base
+export const PLAN_PRICES_MONTHLY: Record<string, number> = {
+  starter: 299.90,
+  pro:     449.90,
+  clinic:  849.90,
+}
+
+// Preço final (mensal ou anual = mensal × 12 × 0.8)
+export function getPlanPrice(plan: string, billing: 'mensal' | 'anual'): number {
+  const monthly = PLAN_PRICES_MONTHLY[plan] ?? 0
+  if (billing === 'anual') return parseFloat((monthly * 12 * (1 - ANNUAL_DISCOUNT)).toFixed(2))
+  return monthly
+}
+
+// Mantido para compatibilidade com generate-link
 export const PLAN_PRICES: Record<string, number> = {
-  starter:       299.90,
-  starter_anual: 2879.04,  // 20% off
-  pro:           449.90,
-  pro_anual:     4319.04,  // 20% off
-  clinic:        849.90,
-  clinic_anual:  8159.04,  // 20% off
-};
+  starter:       PLAN_PRICES_MONTHLY.starter,
+  starter_anual: getPlanPrice('starter', 'anual'),
+  pro:           PLAN_PRICES_MONTHLY.pro,
+  pro_anual:     getPlanPrice('pro', 'anual'),
+  clinic:        PLAN_PRICES_MONTHLY.clinic,
+  clinic_anual:  getPlanPrice('clinic', 'anual'),
+}
 
 export const PLAN_LABELS: Record<string, string> = {
   starter: 'Essencial',
@@ -70,8 +86,7 @@ export async function generatePaymentLink(params: {
   saleId: string;
 }): Promise<AsaasPaymentLink> {
   const { clientName, clientEmail, plan, billing, saleId } = params;
-  const planKey = billing === 'anual' ? `${plan}_anual` : plan;
-  const amount = PLAN_PRICES[planKey] ?? PLAN_PRICES[plan];
+  const amount = getPlanPrice(plan, billing);
   const cycle = billing === 'anual' ? 'YEARLY' : 'MONTHLY';
   const planLabel = PLAN_LABELS[plan] ?? plan;
   const billingLabel = billing === 'anual' ? 'Anual' : 'Mensal';

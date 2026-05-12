@@ -63,7 +63,7 @@ const PLANS = [
   },
 ]
 
-const DISCOUNT = 0.20
+const ANNUAL_DISCOUNT = 0.20
 
 function fmt(v: number) {
   return v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -207,7 +207,7 @@ export default function ClientPayments() {
       {/* Plans grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
         {PLANS.map(plan => {
-          const price = annual ? plan.price_monthly * (1 - DISCOUNT) : plan.price_monthly
+          const price = annual ? plan.price_monthly * (1 - ANNUAL_DISCOUNT) : plan.price_monthly
           const selectedBilling = annual ? 'anual' : 'mensal'
           const samePlan = org?.plan === plan.key
           // Mesmo plano E mesmo período → desabilitado
@@ -252,7 +252,7 @@ export default function ClientPayments() {
                 </div>
                 {annual && (
                   <p className="text-xs font-medium text-brand-500 mt-0.5">
-                    Cobrado como R$ {fmt(price * 12)}/ano
+                    Cobrado como R$ {fmt(plan.price_monthly * 12 * (1 - ANNUAL_DISCOUNT))}/ano
                   </p>
                 )}
               </div>

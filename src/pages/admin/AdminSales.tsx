@@ -6,16 +6,28 @@ import {
 type Plan = 'starter' | 'pro' | 'clinic'
 type Billing = 'mensal' | 'anual'
 
+const ANNUAL_DISCOUNT = 0.20
+
 const PLAN_LABELS: Record<Plan, string> = {
   starter: 'Essencial',
   pro:     'Pro',
   clinic:  'Max',
 }
 
+const MONTHLY: Record<Plan, number> = {
+  starter: 299.90,
+  pro:     449.90,
+  clinic:  849.90,
+}
+
+function annualTotal(plan: Plan) {
+  return parseFloat((MONTHLY[plan] * 12 * (1 - ANNUAL_DISCOUNT)).toFixed(2))
+}
+
 const PLAN_PRICES: Record<Plan, { mensal: number; anual: number }> = {
-  starter: { mensal: 299.90,  anual: 2879.04 },
-  pro:     { mensal: 449.90,  anual: 4319.04 },
-  clinic:  { mensal: 849.90,  anual: 8159.04 },
+  starter: { mensal: MONTHLY.starter, anual: annualTotal('starter') },
+  pro:     { mensal: MONTHLY.pro,     anual: annualTotal('pro') },
+  clinic:  { mensal: MONTHLY.clinic,  anual: annualTotal('clinic') },
 }
 
 const PLAN_COLORS: Record<Plan, { bg: string; text: string; border: string }> = {
