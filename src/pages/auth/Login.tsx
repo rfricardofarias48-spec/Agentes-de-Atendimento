@@ -67,7 +67,7 @@ export default function Login() {
             <img
               src="https://ik.imagekit.io/xsbrdnr0y/Logo%20sem%20fundo.png"
               alt="Gestor"
-              className="h-20 w-auto object-contain"
+              className="h-28 w-auto object-contain"
             />
           </div>
 
