@@ -117,6 +117,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     asaas_subscription_id:  payment.subscription ?? null,
     asaas_status:           'active',
     subscription_period_end: periodEnd,
+    billing,
   };
 
   // Verifica se org já existe para este email

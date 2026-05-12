@@ -18,6 +18,7 @@ export interface Organization {
   chatwoot_url: string | null
   asaas_key: string | null
   billing_email: string | null
+  billing: 'mensal' | 'anual' | null
   asaas_customer_id: string | null
   asaas_subscription_id: string | null
   asaas_status: string | null

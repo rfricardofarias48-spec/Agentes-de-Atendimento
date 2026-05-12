@@ -208,7 +208,12 @@ export default function ClientPayments() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
         {PLANS.map(plan => {
           const price = annual ? plan.price_monthly * (1 - DISCOUNT) : plan.price_monthly
-          const isCurrent = org?.plan === plan.key
+          const selectedBilling = annual ? 'anual' : 'mensal'
+          const samePlan = org?.plan === plan.key
+          // Mesmo plano E mesmo período → desabilitado
+          const isCurrent = samePlan && (org?.billing ?? 'mensal') === selectedBilling
+          // Mesmo plano mas período diferente → permite migrar para anual
+          const isUpgradeBilling = samePlan && !isCurrent && selectedBilling === 'anual'
 
           return (
             <div
@@ -286,7 +291,11 @@ export default function ClientPayments() {
               >
                 {loadingPlan === plan.key
                   ? <><Loader2 className="w-4 h-4 animate-spin" /> Aguarde...</>
-                  : isCurrent ? 'Plano Atual' : plan.cta
+                  : isCurrent
+                    ? 'Plano Atual'
+                    : isUpgradeBilling
+                      ? 'Migrar para Anual'
+                      : plan.cta
                 }
               </button>
             </div>
