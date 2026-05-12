@@ -691,30 +691,41 @@ export default function AdminClientDetail() {
               </Card>
 
               {/* Asaas — preenchido automaticamente pelo webhook */}
-              {!isNew && (org.asaas_customer_id || org.asaas_subscription_id || org.asaas_status) && (
+              {!isNew && (
                 <Card title="Asaas">
                   <div className="grid grid-cols-2 gap-4">
                     <Field label="Customer ID">
-                      <div className="flex items-center gap-2 px-3.5 py-2.5 rounded-[0.625rem] text-sm font-mono"
-                        style={{ background: '#f9fafb', border: '1px solid #e4e7ec', color: '#344054' }}>
-                        {org.asaas_customer_id || '—'}
+                      <div className="flex items-center px-3.5 py-2.5 rounded-[0.625rem] text-sm font-mono truncate"
+                        style={{ background: '#f9fafb', border: '1px solid #e4e7ec', color: org.asaas_customer_id ? '#344054' : '#d0d5dd' }}>
+                        {org.asaas_customer_id || 'Aguardando pagamento'}
                       </div>
                     </Field>
                     <Field label="Status">
                       <div className="flex items-center gap-2 px-3.5 py-2.5 rounded-[0.625rem] text-sm"
-                        style={{ background: '#f9fafb', border: '1px solid #e4e7ec', color: org.asaas_status === 'active' ? '#16a34a' : '#dc2626' }}>
+                        style={{
+                          background: '#f9fafb', border: '1px solid #e4e7ec',
+                          color: org.asaas_status === 'active' ? '#16a34a' : org.asaas_status === 'overdue' ? '#dc2626' : '#d0d5dd',
+                        }}>
                         {org.asaas_status === 'active' ? '● Ativo' : org.asaas_status === 'overdue' ? '● Inadimplente' : (org.asaas_status || '—')}
                       </div>
                     </Field>
                   </div>
-                  {org.subscription_period_end && (
-                    <Field label="Próximo Vencimento">
-                      <div className="flex items-center gap-2 px-3.5 py-2.5 rounded-[0.625rem] text-sm"
-                        style={{ background: '#f9fafb', border: '1px solid #e4e7ec', color: '#344054' }}>
-                        {new Date(org.subscription_period_end).toLocaleDateString('pt-BR')}
+                  <div className="grid grid-cols-2 gap-4">
+                    <Field label="Período">
+                      <div className="flex items-center px-3.5 py-2.5 rounded-[0.625rem] text-sm"
+                        style={{ background: '#f9fafb', border: '1px solid #e4e7ec', color: org.billing ? '#344054' : '#d0d5dd' }}>
+                        {org.billing === 'anual' ? 'Anual' : org.billing === 'mensal' ? 'Mensal' : '—'}
                       </div>
                     </Field>
-                  )}
+                    <Field label="Próximo Vencimento">
+                      <div className="flex items-center px-3.5 py-2.5 rounded-[0.625rem] text-sm"
+                        style={{ background: '#f9fafb', border: '1px solid #e4e7ec', color: org.subscription_period_end ? '#344054' : '#d0d5dd' }}>
+                        {org.subscription_period_end
+                          ? new Date(org.subscription_period_end).toLocaleDateString('pt-BR')
+                          : '—'}
+                      </div>
+                    </Field>
+                  </div>
                   <p className="text-[10px]" style={{ color: '#98a2b3' }}>
                     Preenchido automaticamente via webhook após pagamento.
                   </p>
