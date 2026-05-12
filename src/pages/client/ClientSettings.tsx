@@ -130,11 +130,11 @@ export default function ClientSettings() {
             <div className="w-7 h-7 rounded-xl bg-slate-100 flex items-center justify-center shrink-0">
               <User className="w-3.5 h-3.5 text-slate-500" />
             </div>
-            <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">Dados da Clínica</p>
+            <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">Dados</p>
           </div>
 
           <div className="space-y-1.5">
-            <label className="block text-sm font-medium text-slate-700">Nome da Clínica</label>
+            <label className="block text-sm font-medium text-slate-700">Nome</label>
             <input
               type="text"
               value={clinicName}
