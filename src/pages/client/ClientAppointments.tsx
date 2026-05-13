@@ -193,7 +193,7 @@ function RangeCalendar({ start, end, onChange }: {
           return (
             <div key={i} className="relative h-8 flex items-center justify-center">
               {hasRange && (isStart || isEnd || inRange) && (
-                <div className="absolute inset-y-[2px] bg-amber-100 pointer-events-none"
+                <div className="absolute inset-y-[2px] bg-indigo-100 pointer-events-none"
                   style={{ left: isStart ? '50%' : 0, right: isEnd ? '50%' : 0 }} />
               )}
               <button type="button"
@@ -202,9 +202,9 @@ function RangeCalendar({ start, end, onChange }: {
                 onMouseLeave={() => setHover('')}
                 className={cn(
                   'relative z-10 w-7 h-7 flex items-center justify-center text-[11px] font-medium rounded-full transition-colors',
-                  isStart || isEnd ? 'bg-amber-500 text-white font-bold shadow-sm' :
-                  inRange ? 'text-amber-800 hover:bg-amber-200' :
-                  ds === todayStr ? 'text-amber-600 font-bold ring-1 ring-amber-300 hover:bg-amber-50' :
+                  isStart || isEnd ? 'bg-indigo-600 text-white font-bold shadow-sm' :
+                  inRange ? 'text-indigo-700 hover:bg-indigo-100' :
+                  ds === todayStr ? 'text-indigo-600 font-bold ring-1 ring-indigo-300 hover:bg-indigo-50' :
                   'text-slate-600 hover:bg-slate-100'
                 )}>
                 {day}
@@ -515,9 +515,9 @@ export default function ClientAppointments() {
               Hoje
             </button>
             {visibleBlockCount > 0 && (
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-200">
-                <div className="w-2.5 h-2.5 rounded-sm bg-amber-400" />
-                <span className="text-[12px] font-semibold text-amber-700">
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 border border-slate-200">
+                <div className="w-2.5 h-2.5 rounded-sm bg-slate-400" />
+                <span className="text-[12px] font-semibold text-slate-600">
                   {visibleBlockCount} dia{visibleBlockCount > 1 ? 's' : ''} bloqueado{visibleBlockCount > 1 ? 's' : ''}
                 </span>
               </div>
@@ -552,8 +552,8 @@ export default function ClientAppointments() {
               </button>
               <div className="mx-4 h-px bg-slate-100" />
               <button onClick={openBlockModal} className="flex items-center gap-3 w-full px-4 py-3 text-[13px] font-semibold text-slate-700 hover:bg-slate-50 transition-colors text-left">
-                <div className="w-7 h-7 rounded-xl bg-amber-50 flex items-center justify-center shrink-0">
-                  <Lock className="w-3.5 h-3.5 text-amber-500" />
+                <div className="w-7 h-7 rounded-xl bg-slate-100 flex items-center justify-center shrink-0">
+                  <Lock className="w-3.5 h-3.5 text-slate-500" />
                 </div>
                 Bloquear Agenda
               </button>
@@ -580,9 +580,9 @@ export default function ClientAppointments() {
                     const hasBlock = (blocksByDay[dayKey(day)] ?? []).length > 0
                     return (
                       <div key={i} className={cn('flex-1 border-l border-slate-100 py-3 text-center min-w-0',
-                        isWeekend && !isToday ? 'bg-slate-50/60' : '', hasBlock ? 'bg-amber-50/40' : '')}>
+                        isWeekend && !isToday ? 'bg-slate-50/60' : '', hasBlock ? 'bg-slate-50/80' : '')}>
                         <p className={cn('text-[10px] font-bold uppercase tracking-[0.12em]',
-                          isToday ? 'text-brand-500' : hasBlock ? 'text-amber-600' : 'text-slate-400')}>
+                          isToday ? 'text-brand-500' : hasBlock ? 'text-slate-500' : 'text-slate-400')}>
                           {DAY_PT[day.getDay()]}{hasBlock && <span className="ml-1">🔒</span>}
                         </p>
                         <div className={cn('mt-1.5 mx-auto w-8 h-8 flex items-center justify-center rounded-full text-[13px] font-bold transition-all duration-200',
@@ -623,10 +623,10 @@ export default function ClientAppointments() {
                         {dayBlocks.map(b => (
                           b.all_day ? (
                             <div key={b.id} className="absolute inset-0 pointer-events-none"
-                              style={{ background: 'rgba(251,191,36,0.12)', borderLeft: '3px solid #fbbf24' }} />
+                              style={{ background: 'repeating-linear-gradient(-45deg,rgba(100,116,139,0.06) 0px,rgba(100,116,139,0.06) 4px,transparent 4px,transparent 12px)', borderLeft: '3px solid #94a3b8' }} />
                           ) : (b.start_time && b.end_time) ? (
                             <div key={b.id} className="absolute left-0 right-0 pointer-events-none"
-                              style={{ top: blockTop(b.start_time), height: blockHeight(b.start_time, b.end_time), background: 'rgba(251,191,36,0.18)', borderLeft: '3px solid #fbbf24' }} />
+                              style={{ top: blockTop(b.start_time), height: blockHeight(b.start_time, b.end_time), background: 'repeating-linear-gradient(-45deg,rgba(100,116,139,0.09) 0px,rgba(100,116,139,0.09) 4px,transparent 4px,transparent 12px)', borderLeft: '3px solid #94a3b8' }} />
                           ) : null
                         ))}
 
@@ -717,7 +717,7 @@ export default function ClientAppointments() {
 
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-5 rounded-t-3xl"
-              style={{ background: 'linear-gradient(135deg, #d97706 0%, #b45309 100%)' }}>
+              style={{ background: 'linear-gradient(135deg, #334155 0%, #1e293b 100%)' }}>
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-xl bg-white/15 flex items-center justify-center border border-white/20">
                   <Lock className="w-4 h-4 text-white" />
@@ -738,7 +738,7 @@ export default function ClientAppointments() {
                     onClick={() => setBlockForm(f => ({ ...f, all_day: opt.v }))}
                     className={cn('flex-1 py-2.5 rounded-xl text-[13px] font-semibold border-2 transition-all',
                       blockForm.all_day === opt.v
-                        ? 'border-amber-400 bg-amber-50 text-amber-800'
+                        ? 'border-indigo-400 bg-indigo-50 text-indigo-800'
                         : 'border-slate-200 text-slate-500 hover:border-slate-300 bg-white')}>
                     {opt.l}
                   </button>
@@ -758,12 +758,12 @@ export default function ClientAppointments() {
                   <FormField label="Início" required>
                     <Input type="time" value={blockForm.start_time}
                       onChange={e => setBlockForm(f => ({ ...f, start_time: e.target.value }))}
-                      className="rounded-xl border-slate-200 focus-visible:ring-amber-400 h-10 text-sm" />
+                      className="rounded-xl border-slate-200 focus-visible:ring-indigo-400 h-10 text-sm" />
                   </FormField>
                   <FormField label="Fim" required>
                     <Input type="time" value={blockForm.end_time}
                       onChange={e => setBlockForm(f => ({ ...f, end_time: e.target.value }))}
-                      className="rounded-xl border-slate-200 focus-visible:ring-amber-400 h-10 text-sm" />
+                      className="rounded-xl border-slate-200 focus-visible:ring-indigo-400 h-10 text-sm" />
                   </FormField>
                 </div>
               )}
@@ -773,18 +773,18 @@ export default function ClientAppointments() {
                 <Input placeholder="Ex: Férias, evento externo..."
                   value={blockForm.reason}
                   onChange={e => setBlockForm(f => ({ ...f, reason: e.target.value }))}
-                  className="rounded-xl border-slate-200 focus-visible:ring-amber-400 h-10 text-sm" />
+                  className="rounded-xl border-slate-200 focus-visible:ring-indigo-400 h-10 text-sm" />
               </FormField>
 
               {blockError && (
-                <div className="flex items-center gap-2 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+                <div className="flex items-center gap-2 text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3">
                   <AlertTriangle className="w-4 h-4 shrink-0" />{blockError}
                 </div>
               )}
 
               {/* Adicionar à lista */}
               <button type="button" onClick={addToPending}
-                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-2xl text-sm font-bold border-2 border-dashed border-amber-300 text-amber-700 hover:bg-amber-50 transition-all">
+                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-2xl text-sm font-bold border-2 border-dashed border-slate-300 text-slate-600 hover:bg-slate-50 transition-all">
                 <Plus className="w-4 h-4" />
                 Adicionar à lista
               </button>
@@ -797,17 +797,17 @@ export default function ClientAppointments() {
                   </p>
                   <div className="space-y-1.5 max-h-36 overflow-y-auto">
                     {pendingBlocks.map(b => (
-                      <div key={b.key} className="flex items-center gap-2.5 px-3.5 py-2 rounded-xl bg-amber-50 border border-amber-100">
-                        <div className="w-2 h-2 rounded-full bg-amber-400 shrink-0" />
-                        <p className="flex-1 text-[12px] font-semibold text-amber-900">
+                      <div key={b.key} className="flex items-center gap-2.5 px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-100">
+                        <div className="w-2 h-2 rounded-full bg-slate-400 shrink-0" />
+                        <p className="flex-1 text-[12px] font-semibold text-slate-800">
                           {fmtBlockDate(b.date)}
-                          <span className="font-normal text-amber-600 ml-1.5">
+                          <span className="font-normal text-slate-500 ml-1.5">
                             {b.all_day ? '· Dia inteiro' : `· ${b.start_time} – ${b.end_time}`}
                             {b.reason ? ` · ${b.reason}` : ''}
                           </span>
                         </p>
                         <button onClick={() => setPendingBlocks(prev => prev.filter(p => p.key !== b.key))}
-                          className="w-5 h-5 flex items-center justify-center rounded-md hover:bg-amber-200 text-amber-400 hover:text-red-500 transition-colors">
+                          className="w-5 h-5 flex items-center justify-center rounded-md hover:bg-slate-200 text-slate-300 hover:text-red-400 transition-colors">
                           <X className="w-3 h-3" />
                         </button>
                       </div>
@@ -825,7 +825,7 @@ export default function ClientAppointments() {
                 <button type="button" onClick={handleSaveAllBlocks}
                   disabled={savingBlock || pendingBlocks.length === 0}
                   className="flex-1 py-2.5 rounded-2xl text-sm font-bold text-white disabled:opacity-40 transition-all hover:-translate-y-[1px]"
-                  style={{ background: 'linear-gradient(135deg, #d97706, #b45309)' }}>
+                  style={{ background: 'linear-gradient(135deg, #334155, #1e293b)' }}>
                   {savingBlock ? 'Salvando...' : `Salvar ${pendingBlocks.length > 0 ? pendingBlocks.length : ''} bloqueio${pendingBlocks.length !== 1 ? 's' : ''}`}
                 </button>
               </div>
@@ -838,7 +838,7 @@ export default function ClientAppointments() {
                   <div className="space-y-1.5 max-h-40 overflow-y-auto">
                     {blockedSlots.map(b => (
                       <div key={b.id} className="flex items-center gap-2.5 px-3.5 py-2 rounded-xl border border-slate-100 hover:bg-slate-50 transition-colors">
-                        <Lock className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                        <Lock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                         <p className="flex-1 text-[12px] font-medium text-slate-700">
                           {fmtBlockDate(b.date)}
                           <span className="text-slate-400 ml-1.5">
