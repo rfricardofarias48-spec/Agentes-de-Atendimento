@@ -671,19 +671,15 @@ export default function ClientAppointments() {
                           const pal = apptPalette(appt.status)
                           const d = new Date(appt.scheduled_at)
                           const time = d.toLocaleTimeString('pt-BR', { timeZone: TZ, hour: '2-digit', minute: '2-digit' })
-                          const initials = appt.patient_name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()
                           return (
                             <div key={appt.id} onClick={() => setDetailAppt(appt)}
                               className={cn('absolute left-1 right-1 rounded-xl overflow-hidden cursor-pointer z-10',
                                 'shadow-[0_1px_4px_rgba(0,0,0,0.07)] hover:shadow-[0_4px_14px_rgba(0,0,0,0.12)] hover:-translate-y-px transition-all duration-150', pal.bg)}
                               style={{ top: top + 2, minHeight: HOUR_HEIGHT / 2 - 4 }}>
                               <div className={cn('absolute left-0 top-0 bottom-0 w-[3px] rounded-l-xl', pal.bar)} />
-                              <div className="pl-3 pr-2 py-1.5 flex items-start gap-1.5">
-                                <div className="flex-1 min-w-0">
-                                  <p className={cn('text-[11px] font-bold truncate leading-tight', pal.text)}>{appt.patient_name}</p>
-                                  <p className={cn('text-[10px] truncate leading-tight mt-0.5 font-medium', pal.sub)}>{time} · {appt.specialty}</p>
-                                </div>
-                                <span className={cn('shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-black text-white', pal.bar)}>{initials}</span>
+                              <div className="pl-3 pr-2 py-1.5">
+                                <p className={cn('text-[11px] font-bold truncate leading-tight', pal.text)}>{appt.patient_name}</p>
+                                <p className={cn('text-[10px] truncate leading-tight mt-0.5 font-medium', pal.sub)}>{time} · {appt.specialty}</p>
                               </div>
                             </div>
                           )
