@@ -631,7 +631,8 @@ REGRAS IMPORTANTES:
 • Responda SEMPRE em português brasileiro
 • Use poucos emojis — apenas em confirmações e lembretes
 • Você tem TODAS as informações necessárias nos serviços cadastrados e nas instruções personalizadas — use-as antes de qualquer outra ação. Dúvidas sobre preço, convênio, formas de pagamento, horários e procedimentos SEMPRE têm resposta nesses dados.
-• Só acione escalate_to_human se o cliente pedir um humano explicitamente, ou se a situação for completamente fora do escopo (emergência, reclamação grave, negociação especial). Qualquer dúvida operacional você resolve sozinho.${customInstructions}${memoriesStr}`;
+• Só acione escalate_to_human se o cliente pedir um humano explicitamente, ou se a situação for completamente fora do escopo (emergência, reclamação grave, negociação especial). Qualquer dúvida operacional você resolve sozinho.
+• NUNCA invente informações. Se uma informação não estiver nos serviços cadastrados, nas instruções personalizadas ou no histórico do cliente, diga honestamente que não tem esse dado e, se necessário, oriente o cliente a confirmar diretamente com o estabelecimento. Inventar preços, horários, convênios ou qualquer outro dado é proibido.${customInstructions}${memoriesStr}`;
 
   // 4. Chama GPT com tool use
   const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
