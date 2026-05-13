@@ -19,6 +19,12 @@ const supabase = createClient(
 
 const MODEL = 'gpt-5.4-nano';
 
+const TZ = 'America/Sao_Paulo';
+/** Returns a Date whose .getHours()/.getDay()/.getDate() reflect BRT time */
+function toBRT(d: Date): Date { return new Date(d.toLocaleString('en-US', { timeZone: TZ })); }
+/** Returns YYYY-MM-DD string in BRT timezone */
+function brtDateStr(d: Date): string { return d.toLocaleDateString('en-CA', { timeZone: TZ }); }
+
 // ─── Tipos ────────────────────────────────────────────────────
 
 interface Organization {
@@ -210,27 +216,29 @@ async function executeTool(
       const duration = settings.appointment_duration || 60;
       const weekOffset = typeof args.week_offset === 'number' ? args.week_offset : 0;
 
-      // Define o intervalo de datas a verificar
-      let dateFrom: Date;
-      let dateTo: Date;
+      // ── Trabalha com datas em BRT ──────────────────────────────
+      // brtFromStr / brtToStr são strings YYYY-MM-DD no fuso de Brasília
+      let brtFromStr: string;
+      let brtToStr: string;
+
       if (args.date) {
-        dateFrom = new Date(`${args.date}T00:00:00`);
-        dateTo   = new Date(`${args.date}T23:59:59`);
+        brtFromStr = String(args.date);
+        brtToStr   = String(args.date);
       } else {
-        const today = new Date();
-        const dow = today.getDay(); // 0=Dom
-        dateFrom = new Date(today);
-        dateFrom.setDate(today.getDate() - dow + (weekOffset * 7));
-        dateFrom.setHours(0, 0, 0, 0);
-        dateTo = new Date(dateFrom);
-        dateTo.setDate(dateFrom.getDate() + 6);
-        dateTo.setHours(23, 59, 59, 999);
+        const nowBRT = toBRT(new Date());
+        const dow = nowBRT.getDay(); // dia da semana em BRT
+        const startBRT = new Date(nowBRT);
+        startBRT.setDate(nowBRT.getDate() - dow + weekOffset * 7);
+        startBRT.setHours(12, 0, 0, 0);
+        const endBRT = new Date(startBRT);
+        endBRT.setDate(startBRT.getDate() + 6);
+        brtFromStr = `${startBRT.getFullYear()}-${String(startBRT.getMonth()+1).padStart(2,'0')}-${String(startBRT.getDate()).padStart(2,'0')}`;
+        brtToStr   = `${endBRT.getFullYear()}-${String(endBRT.getMonth()+1).padStart(2,'0')}-${String(endBRT.getDate()).padStart(2,'0')}`;
       }
 
-      const fromStr = dateFrom.toISOString();
-      const toStr   = dateTo.toISOString();
-      const fromDate = dateFrom.toISOString().slice(0, 10);
-      const toDate   = dateTo.toISOString().slice(0, 10);
+      // Converte para UTC para queries de timestamp no Supabase
+      const fromStr = new Date(`${brtFromStr}T00:00:00-03:00`).toISOString();
+      const toStr   = new Date(`${brtToStr}T23:59:59-03:00`).toISOString();
 
       // Busca agendamentos existentes no período
       const { data: existingAppts } = await supabase
@@ -241,15 +249,14 @@ async function executeTool(
         .gte('scheduled_at', fromStr)
         .lte('scheduled_at', toStr);
 
-      // Busca bloqueios no período
+      // Busca bloqueios (coluna `date` armazena data em BRT)
       const { data: blockedSlots } = await supabase
         .from('blocked_slots')
         .select('date, all_day, start_time, end_time')
         .eq('org_id', orgId)
-        .gte('date', fromDate)
-        .lte('date', toDate);
+        .gte('date', brtFromStr)
+        .lte('date', brtToStr);
 
-      // Horário de funcionamento padrão (seg-sex 09h-18h) — usado se working_hours não estiver configurado
       const DEFAULT_HOURS: Record<number, WorkingDay> = {
         1: { active: true,  start: '09:00', end: '18:00' },
         2: { active: true,  start: '09:00', end: '18:00' },
@@ -276,31 +283,32 @@ async function executeTool(
         return `${String(Math.floor(mins / 60)).padStart(2, '0')}:${String(mins % 60).padStart(2, '0')}`;
       }
 
-      const PT_DAYS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
       const resultLines: string[] = [];
 
-      // Itera cada dia do intervalo
-      const cursor = new Date(dateFrom);
-      while (cursor <= dateTo) {
-        const dateKey = cursor.toISOString().slice(0, 10);
-        const dow = cursor.getDay();
-        const wd  = getWorkDay(dow);
+      // Cursor em UTC, ancorando ao meio-dia BRT para evitar cruzamento de dia
+      let cursor = new Date(`${brtFromStr}T12:00:00-03:00`);
+      const endCursor = new Date(`${brtToStr}T12:00:00-03:00`);
+
+      while (cursor <= endCursor) {
+        const dateKey = brtDateStr(cursor);           // YYYY-MM-DD em BRT
+        const dow     = toBRT(cursor).getDay();       // dia da semana em BRT
+        const wd      = getWorkDay(dow);
 
         if (!wd.active) { cursor.setDate(cursor.getDate() + 1); continue; }
 
         const workStart = toMinutes(wd.start);
         const workEnd   = toMinutes(wd.end);
 
-        // Slots ocupados por agendamentos existentes neste dia
-        const dayAppts = (existingAppts || []).filter(a => a.scheduled_at.slice(0, 10) === dateKey);
+        // Slots ocupados — extrai horas em BRT
+        const dayAppts = (existingAppts || []).filter(a => brtDateStr(new Date(a.scheduled_at)) === dateKey);
         const occupied = dayAppts.map(a => {
-          const apptDate = new Date(a.scheduled_at);
-          const start = apptDate.getHours() * 60 + apptDate.getMinutes();
+          const brt   = toBRT(new Date(a.scheduled_at));
+          const start = brt.getHours() * 60 + brt.getMinutes();
           const dur   = a.duration_minutes || duration;
           return { start, end: start + dur };
         });
 
-        // Slots bloqueados por blocked_slots neste dia
+        // Bloqueios (coluna `date` é BRT)
         const dayBlocked = (blockedSlots || []).filter(b => b.date === dateKey);
         const blockedRanges = dayBlocked.map(b => {
           if (b.all_day) return { start: workStart, end: workEnd };
@@ -310,13 +318,10 @@ async function executeTool(
           };
         });
 
-        // Dia inteiramente bloqueado?
         if (blockedRanges.some(b => b.start <= workStart && b.end >= workEnd)) {
-          cursor.setDate(cursor.getDate() + 1);
-          continue;
+          cursor.setDate(cursor.getDate() + 1); continue;
         }
 
-        // Gera candidatos de slots
         const freeSlots: string[] = [];
         for (let t = workStart; t + duration <= workEnd; t += duration) {
           const slotEnd = t + duration;
@@ -327,7 +332,7 @@ async function executeTool(
         }
 
         if (freeSlots.length > 0) {
-          const label = cursor.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: '2-digit' });
+          const label = cursor.toLocaleDateString('pt-BR', { timeZone: TZ, weekday: 'long', day: '2-digit', month: '2-digit' });
           resultLines.push(`${label}: ${freeSlots.join(', ')}`);
         }
 
@@ -335,7 +340,9 @@ async function executeTool(
       }
 
       if (resultLines.length === 0) {
-        return `Nenhum horário disponível no período solicitado (${PT_DAYS[dateFrom.getDay()]} ${dateFrom.toLocaleDateString('pt-BR')} a ${PT_DAYS[dateTo.getDay()]} ${dateTo.toLocaleDateString('pt-BR')}). Cada atendimento tem duração de ${duration} minutos.`;
+        const labelFrom = new Date(`${brtFromStr}T12:00:00-03:00`).toLocaleDateString('pt-BR', { timeZone: TZ });
+        const labelTo   = new Date(`${brtToStr}T12:00:00-03:00`).toLocaleDateString('pt-BR', { timeZone: TZ });
+        return `Nenhum horário disponível no período solicitado (${labelFrom} a ${labelTo}). Cada atendimento tem duração de ${duration} minutos.`;
       }
 
       return `Horários disponíveis (atendimento de ${duration} min cada):\n${resultLines.join('\n')}`;
@@ -378,8 +385,8 @@ async function executeTool(
       }
 
       const dateStr = args.preferred_date
-        ? new Date(`${args.preferred_date}T${args.preferred_time || '00:00'}:00`)
-            .toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: '2-digit' })
+        ? new Date(`${args.preferred_date}T${args.preferred_time || '00:00'}:00-03:00`)
+            .toLocaleDateString('pt-BR', { timeZone: TZ, weekday: 'long', day: '2-digit', month: '2-digit' })
         : null;
       const timeStr = args.preferred_time || null;
 
@@ -407,7 +414,7 @@ async function executeTool(
 
       if (!data?.length) return 'Nenhuma consulta agendada encontrada.';
       const list = data.map(a => {
-        const dt = a.scheduled_at ? new Date(a.scheduled_at).toLocaleString('pt-BR') : 'a confirmar';
+        const dt = a.scheduled_at ? new Date(a.scheduled_at).toLocaleString('pt-BR', { timeZone: TZ }) : 'a confirmar';
         return `• ${a.specialty}${a.doctor_name ? ' com ' + a.doctor_name : ''} — ${dt} (${a.status})`;
       }).join('\n');
       return `Suas consultas:\n${list}`;
@@ -466,8 +473,8 @@ async function executeTool(
         ).catch(() => { /* best-effort */ });
       }
 
-      const dateStr = new Date(`${args.new_date}T${args.new_time}:00`)
-        .toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: '2-digit' });
+      const dateStr = new Date(`${args.new_date}T${args.new_time}:00-03:00`)
+        .toLocaleDateString('pt-BR', { timeZone: TZ, weekday: 'long', day: '2-digit', month: '2-digit' });
 
       return JSON.stringify({
         success: true,
@@ -774,7 +781,7 @@ export async function processProMessage(
 
   const appointmentsStr = appointments?.length
     ? `Agendamentos:\n${appointments.map(a => {
-        const dt = new Date(a.scheduled_at).toLocaleString('pt-BR');
+        const dt = new Date(a.scheduled_at).toLocaleString('pt-BR', { timeZone: TZ });
         return `• ${a.specialty}${a.doctor_name ? ' com ' + a.doctor_name : ''} — ${dt} (${a.status})${a.notes ? ' — ' + a.notes : ''}`;
       }).join('\n')}`
     : 'Sem agendamentos registrados.';

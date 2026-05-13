@@ -4,9 +4,10 @@ import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { type Appointment, type Conversation, type Organization } from '../../types'
 import { statusLabel } from '../../lib/utils'
+import { TZ, toBRT, brtDateStr } from '../../lib/date'
 
 function formatApptDate(iso: string): string {
-  const d = new Date(iso)
+  const d = toBRT(new Date(iso))
   const day = String(d.getDate()).padStart(2, '0')
   const month = String(d.getMonth() + 1).padStart(2, '0')
   const h = d.getHours()
@@ -30,12 +31,12 @@ const statusColors: Record<string, 'success' | 'secondary' | 'warning' | 'destru
 
 
 function getPeriodStart(period: Period): Date {
-  const now = new Date()
-  if (period === 'day') return new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const brt = toBRT(new Date())
+  if (period === 'day') return new Date(brt.getFullYear(), brt.getMonth(), brt.getDate())
   if (period === 'week') {
-    const d = new Date(now); d.setDate(d.getDate() - 6); d.setHours(0, 0, 0, 0); return d
+    const d = new Date(brt); d.setDate(brt.getDate() - 6); d.setHours(0, 0, 0, 0); return d
   }
-  return new Date(now.getFullYear(), now.getMonth(), 1)
+  return new Date(brt.getFullYear(), brt.getMonth(), 1)
 }
 
 const CARD_ACCENTS = {
@@ -85,19 +86,19 @@ export default function ClientDashboard() {
     }
   }, [appointments, conversations, period])
 
-  // Weekly chart data (Mon→Sun current week)
+  // Weekly chart data (Mon→Sun current week) — all comparisons in BRT
   const weeklyData = useMemo(() => {
-    const today = new Date(); today.setHours(0, 0, 0, 0)
-    const monday = new Date(today)
-    monday.setDate(today.getDate() - ((today.getDay() + 6) % 7))
+    const brt = toBRT(new Date()); brt.setHours(0, 0, 0, 0)
+    const monday = new Date(brt)
+    monday.setDate(brt.getDate() - ((brt.getDay() + 6) % 7))
     const LABELS = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom']
     return Array.from({ length: 7 }, (_, i) => {
       const day = new Date(monday); day.setDate(monday.getDate() + i)
       const next = new Date(day); next.setDate(day.getDate() + 1)
       const count = appointments.filter(a => {
-        const d = new Date(a.scheduled_at); return d >= day && d < next
+        const d = toBRT(new Date(a.scheduled_at)); return d >= day && d < next
       }).length
-      return { label: LABELS[i], count, isToday: day.getTime() === today.getTime(), isPast: day < today, isFuture: day > today }
+      return { label: LABELS[i], count, isToday: day.getTime() === brt.getTime(), isPast: day < brt, isFuture: day > brt }
     })
   }, [appointments])
 

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Wallet, CreditCard, PieChart, TrendingUp, Activity } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { type Organization } from '../../types'
+import { TZ, toBRT } from '../../lib/date'
 
 const PLAN_PRICES: Record<string, number> = { starter: 299.90, pro: 449.90, clinic: 849.90 }
 const MONTHS = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez']
@@ -66,7 +67,7 @@ export default function AdminBilling() {
 
   const monthlyData = MONTHS.map((label, idx) => {
     const inMonth = sales.filter(s => {
-      const d = new Date(s.paid_at || s.created_at)
+      const d = toBRT(new Date(s.paid_at || s.created_at))
       return d.getFullYear() === parseInt(year) && d.getMonth() === idx
     })
     return {
@@ -97,10 +98,10 @@ export default function AdminBilling() {
   const areaPath = (pts: {x:number;y:number}[]) =>
     bezier(pts) + ` L${pts[pts.length-1].x},${PAD.t+chartH} L${pts[0].x},${PAD.t+chartH} Z`
 
-  const now = new Date()
+  const now = toBRT(new Date())
   const [histMonth, setHistMonth] = useState(`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`)
   const histSales = sales.filter(s => {
-    const d = new Date(s.paid_at || s.created_at)
+    const d = toBRT(new Date(s.paid_at || s.created_at))
     const m = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`
     return m === histMonth
   })
@@ -355,7 +356,7 @@ export default function AdminBilling() {
               className="input-dark px-3 py-1.5 text-sm"
             />
             <span className="ml-auto text-sm font-semibold capitalize" style={{ color: '#344054' }}>
-              {new Date(histMonth + '-02').toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
+              {new Date(histMonth + '-02').toLocaleDateString('pt-BR', { timeZone: TZ, month: 'long', year: 'numeric' })}
             </span>
           </div>
 
@@ -469,7 +470,7 @@ export default function AdminBilling() {
                         + R$ {s.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                       </p>
                       <p className="text-[10px]" style={{ color: '#98a2b3' }}>
-                        {new Date(s.paid_at || s.created_at).toLocaleDateString('pt-BR')}
+                        {new Date(s.paid_at || s.created_at).toLocaleDateString('pt-BR', { timeZone: TZ })}
                       </p>
                     </div>
                   </div>

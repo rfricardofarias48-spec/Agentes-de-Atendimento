@@ -4,9 +4,10 @@ import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { type Appointment } from '../../types'
 import { statusLabel } from '../../lib/utils'
+import { TZ, toBRT, brtDateStr } from '../../lib/date'
 
 function formatApptDate(iso: string): string {
-  const d = new Date(iso)
+  const d = toBRT(new Date(iso))
   const day = String(d.getDate()).padStart(2, '0')
   const month = String(d.getMonth() + 1).padStart(2, '0')
   const h = d.getHours(), m = d.getMinutes()
@@ -60,16 +61,17 @@ const STATUS_PALETTES: Record<string, { bg: string; bar: string; text: string; s
 function apptPalette(status: string) { return STATUS_PALETTES[status] ?? STATUS_PALETTES.scheduled }
 
 function apptTop(iso: string, startHour: number): number | null {
-  const d = new Date(iso)
+  const d = toBRT(new Date(iso))
   const h = d.getHours(), m = d.getMinutes()
   if (h < startHour || h >= END_HOUR) return null
   return ((h - startHour) * 60 + m) / 60 * HOUR_HEIGHT
 }
 
-function dayKey(d: Date) { return d.toISOString().slice(0, 10) }
+function dayKey(d: Date) { return brtDateStr(d) }
 function addDays(d: Date, n: number) { const r = new Date(d); r.setDate(r.getDate() + n); return r }
 function weekStart(d: Date) {
-  const r = new Date(d); r.setDate(r.getDate() - r.getDay()); r.setHours(0, 0, 0, 0); return r
+  const brt = toBRT(d)
+  const r = new Date(d); r.setDate(r.getDate() - brt.getDay()); r.setHours(0, 0, 0, 0); return r
 }
 
 const statusColors: Record<string, 'success' | 'secondary' | 'warning' | 'destructive' | 'outline'> = {
@@ -97,8 +99,8 @@ function useNowLine(startHour: number) {
   const [pct, setPct] = useState<number | null>(null)
   useEffect(() => {
     function calc() {
-      const now = new Date()
-      const h = now.getHours(), m = now.getMinutes()
+      const brt = toBRT(new Date())
+      const h = brt.getHours(), m = brt.getMinutes()
       if (h < startHour || h >= END_HOUR) { setPct(null); return }
       setPct(((h - startHour) * 60 + m) / 60 * HOUR_HEIGHT)
     }
@@ -110,7 +112,7 @@ function useNowLine(startHour: number) {
 }
 
 function fmtBlockDate(dateStr: string) {
-  return new Date(dateStr + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: 'short' })
+  return new Date(dateStr + 'T12:00:00').toLocaleDateString('pt-BR', { timeZone: TZ, weekday: 'short', day: '2-digit', month: 'short' })
 }
 
 // ── RangeCalendar ──────────────────────────────────────────────
@@ -121,7 +123,7 @@ function RangeCalendar({ start, end, onChange }: {
   end: string
   onChange: (s: string, e: string) => void
 }) {
-  const todayStr = new Date().toISOString().slice(0, 10)
+  const todayStr = brtDateStr(new Date())
   const initDate = start ? new Date(start + 'T12:00:00') : new Date()
   const [year, setYear]   = useState(initDate.getFullYear())
   const [month, setMonth] = useState(initDate.getMonth())
@@ -290,7 +292,7 @@ export default function ClientAppointments() {
     const map: Record<string, Appointment[]> = {}
     days.forEach(d => { map[dayKey(d)] = [] })
     appointments.forEach(a => {
-      const k = new Date(a.scheduled_at).toISOString().slice(0, 10)
+      const k = brtDateStr(new Date(a.scheduled_at))
       if (map[k]) map[k].push(a)
     })
     return map
@@ -308,7 +310,7 @@ export default function ClientAppointments() {
   const startHour = useMemo(() => {
     const visibleAppts = days.flatMap(d => apptsByDay[dayKey(d)] ?? [])
     const earliest = visibleAppts.reduce((min, a) => {
-      const h = new Date(a.scheduled_at).getHours(); return h < min ? h : min
+      const h = toBRT(new Date(a.scheduled_at)).getHours(); return h < min ? h : min
     }, DEFAULT_START)
     return Math.min(earliest, DEFAULT_START)
   }, [apptsByDay, days])
@@ -403,11 +405,12 @@ export default function ClientAppointments() {
 
   function openEdit(appt: Appointment) {
     const d = new Date(appt.scheduled_at)
+    const brt = toBRT(d)
     setEditForm({
       patient_name: appt.patient_name, patient_phone: appt.patient_phone ?? '',
       specialty: appt.specialty, doctor_name: appt.doctor_name ?? '',
-      date: d.toISOString().slice(0, 10),
-      time: `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`,
+      date: brtDateStr(d),
+      time: `${String(brt.getHours()).padStart(2, '0')}:${String(brt.getMinutes()).padStart(2, '0')}`,
       notes: appt.notes ?? '', status: appt.status,
     })
     setEditMode(true)
@@ -474,7 +477,7 @@ export default function ClientAppointments() {
   const todayKey = dayKey(new Date())
   const rangeLabel = (() => {
     const end = addDays(startDate, 6)
-    const f = (d: Date) => d.toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' })
+    const f = (d: Date) => d.toLocaleDateString('pt-BR', { timeZone: TZ, day: 'numeric', month: 'short' })
     return `${f(startDate)} – ${f(end)}`
   })()
 
@@ -639,7 +642,7 @@ export default function ClientAppointments() {
                           if (top === null) return null
                           const pal = apptPalette(appt.status)
                           const d = new Date(appt.scheduled_at)
-                          const time = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+                          const time = d.toLocaleTimeString('pt-BR', { timeZone: TZ, hour: '2-digit', minute: '2-digit' })
                           const initials = appt.patient_name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()
                           return (
                             <div key={appt.id} onClick={() => setDetailAppt(appt)}
@@ -861,8 +864,8 @@ export default function ClientAppointments() {
       {detailAppt && (() => {
         const pal = apptPalette(detailAppt.status)
         const d = new Date(detailAppt.scheduled_at)
-        const dateStr = d.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
-        const timeStr = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+        const dateStr = d.toLocaleDateString('pt-BR', { timeZone: TZ, weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+        const timeStr = d.toLocaleTimeString('pt-BR', { timeZone: TZ, hour: '2-digit', minute: '2-digit' })
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-black/30 backdrop-blur-[2px]" onClick={() => { setDetailAppt(null); setEditMode(false); setShowStatusPicker(false) }} />

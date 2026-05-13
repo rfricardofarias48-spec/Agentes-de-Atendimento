@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { Users, ArrowRight, Plus, TrendingUp, MessageSquare, BarChart3 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { type Organization } from '../../types'
+import { TZ } from '../../lib/date'
 import { planLabel, statusLabel, formatDateShort } from '../../lib/utils'
 
 const planBadge: Record<string, string> = {
@@ -51,7 +52,7 @@ export default function AdminDashboard() {
             Visão Geral
           </h1>
           <p className="text-sm mt-1 capitalize" style={{ color: '#98a2b3' }}>
-            {new Date().toLocaleDateString('pt-BR', { weekday:'long', day:'numeric', month:'long', year:'numeric' })}
+            {new Date().toLocaleDateString('pt-BR', { timeZone: TZ, weekday:'long', day:'numeric', month:'long', year:'numeric' })}
           </p>
         </div>
         <Link to="/admin/clients/new">

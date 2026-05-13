@@ -8,6 +8,7 @@ import {
 import { supabase } from '../../lib/supabase'
 import { type Organization, type OrgPlan, type OrgStatus } from '../../types'
 import { planLabel, statusLabel, formatDate } from '../../lib/utils'
+import { TZ } from '../../lib/date'
 
 interface SetupStep { id: string; label: string; ok: boolean; detail: string }
 interface SetupResult { steps: SetupStep[]; webhookUrl?: string }
@@ -721,7 +722,7 @@ export default function AdminClientDetail() {
                       <div className="flex items-center px-3.5 py-2.5 rounded-[0.625rem] text-sm"
                         style={{ background: '#f9fafb', border: '1px solid #e4e7ec', color: org.subscription_period_end ? '#344054' : '#d0d5dd' }}>
                         {org.subscription_period_end
-                          ? new Date(org.subscription_period_end).toLocaleDateString('pt-BR')
+                          ? new Date(org.subscription_period_end).toLocaleDateString('pt-BR', { timeZone: TZ })
                           : '—'}
                       </div>
                     </Field>
