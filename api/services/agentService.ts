@@ -174,7 +174,7 @@ const TOOLS: OpenAI.Chat.ChatCompletionTool[] = [
     type: 'function',
     function: {
       name: 'escalate_to_human',
-      description: 'ÚLTIMO RECURSO. Use SOMENTE quando: (1) o cliente pedir explicitamente um atendente humano, (2) a situação envolver algo fora do escopo dos serviços e instruções disponíveis (ex: emergência, reclamação grave, negociação especial), ou (3) após tentar resolver com as informações disponíveis e não for possível. NUNCA use por dúvidas sobre preço, horário, convênio ou agendamento — essas informações estão nos serviços e instruções personalizadas.',
+      description: 'Use quando: (1) o cliente pedir explicitamente um atendente humano, (2) a situação envolver emergência, reclamação grave ou negociação especial, OU (3) o cliente fizer uma pergunta (ex: convênio, procedimento, condição específica) que não está nos serviços cadastrados nem nas instruções personalizadas — nesse caso, você não deve inventar nem redirecionar para "o estabelecimento", pois VOCÊ é o contato; informe que não tem essa informação e escale para que um humano responda. NUNCA escale por dúvidas que estejam nos serviços ou instruções disponíveis.',
       parameters: {
         type: 'object',
         properties: {
@@ -509,7 +509,7 @@ async function executeTool(
         ).catch(() => { /* best-effort */ });
       }
 
-      return `Transferindo para nossa equipe. Motivo: ${args.reason}. Um atendente entrará em contato em breve.`;
+      return JSON.stringify({ escalated: true, reason: args.reason });
     }
 
     default:
@@ -615,6 +615,10 @@ Passo 4 — Quando o ${clientWord} escolher o dia, chame get_available_slots(dat
 Passo 5 — Quando o ${clientWord} escolher o horário, chame schedule_appointment e envie a confirmação.
 Passo 6 — Após schedule_appointment retornar sucesso, envie mensagem de confirmação com todos os detalhes.
 
+APÓS escalate_to_human retornar, envie ao cliente:
+"Não tenho essa informação aqui no momento, mas já avisei nossa equipe! Em breve alguém entrará em contato para te ajudar. 😊"
+(ajuste o texto conforme o contexto, mas nunca invente a informação nem diga para "confirmar com o estabelecimento")
+
 APÓS AGENDAR, envie uma mensagem de confirmação no formato:
 "✅ *${serviceWord.charAt(0).toUpperCase() + serviceWord.slice(1)} confirmado!*
 📋 Serviço: [serviço]
@@ -631,8 +635,8 @@ REGRAS IMPORTANTES:
 • Responda SEMPRE em português brasileiro
 • Use poucos emojis — apenas em confirmações e lembretes
 • Você tem TODAS as informações necessárias nos serviços cadastrados e nas instruções personalizadas — use-as antes de qualquer outra ação. Dúvidas sobre preço, convênio, formas de pagamento, horários e procedimentos SEMPRE têm resposta nesses dados.
-• Só acione escalate_to_human se o cliente pedir um humano explicitamente, ou se a situação for completamente fora do escopo (emergência, reclamação grave, negociação especial). Qualquer dúvida operacional você resolve sozinho.
-• NUNCA invente informações. Se uma informação não estiver nos serviços cadastrados, nas instruções personalizadas ou no histórico do cliente, diga honestamente que não tem esse dado e, se necessário, oriente o cliente a confirmar diretamente com o estabelecimento. Inventar preços, horários, convênios ou qualquer outro dado é proibido.${customInstructions}${memoriesStr}`;
+• NUNCA invente informações. Se uma informação (ex: aceitação de um convênio específico, valor de um procedimento não listado) não estiver nos serviços nem nas instruções personalizadas, NÃO oriente o cliente a "confirmar com o estabelecimento" — VOCÊ é o contato do estabelecimento. Nesses casos, diga algo como "Não tenho essa informação aqui no momento, mas já estou repassando para nossa equipe te responder em breve!" e acione escalate_to_human com a dúvida específica como motivo.
+• Só acione escalate_to_human por: (a) pedido explícito de humano, (b) emergência/reclamação grave/negociação especial, (c) pergunta sem resposta nos dados disponíveis. Qualquer dúvida que esteja nos serviços ou instruções você resolve sozinho.${customInstructions}${memoriesStr}`;
 
   // 4. Chama GPT com tool use
   const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
