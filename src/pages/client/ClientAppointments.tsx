@@ -484,7 +484,7 @@ export default function ClientAppointments() {
   const visibleBlockCount = days.filter(d => (blocksByDay[dayKey(d)] ?? []).length > 0).length
 
   return (
-    <div className="flex flex-col gap-3 h-full">
+    <div className="flex flex-col gap-3" style={{ height: 'calc(100vh - 48px)' }}>
 
       {/* ── Top bar ───────────────────────────────────────────── */}
       <div className="flex items-center gap-2 flex-wrap">
@@ -564,13 +564,13 @@ export default function ClientAppointments() {
 
       {/* ── Calendar ─────────────────────────────────────────────── */}
       {view === 'calendar' && (
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-[0_2px_16px_rgba(0,0,0,0.04)] overflow-hidden">
+        <div className="flex-1 min-h-0 bg-white rounded-2xl border border-slate-100 shadow-[0_2px_16px_rgba(0,0,0,0.04)] overflow-hidden">
           {loading ? (
             <div className="flex justify-center py-20">
               <div className="w-5 h-5 border-[2.5px] border-brand-500 border-t-transparent rounded-full animate-spin" />
             </div>
           ) : (
-            <div className="overflow-y-auto" style={{ maxHeight: 'calc(100vh - 84px)' }}>
+            <div className="h-full overflow-y-auto">
               <div className="w-full">
                 <div className="sticky top-0 z-30 flex bg-white border-b border-slate-100 w-full">
                   <div style={{ width: TIME_COL_W, minWidth: TIME_COL_W }} className="shrink-0 border-r border-slate-100" />
@@ -595,7 +595,7 @@ export default function ClientAppointments() {
                   })}
                 </div>
 
-                <div className="flex w-full relative" style={{ height: totalHeight }}>
+                <div className="flex w-full relative" style={{ height: totalHeight + 24 }}>
                   <div className="relative shrink-0 bg-white border-r border-slate-100" style={{ width: TIME_COL_W, minWidth: TIME_COL_W }}>
                     {hours.map(h => (
                       <div key={h} className="absolute right-3 flex items-start justify-end" style={{ top: (h - startHour) * HOUR_HEIGHT, height: HOUR_HEIGHT }}>
@@ -625,9 +625,11 @@ export default function ClientAppointments() {
                             <div key={b.id} className="absolute inset-0 pointer-events-none" style={{ borderLeft: '3px solid #94a3b8' }}>
                               <div className="absolute inset-0" style={{ background: 'repeating-linear-gradient(-45deg,rgba(100,116,139,0.06) 0px,rgba(100,116,139,0.06) 4px,transparent 4px,transparent 12px)' }} />
                               {b.reason && (
-                                <p className="absolute left-3 top-2 right-1 text-[9px] font-semibold text-slate-500 tracking-wide leading-none truncate">
-                                  {b.reason}
-                                </p>
+                                <div className="absolute inset-x-0 top-3 flex justify-center">
+                                  <span className="text-[11px] font-semibold text-slate-500 tracking-wide px-1 truncate max-w-full text-center">
+                                    {b.reason}
+                                  </span>
+                                </div>
                               )}
                             </div>
                           ) : (b.start_time && b.end_time) ? (
@@ -635,9 +637,11 @@ export default function ClientAppointments() {
                               style={{ top: blockTop(b.start_time), height: blockHeight(b.start_time, b.end_time), borderLeft: '3px solid #94a3b8' }}>
                               <div className="absolute inset-0" style={{ background: 'repeating-linear-gradient(-45deg,rgba(100,116,139,0.09) 0px,rgba(100,116,139,0.09) 4px,transparent 4px,transparent 12px)' }} />
                               {b.reason && (
-                                <p className="absolute left-3 top-1.5 right-1 text-[9px] font-semibold text-slate-500 tracking-wide leading-none truncate">
-                                  {b.reason}
-                                </p>
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                  <span className="text-[11px] font-semibold text-slate-500 tracking-wide px-2 truncate max-w-full text-center">
+                                    {b.reason}
+                                  </span>
+                                </div>
                               )}
                             </div>
                           ) : null
