@@ -55,7 +55,8 @@ interface AgentSettings {
   working_hours: Record<string, WorkingDay> | null;
   custom_instructions: string | null;
   services: Service[] | null;
-  appointment_duration: number; // minutos, default 60
+  appointment_duration: number;
+  notification_phone: string | null;
 }
 
 interface Conversation {
@@ -485,6 +486,28 @@ async function executeTool(
         .update({ escalated_to_human: true })
         .eq('id', conversation.id);
 
+      // Envia aviso WhatsApp para o profissional
+      if (settings.notification_phone) {
+        const patientLabel = conversation.patient_name || phone;
+        const chatwootLink = org.chatwoot_url && conversation.chatwoot_conversation_id
+          ? `\n🔗 Ver conversa: ${org.chatwoot_url}/app/accounts/${org.chatwoot_account_id}/conversations/${conversation.chatwoot_conversation_id}`
+          : '';
+
+        const alertMsg =
+          `⚠️ *Atenção — Atendimento Humano Necessário*\n\n` +
+          `👤 Cliente: *${patientLabel}*\n` +
+          `📱 Número: ${phone}\n` +
+          `💬 Motivo: ${args.reason || 'Solicitado pelo cliente'}` +
+          chatwootLink;
+
+        sendText(
+          org.evolution_instance,
+          settings.notification_phone,
+          alertMsg,
+          org.evolution_token,
+        ).catch(() => { /* best-effort */ });
+      }
+
       return `Transferindo para nossa equipe. Motivo: ${args.reason}. Um atendente entrará em contato em breve.`;
     }
 
@@ -717,7 +740,7 @@ export async function getOrgByInstance(instanceName: string): Promise<{
 
   const { data: settings } = await supabase
     .from('agent_settings')
-    .select('agent_name, greeting_message, tone, specialties, working_hours, custom_instructions, services, appointment_duration')
+    .select('agent_name, greeting_message, tone, specialties, working_hours, custom_instructions, services, appointment_duration, notification_phone')
     .eq('org_id', org.id)
     .single();
 
@@ -732,6 +755,7 @@ export async function getOrgByInstance(instanceName: string): Promise<{
       custom_instructions: null,
       services: null,
       appointment_duration: 60,
+      notification_phone: null,
     },
   };
 }

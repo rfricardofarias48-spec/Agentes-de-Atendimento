@@ -26,17 +26,18 @@ export default function ClientSettings() {
   const [passMsg, setPassMsg]         = useState<{ ok: boolean; text: string } | null>(null)
 
   // Notificações
-  const [reminder24h, setReminder24h]     = useState(true)
-  const [reminder2h, setReminder2h]       = useState(true)
-  const [autoSendPdf, setAutoSendPdf]     = useState(true)
-  const [savingNotif, setSavingNotif]     = useState(false)
-  const [notifMsg, setNotifMsg]           = useState<{ ok: boolean; text: string } | null>(null)
+  const [reminder24h, setReminder24h]         = useState(true)
+  const [reminder2h, setReminder2h]           = useState(true)
+  const [autoSendPdf, setAutoSendPdf]         = useState(true)
+  const [notificationPhone, setNotificationPhone] = useState('')
+  const [savingNotif, setSavingNotif]         = useState(false)
+  const [notifMsg, setNotifMsg]               = useState<{ ok: boolean; text: string } | null>(null)
 
   useEffect(() => {
     if (!orgId) return
     Promise.all([
       supabase.from('organizations').select('*').eq('id', orgId).single(),
-      supabase.from('agent_settings').select('reminder_24h,reminder_2h,auto_send_pdf').eq('org_id', orgId).single(),
+      supabase.from('agent_settings').select('reminder_24h,reminder_2h,auto_send_pdf,notification_phone').eq('org_id', orgId).single(),
     ]).then(([{ data: orgData }, { data: notifData }]) => {
       if (orgData) {
         setOrg(orgData)
@@ -47,6 +48,7 @@ export default function ClientSettings() {
         setReminder24h(notifData.reminder_24h ?? true)
         setReminder2h(notifData.reminder_2h ?? true)
         setAutoSendPdf(notifData.auto_send_pdf ?? true)
+        setNotificationPhone(notifData.notification_phone ?? '')
       }
       setLoading(false)
     })
@@ -94,7 +96,12 @@ export default function ClientSettings() {
     setNotifMsg(null)
     const { data: existing } = await supabase
       .from('agent_settings').select('id').eq('org_id', orgId).single()
-    const payload = { reminder_24h: reminder24h, reminder_2h: reminder2h, auto_send_pdf: autoSendPdf }
+    const payload = {
+      reminder_24h: reminder24h,
+      reminder_2h: reminder2h,
+      auto_send_pdf: autoSendPdf,
+      notification_phone: notificationPhone.replace(/\D/g, '') || null,
+    }
     const { error } = existing
       ? await supabase.from('agent_settings').update(payload).eq('org_id', orgId)
       : await supabase.from('agent_settings').insert({ ...payload, org_id: orgId })
@@ -210,6 +217,18 @@ export default function ClientSettings() {
             <Bell className="w-3.5 h-3.5 text-slate-500" />
           </div>
           <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">Notificações Automáticas</p>
+        </div>
+
+        <div className="space-y-1.5">
+          <label className="block text-sm font-medium text-slate-700">WhatsApp para alertas de atendimento humano</label>
+          <p className="text-xs text-slate-400">Quando um cliente precisar de atendimento humano, o Bento envia um aviso para este número.</p>
+          <input
+            type="tel"
+            value={notificationPhone}
+            onChange={e => setNotificationPhone(e.target.value)}
+            placeholder="5511999990000 (com código do país)"
+            className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent transition-all"
+          />
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
