@@ -473,7 +473,7 @@ function ChartBar({
   const CHART_H = 140
   const heightPx = count > 0 ? Math.max((count / maxCount) * CHART_H * 0.88, 16) : 4
 
-  const barBg = 'rgba(255,255,255,0.18)'
+  const barBg = count > 0 ? 'rgba(255,255,255,0.55)' : 'rgba(255,255,255,0.07)'
 
   return (
     <div className="flex-1 relative flex flex-col justify-end px-[3px]" style={{ height: `${CHART_H}px` }}
