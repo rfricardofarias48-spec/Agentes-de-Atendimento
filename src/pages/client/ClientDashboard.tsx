@@ -451,9 +451,9 @@ function AnimatedNumber({ value, ready, delay = 0 }: { value: number; ready: boo
 // ── Chart Bar ────────────────────────────────────────────────────
 
 function ChartBar({
-  count, isToday, isPast, isFuture, index, maxCount, ready,
+  count, isToday, isPast, index, maxCount, ready,
 }: {
-  count: number; isToday: boolean; isPast: boolean; isFuture: boolean
+  count: number; isToday: boolean; isPast: boolean
   index: number; maxCount: number; ready: boolean; label: string
 }) {
   const [displayCount, setDisplayCount] = useState(0)
