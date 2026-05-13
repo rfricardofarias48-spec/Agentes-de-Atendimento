@@ -174,7 +174,7 @@ const TOOLS: OpenAI.Chat.ChatCompletionTool[] = [
     type: 'function',
     function: {
       name: 'escalate_to_human',
-      description: 'Escala a conversa para um atendente humano. Use quando: paciente estiver frustrado, solicitação não puder ser resolvida, ou paciente pedir explicitamente.',
+      description: 'ÚLTIMO RECURSO. Use SOMENTE quando: (1) o cliente pedir explicitamente um atendente humano, (2) a situação envolver algo fora do escopo dos serviços e instruções disponíveis (ex: emergência, reclamação grave, negociação especial), ou (3) após tentar resolver com as informações disponíveis e não for possível. NUNCA use por dúvidas sobre preço, horário, convênio ou agendamento — essas informações estão nos serviços e instruções personalizadas.',
       parameters: {
         type: 'object',
         properties: {
@@ -628,9 +628,10 @@ REGRAS IMPORTANTES:
 • NUNCA confirme um horário sem antes chamar get_available_slots — o horário pode estar ocupado
 • Use vocabulário adaptado ao contexto: ${clientWord}, ${serviceWord}, ${providerWord}
 • Seja conciso: máximo 3 parágrafos por mensagem
-• Quando não conseguir resolver, chame escalate_to_human
 • Responda SEMPRE em português brasileiro
-• Use poucos emojis — apenas em confirmações e lembretes${customInstructions}${memoriesStr}`;
+• Use poucos emojis — apenas em confirmações e lembretes
+• Você tem TODAS as informações necessárias nos serviços cadastrados e nas instruções personalizadas — use-as antes de qualquer outra ação. Dúvidas sobre preço, convênio, formas de pagamento, horários e procedimentos SEMPRE têm resposta nesses dados.
+• Só acione escalate_to_human se o cliente pedir um humano explicitamente, ou se a situação for completamente fora do escopo (emergência, reclamação grave, negociação especial). Qualquer dúvida operacional você resolve sozinho.${customInstructions}${memoriesStr}`;
 
   // 4. Chama GPT com tool use
   const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
