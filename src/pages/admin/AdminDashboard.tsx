@@ -5,6 +5,7 @@ import { supabase } from '../../lib/supabase'
 import { type Organization } from '../../types'
 import { TZ } from '../../lib/date'
 import { planLabel, statusLabel, formatDateShort } from '../../lib/utils'
+import { cn } from '../../lib/utils'
 
 const planBadge: Record<string, string> = {
   starter: 'bg-slate-100 text-slate-600',
@@ -12,18 +13,40 @@ const planBadge: Record<string, string> = {
   clinic:  'bg-brand-50 text-brand-700',
 }
 const statusBadge: Record<string, string> = {
-  active:    'bg-brand-50 text-brand-700',
+  active:    'bg-emerald-50 text-emerald-700',
   trial:     'bg-amber-50 text-amber-700',
   inactive:  'bg-slate-100 text-slate-500',
   suspended: 'bg-red-50 text-red-600',
 }
 const PLAN_MRR: Record<string, number> = { starter: 299.90, pro: 449.90, clinic: 849.90 }
 
-const CARD: React.CSSProperties = {
-  background: '#ffffff',
-  border: '1px solid #e4e7ec',
-  borderRadius: '1rem',
-  boxShadow: '0 1px 3px rgba(16,24,40,0.06)',
+const CARD_ACCENTS = {
+  brand:   { border: '#2C82B5', iconBg: 'rgba(44,130,181,0.12)',  iconColor: '#2C82B5'  },
+  violet:  { border: '#7c3aed', iconBg: 'rgba(124,58,237,0.12)',  iconColor: '#7c3aed'  },
+  emerald: { border: '#059669', iconBg: 'rgba(5,150,105,0.12)',   iconColor: '#059669'  },
+  slate:   { border: '#64748b', iconBg: 'rgba(100,116,139,0.10)', iconColor: '#64748b'  },
+}
+
+function MetricCard({ label, value, icon, accent, sub }: {
+  label: string; value: string | number; icon: React.ReactNode; sub?: string
+  accent: { border: string; iconBg: string; iconColor: string }
+}) {
+  return (
+    <div
+      className="relative bg-white rounded-2xl px-5 pt-4 pb-5 transition-all duration-200 hover:-translate-y-[2px] hover:shadow-[0_6px_20px_rgba(0,0,0,0.08)]"
+      style={{ border: '1px solid #eef0f3', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}
+    >
+      <div className="absolute top-0 left-5 right-5 h-[3px] rounded-b-full" style={{ background: accent.border }} />
+      <div className="flex items-center gap-2 mt-2 mb-3">
+        <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: accent.iconBg }}>
+          <div style={{ color: accent.iconColor }}>{icon}</div>
+        </div>
+        <p className="text-[11px] font-semibold text-slate-400 tracking-wide">{label}</p>
+      </div>
+      <p className="text-[2rem] font-black text-gray-900 leading-none tabular-nums">{value}</p>
+      {sub && <p className="text-xs text-slate-400 mt-1.5 font-medium">{sub}</p>}
+    </div>
+  )
 }
 
 export default function AdminDashboard() {
@@ -43,20 +66,19 @@ export default function AdminDashboard() {
   const clinicCount  = orgs.filter(o => o.plan === 'clinic').length
 
   return (
-    <div className="space-y-6 animate-fade-up pb-8">
+    <div className="space-y-5 pb-8">
 
       {/* Header */}
       <div className="flex items-end justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight" style={{ color: '#101828' }}>
-            Visão Geral
-          </h1>
-          <p className="text-sm mt-1 capitalize" style={{ color: '#98a2b3' }}>
-            {new Date().toLocaleDateString('pt-BR', { timeZone: TZ, weekday:'long', day:'numeric', month:'long', year:'numeric' })}
+          <h1 className="text-xl font-bold text-slate-800 leading-none">Visão Geral</h1>
+          <p className="text-sm text-slate-500 mt-1 capitalize">
+            {new Date().toLocaleDateString('pt-BR', { timeZone: TZ, weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
           </p>
         </div>
         <Link to="/admin/clients/new">
-          <button className="btn-primary flex items-center gap-2 px-4 py-2.5 text-sm">
+          <button className="flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-semibold text-white transition-all hover:shadow-[0_4px_14px_rgba(44,130,181,0.35)] hover:-translate-y-[1px]"
+            style={{ background: 'linear-gradient(135deg, #2C82B5, #2570a0)' }}>
             <Plus className="w-4 h-4" />
             Novo Usuário
           </button>
@@ -64,25 +86,27 @@ export default function AdminDashboard() {
       </div>
 
       {/* KPIs */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 stagger">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
 
-        {/* MRR */}
+        {/* MRR — card especial */}
         <div
-          className="col-span-2 lg:col-span-1 relative overflow-hidden rounded-2xl p-6 animate-fade-up"
+          className="col-span-2 lg:col-span-1 relative overflow-hidden rounded-2xl p-5"
           style={{
             background: 'linear-gradient(135deg,#164a6a 0%,#1e5f88 100%)',
             border: '1px solid #2570a0',
             boxShadow: '0 4px 16px rgba(44,130,181,0.25)',
           }}
         >
-          <div className="absolute -top-6 -right-6 w-28 h-28 rounded-full pointer-events-none opacity-20"
+          <div className="absolute -top-6 -right-6 w-24 h-24 rounded-full pointer-events-none opacity-20"
             style={{ background: 'radial-gradient(circle,#ffffff 0%,transparent 70%)' }} />
           <div className="relative">
             <div className="flex items-center gap-2 mb-3">
-              <TrendingUp className="w-3.5 h-3.5 text-brand-200" />
-              <p className="text-[10px] font-bold text-brand-200 uppercase tracking-widest">MRR Estimado</p>
+              <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: 'rgba(255,255,255,0.15)' }}>
+                <TrendingUp className="w-3 h-3 text-white" />
+              </div>
+              <p className="text-[11px] font-bold text-brand-200 uppercase tracking-widest">MRR Estimado</p>
             </div>
-            <p className="text-[1.75rem] font-bold text-white leading-none">
+            <p className="text-[1.75rem] font-black text-white leading-none tabular-nums">
               R$ {mrr.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
             </p>
             <div className="mt-3 pt-3 flex items-center justify-between"
@@ -93,54 +117,45 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {/* Ativos */}
-        <div className="rounded-2xl p-6 flex flex-col justify-between animate-fade-up" style={CARD}>
-          <div className="flex items-center justify-between">
-            <p className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: '#98a2b3' }}>Ativos</p>
-            <div className="w-7 h-7 rounded-lg bg-slate-50 flex items-center justify-center">
-              <Users className="w-3.5 h-3.5 text-slate-400" />
-            </div>
-          </div>
-          <div className="mt-4">
-            <p className="text-[2.1rem] font-bold leading-none" style={{ color: '#101828' }}>{activeOrgs.length}</p>
-            <p className="text-xs mt-1.5 font-medium" style={{ color: '#98a2b3' }}>{orgs.length} total</p>
-          </div>
-        </div>
-
-        {/* Conversas */}
-        <div className="rounded-2xl p-6 flex flex-col justify-between animate-fade-up" style={CARD}>
-          <div className="flex items-center justify-between">
-            <p className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: '#98a2b3' }}>Conversas</p>
-            <div className="w-7 h-7 rounded-lg bg-slate-50 flex items-center justify-center">
-              <MessageSquare className="w-3.5 h-3.5 text-slate-400" />
-            </div>
-          </div>
-          <div className="mt-4">
-            <p className="text-[2.1rem] font-bold leading-none" style={{ color: '#101828' }}>{totalConvs.toLocaleString('pt-BR')}</p>
-            <p className="text-xs mt-1.5 font-medium" style={{ color: '#98a2b3' }}>este mês</p>
-          </div>
-        </div>
+        <MetricCard
+          label="Ativos"
+          value={activeOrgs.length}
+          sub={`${orgs.length} total`}
+          accent={CARD_ACCENTS.emerald}
+          icon={<Users className="w-3.5 h-3.5" />}
+        />
+        <MetricCard
+          label="Conversas"
+          value={totalConvs.toLocaleString('pt-BR')}
+          sub="este mês"
+          accent={CARD_ACCENTS.brand}
+          icon={<MessageSquare className="w-3.5 h-3.5" />}
+        />
 
         {/* Planos */}
-        <div className="rounded-2xl p-6 flex flex-col justify-between animate-fade-up" style={CARD}>
-          <div className="flex items-center justify-between">
-            <p className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: '#98a2b3' }}>Planos</p>
-            <div className="w-7 h-7 rounded-lg bg-slate-50 flex items-center justify-center">
-              <BarChart3 className="w-3.5 h-3.5 text-slate-400" />
+        <div
+          className="relative bg-white rounded-2xl px-5 pt-4 pb-5 transition-all duration-200 hover:-translate-y-[2px] hover:shadow-[0_6px_20px_rgba(0,0,0,0.08)]"
+          style={{ border: '1px solid #eef0f3', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}
+        >
+          <div className="absolute top-0 left-5 right-5 h-[3px] rounded-b-full" style={{ background: CARD_ACCENTS.slate.border }} />
+          <div className="flex items-center gap-2 mt-2 mb-3">
+            <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: CARD_ACCENTS.slate.iconBg }}>
+              <BarChart3 className="w-3.5 h-3.5" style={{ color: CARD_ACCENTS.slate.iconColor }} />
             </div>
+            <p className="text-[11px] font-semibold text-slate-400 tracking-wide">Planos</p>
           </div>
-          <div className="mt-4 space-y-2.5">
+          <div className="space-y-2">
             {[
               { label: 'Essencial', count: starterCount, color: '#94a3b8' },
-              { label: 'Pro',     count: proCount,     color: '#3b82f6' },
-              { label: 'Max',     count: clinicCount,  color: '#2C82B5' },
+              { label: 'Pro',      count: proCount,     color: '#3b82f6' },
+              { label: 'Max',      count: clinicCount,  color: '#2C82B5' },
             ].map(({ label, count, color }) => (
               <div key={label} className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: color }} />
-                  <span className="text-xs" style={{ color: '#667085' }}>{label}</span>
+                  <span className="text-xs text-slate-500">{label}</span>
                 </div>
-                <span className="text-xs font-semibold tabular-nums" style={{ color: '#344054' }}>{count}</span>
+                <span className="text-xs font-bold tabular-nums text-slate-700">{count}</span>
               </div>
             ))}
           </div>
@@ -148,25 +163,25 @@ export default function AdminDashboard() {
       </div>
 
       {/* Tabela */}
-      <div className="rounded-2xl overflow-hidden animate-fade-up" style={CARD}>
-        <div
-          className="px-6 py-5 flex items-center justify-between"
-          style={{ borderBottom: '1px solid #f2f4f7' }}
-        >
-          <div>
-            <p className="font-semibold text-[15px]" style={{ color: '#101828' }}>Usuários Recentes</p>
-            <p className="text-xs mt-0.5" style={{ color: '#98a2b3' }}>{orgs.length} cadastrados</p>
+      <div className="bg-white rounded-2xl border border-slate-100 shadow-[0_2px_12px_rgba(0,0,0,0.03)] overflow-hidden">
+        <div className="px-6 py-4 flex items-center justify-between border-b border-slate-50">
+          <div className="flex items-center gap-2.5">
+            <div className="w-1.5 h-4 rounded-full" style={{ background: 'linear-gradient(180deg, #2C82B5, #1e5f88)' }} />
+            <div>
+              <p className="font-bold text-[13px] text-gray-900">Usuários Recentes</p>
+              <p className="text-xs text-slate-400 mt-0.5">{orgs.length} cadastrados</p>
+            </div>
           </div>
           <Link to="/admin/clients">
-            <button className="flex items-center gap-1.5 text-xs font-semibold text-brand-600 hover:text-brand-700 transition-colors">
-              Ver todos <ArrowRight className="w-3.5 h-3.5" />
+            <button className="flex items-center gap-1 text-[11px] font-bold text-brand-500 hover:text-brand-600 transition-colors">
+              Ver todos <ArrowRight className="w-3 h-3" />
             </button>
           </Link>
         </div>
 
         {loading ? (
           <div className="flex justify-center py-14">
-            <div className="w-5 h-5 border-2 border-slate-200 border-t-brand-500 rounded-full animate-spin" />
+            <div className="w-5 h-5 border-[2.5px] border-brand-500 border-t-transparent rounded-full animate-spin" />
           </div>
         ) : orgs.length === 0 ? (
           <div className="text-center py-14">
@@ -177,26 +192,26 @@ export default function AdminDashboard() {
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr style={{ borderBottom: '1px solid #f2f4f7' }}>
+                <tr style={{ borderBottom: '1px solid #f8fafc' }}>
                   {['Clínica','Plano','Status','Conversas','Cadastro',''].map(h => (
-                    <th key={h} className="text-left py-3 px-5 text-[10px] font-semibold uppercase tracking-widest" style={{ color: '#98a2b3' }}>
+                    <th key={h} className="text-left py-3 px-5 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">
                       {h}
                     </th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {orgs.slice(0, 8).map(org => (
+                {orgs.slice(0, 8).map((org, i) => (
                   <tr
                     key={org.id}
-                    className="transition-colors duration-100 cursor-default"
-                    style={{ borderBottom: '1px solid #f9fafb' }}
+                    className={cn('transition-colors duration-100 cursor-default', i % 2 !== 0 ? 'bg-slate-50/30' : '')}
+                    style={{ borderBottom: '1px solid #f8fafc' }}
                     onMouseEnter={e => (e.currentTarget.style.background = '#f9fafb')}
-                    onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                    onMouseLeave={e => (e.currentTarget.style.background = i % 2 !== 0 ? 'rgba(248,250,252,0.3)' : 'transparent')}
                   >
                     <td className="py-3.5 px-5">
-                      <p className="text-sm font-semibold" style={{ color: '#344054' }}>{org.name}</p>
-                      <p className="text-xs mt-0.5" style={{ color: '#98a2b3' }}>{org.evolution_instance || org.slug}</p>
+                      <p className="text-sm font-semibold text-slate-700">{org.name}</p>
+                      <p className="text-xs mt-0.5 text-slate-400">{org.evolution_instance || org.slug}</p>
                     </td>
                     <td className="py-3.5 px-5">
                       <span className={`inline-flex items-center px-2.5 py-[3px] rounded-full text-[10px] font-semibold uppercase ${planBadge[org.plan] ?? 'bg-slate-100 text-slate-500'}`}>
@@ -205,17 +220,17 @@ export default function AdminDashboard() {
                     </td>
                     <td className="py-3.5 px-5">
                       <span className={`inline-flex items-center gap-1.5 px-2.5 py-[3px] rounded-full text-[10px] font-semibold ${statusBadge[org.status] ?? 'bg-slate-100 text-slate-500'}`}>
-                        {org.status === 'active' && <span className="w-1.5 h-1.5 rounded-full bg-brand-500 shrink-0" />}
+                        {org.status === 'active' && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />}
                         {statusLabel(org.status)}
                       </span>
                     </td>
-                    <td className="py-3.5 px-5 text-xs tabular-nums" style={{ color: '#667085' }}>
+                    <td className="py-3.5 px-5 text-xs tabular-nums text-slate-500">
                       <span className={((org.conversations_used ?? 0) / (org.max_conversations_month || 1)) > 0.8 ? 'text-red-500 font-semibold' : ''}>
                         {org.conversations_used ?? 0}
                       </span>
-                      <span style={{ color: '#d0d5dd' }}>/{org.max_conversations_month}</span>
+                      <span className="text-slate-300">/{org.max_conversations_month}</span>
                     </td>
-                    <td className="py-3.5 px-5 text-xs" style={{ color: '#98a2b3' }}>{formatDateShort(org.created_at)}</td>
+                    <td className="py-3.5 px-5 text-xs text-slate-400">{formatDateShort(org.created_at)}</td>
                     <td className="py-3.5 px-5">
                       <Link to={`/admin/clients/${org.id}`}>
                         <button className="text-xs font-semibold text-slate-400 hover:text-brand-600 transition-colors">

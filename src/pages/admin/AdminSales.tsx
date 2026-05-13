@@ -41,15 +41,15 @@ const fmt = (v: number) =>
 
 const CARD: React.CSSProperties = {
   background: '#ffffff',
-  border: '1px solid #e4e7ec',
-  borderRadius: '1.125rem',
-  boxShadow: '0 1px 3px rgba(16,24,40,0.06)',
+  border: '1px solid #f1f5f9',
+  borderRadius: '1rem',
+  boxShadow: '0 2px 12px rgba(0,0,0,0.03)',
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <label className="block text-[10px] font-semibold uppercase tracking-widest mb-1.5" style={{ color: '#98a2b3' }}>
+      <label className="block text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400 mb-1.5">
         {label}
       </label>
       {children}
@@ -111,12 +111,12 @@ export default function AdminSales() {
   }
 
   return (
-    <div className="space-y-6 pb-8 animate-fade-up">
+    <div className="space-y-5 pb-8">
 
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold tracking-tight" style={{ color: '#101828' }}>Vendas</h1>
-        <p className="text-sm mt-1" style={{ color: '#98a2b3' }}>
+        <h1 className="text-xl font-bold text-slate-800 leading-none">Vendas</h1>
+        <p className="text-sm text-slate-500 mt-1">
           Gere links de pagamento Asaas para novos clientes
         </p>
       </div>
@@ -125,9 +125,10 @@ export default function AdminSales() {
 
         {/* ── Formulário ───────────────────────────────────────────── */}
         <div style={CARD} className="p-6 space-y-5">
-          <p className="font-semibold text-[13px] uppercase tracking-wider" style={{ color: '#344054' }}>
-            Novo Link de Pagamento
-          </p>
+          <div className="flex items-center gap-2.5">
+            <div className="w-1.5 h-4 rounded-full" style={{ background: 'linear-gradient(180deg, #2C82B5, #1e5f88)' }} />
+            <p className="font-bold text-[13px] text-gray-900">Novo Link de Pagamento</p>
+          </div>
 
           {/* Cliente */}
           <div className="grid grid-cols-2 gap-4">

@@ -28,15 +28,15 @@ const PLAN_PRICES: Record<OrgPlan, number> = { starter: 299.90, pro: 449.90, cli
 
 const CARD_STYLE: React.CSSProperties = {
   background: '#ffffff',
-  border: '1px solid #e4e7ec',
-  borderRadius: '1.125rem',
-  boxShadow: '0 1px 3px rgba(16,24,40,0.06)',
+  border: '1px solid #f1f5f9',
+  borderRadius: '1rem',
+  boxShadow: '0 2px 12px rgba(0,0,0,0.03)',
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <label className="block text-[10px] font-semibold uppercase tracking-widest mb-1.5" style={{ color: '#98a2b3' }}>{label}</label>
+      <label className="block text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400 mb-1.5">{label}</label>
       {children}
     </div>
   )
@@ -51,7 +51,7 @@ function TextInput({ value, onChange, placeholder, type = 'text' }: {
       value={value}
       onChange={e => onChange(e.target.value)}
       placeholder={placeholder}
-      className="input-dark w-full px-3.5 py-2.5 text-sm"
+      className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent transition-all bg-white placeholder:text-slate-300"
     />
   )
 }
@@ -60,7 +60,10 @@ function Card({ title, children, extra }: { title: string; children: React.React
   return (
     <div style={CARD_STYLE} className="p-6 space-y-5">
       <div className="flex items-center justify-between">
-        <p className="font-semibold text-[13px] uppercase tracking-wider" style={{ color: '#344054' }}>{title}</p>
+        <div className="flex items-center gap-2.5">
+          <div className="w-1.5 h-4 rounded-full" style={{ background: 'linear-gradient(180deg, #2C82B5, #1e5f88)' }} />
+          <p className="font-bold text-[13px] text-gray-900">{title}</p>
+        </div>
         {extra}
       </div>
       {children}
@@ -413,7 +416,7 @@ export default function AdminClientDetail() {
 
   if (loading) return (
     <div className="flex justify-center py-20">
-      <div className="w-6 h-6 border-2 border-slate-200 border-t-brand-500 rounded-full animate-spin" />
+      <div className="w-5 h-5 border-[2.5px] border-brand-500 border-t-transparent rounded-full animate-spin" />
     </div>
   )
 
@@ -427,7 +430,7 @@ export default function AdminClientDetail() {
   if (isNew && createdOrgId && !saving) {
     return (
       <div className="max-w-xl mx-auto space-y-6 py-12 animate-fade-up">
-        <div style={CARD_STYLE} className="p-8 text-center space-y-4">
+        <div style={CARD_STYLE} className="p-8 text-center space-y-4 rounded-2xl">
           <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto"
             style={{ background: '#f0fdf4', border: '1px solid #b3d4ec' }}>
             <CheckCircle2 className="w-7 h-7 text-brand-500" />
@@ -491,28 +494,27 @@ export default function AdminClientDetail() {
   }
 
   return (
-    <div className="space-y-6 pb-8 animate-fade-in">
+    <div className="space-y-5 pb-8">
       <input ref={fileInputRef} type="file" accept=".pdf" className="hidden" onChange={handlePdfFileChange} />
 
       {/* Header */}
       <div className="flex items-center gap-3">
         <button
           onClick={() => navigate('/admin/clients')}
-          className="p-2 rounded-xl transition-colors hover:bg-slate-100"
-          style={{ color: '#98a2b3' }}
+          className="p-2 rounded-xl transition-colors hover:bg-slate-100 text-slate-400"
         >
           <ArrowLeft className="w-4 h-4" />
         </button>
         <div>
-          <h1 className="text-2xl font-bold tracking-tight" style={{ color: '#101828' }}>
+          <h1 className="text-xl font-bold text-slate-800 leading-none">
             {isNew ? 'Novo Usuário' : org.name}
           </h1>
           {!isNew && org.created_at && (
-            <p className="text-xs font-medium mt-0.5" style={{ color: '#98a2b3' }}>Criado em {formatDate(org.created_at)}</p>
+            <p className="text-xs text-slate-400 mt-1">Criado em {formatDate(org.created_at)}</p>
           )}
         </div>
         {!isNew && (
-          <div className="ml-auto flex items-center gap-1.5 text-xs font-medium" style={{ color: '#98a2b3' }}>
+          <div className="ml-auto flex items-center gap-1.5 text-xs font-medium text-slate-400">
             {connIcon}
             <span className="capitalize">{connectionStatus === 'unknown' ? 'Não verificado' : connectionStatus}</span>
           </div>
@@ -521,10 +523,7 @@ export default function AdminClientDetail() {
 
       {/* Sub-abas (só edição) */}
       {!isNew && (
-        <div
-          className="flex gap-1 p-1 rounded-2xl w-fit"
-          style={{ background: '#f0f2f5', border: '1px solid #e4e7ec' }}
-        >
+        <div className="flex items-center bg-white border border-slate-200 rounded-2xl p-1 w-fit shadow-[0_2px_10px_rgba(0,0,0,0.05)]">
           {([
             { key: 'geral', label: 'Geral', icon: Settings2 },
             { key: 'agente', label: 'Agente', icon: Bot },
@@ -532,11 +531,11 @@ export default function AdminClientDetail() {
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all"
-              style={activeTab === tab.key ? {
-                background: '#ffffff', color: '#344054',
-                boxShadow: '0 1px 3px rgba(16,24,40,0.08)',
-              } : { color: '#98a2b3' }}
+              className="flex items-center gap-2 px-4 py-1.5 rounded-xl text-[13px] font-semibold transition-all duration-200"
+              style={activeTab === tab.key
+                ? { background: 'linear-gradient(135deg, #2C82B5, #2570a0)', color: '#fff', boxShadow: '0 2px 8px rgba(37,112,160,0.28)' }
+                : { color: '#94a3b8' }
+              }
             >
               <tab.icon className="w-3.5 h-3.5" />
               {tab.label}

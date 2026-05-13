@@ -21,9 +21,9 @@ interface Sale {
 
 const CARD: React.CSSProperties = {
   background: '#ffffff',
-  border: '1px solid #e4e7ec',
-  borderRadius: '1.5rem',
-  boxShadow: '0 1px 3px rgba(16,24,40,0.06)',
+  border: '1px solid #f1f5f9',
+  borderRadius: '1rem',
+  boxShadow: '0 2px 12px rgba(0,0,0,0.03)',
 }
 
 export default function AdminBilling() {
@@ -110,49 +110,33 @@ export default function AdminBilling() {
 
   if (loading) return (
     <div className="flex justify-center py-20">
-      <div className="w-6 h-6 border-2 border-slate-200 border-t-brand-500 rounded-full animate-spin" />
+      <div className="w-5 h-5 border-[2.5px] border-brand-500 border-t-transparent rounded-full animate-spin" />
     </div>
   )
 
   return (
-    <div className="space-y-6 animate-fade-in pb-12">
+    <div className="space-y-5 pb-12">
 
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight" style={{ color: '#101828' }}>Faturamento</h1>
-          <p className="text-sm mt-1" style={{ color: '#98a2b3' }}>Gestão financeira e métricas de receita.</p>
+          <h1 className="text-xl font-bold text-slate-800 leading-none">Faturamento</h1>
+          <p className="text-sm text-slate-500 mt-1">Gestão financeira e métricas de receita.</p>
         </div>
-        <div
-          className="flex items-center gap-1 p-1 rounded-2xl"
-          style={{ background: '#f0f2f5', border: '1px solid #e4e7ec' }}
-        >
-          <button
-            onClick={() => setTab('geral')}
-            className="px-6 py-2 rounded-xl text-sm font-semibold transition-all"
-            style={tab === 'geral' ? {
-              background: '#ffffff',
-              color: '#344054',
-              boxShadow: '0 1px 3px rgba(16,24,40,0.08)',
-            } : {
-              color: '#98a2b3',
-            }}
-          >
-            Geral
-          </button>
-          <button
-            onClick={() => setTab('historico')}
-            className="px-6 py-2 rounded-xl text-sm font-semibold transition-all"
-            style={tab === 'historico' ? {
-              background: '#ffffff',
-              color: '#344054',
-              boxShadow: '0 1px 3px rgba(16,24,40,0.08)',
-            } : {
-              color: '#98a2b3',
-            }}
-          >
-            Histórico
-          </button>
+        <div className="flex items-center bg-white border border-slate-200 rounded-2xl p-1 shadow-[0_2px_10px_rgba(0,0,0,0.05)]">
+          {(['geral', 'historico'] as const).map(t => (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              className="px-5 py-1.5 rounded-xl text-[13px] font-semibold transition-all duration-200"
+              style={tab === t
+                ? { background: 'linear-gradient(135deg, #2C82B5, #2570a0)', color: '#fff', boxShadow: '0 2px 8px rgba(37,112,160,0.28)' }
+                : { color: '#94a3b8' }
+              }
+            >
+              {t === 'geral' ? 'Geral' : 'Histórico'}
+            </button>
+          ))}
         </div>
       </div>
 
