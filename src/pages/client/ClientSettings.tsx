@@ -42,7 +42,7 @@ export default function ClientSettings() {
       if (orgData) {
         setOrg(orgData)
         setClinicName(orgData.name ?? '')
-        setPhone((orgData as Record<string, string>).phone ?? '')
+        setPhone(orgData.phone ?? '')
       }
       if (notifData) {
         setReminder24h(notifData.reminder_24h ?? true)
@@ -60,7 +60,7 @@ export default function ClientSettings() {
     setProfileMsg(null)
     const { error } = await supabase
       .from('organizations')
-      .update({ name: clinicName, phone } as Record<string, string>)
+      .update({ name: clinicName, phone })
       .eq('id', orgId)
     setProfileMsg(error
       ? { ok: false, text: error.message }
@@ -155,7 +155,7 @@ export default function ClientSettings() {
             <label className="block text-sm font-medium text-slate-700">E-mail de acesso</label>
             <input
               type="email"
-              value={(org as Record<string, string>).email ?? ''}
+              value={(org as { email?: string }).email ?? ''}
               disabled
               className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm bg-slate-50 text-slate-400 cursor-not-allowed"
             />

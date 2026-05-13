@@ -23,6 +23,7 @@ export interface Organization {
   asaas_subscription_id: string | null
   asaas_status: string | null
   subscription_period_end: string | null
+  phone: string | null
   google_calendar_id: string | null
   agent_tone: 'formal' | 'friendly'
   max_conversations_month: number
