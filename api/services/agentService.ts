@@ -41,14 +41,21 @@ interface Service {
   pdf_name: string | null;
 }
 
+interface WorkingDay {
+  active: boolean;
+  start: string; // "09:00"
+  end: string;   // "18:00"
+}
+
 interface AgentSettings {
   agent_name: string;
   greeting_message: string;
   tone: string;
   specialties: string[];
-  working_hours: Record<string, unknown> | null;
+  working_hours: Record<string, WorkingDay> | null;
   custom_instructions: string | null;
   services: Service[] | null;
+  appointment_duration: number; // minutos, default 60
 }
 
 interface Conversation {
@@ -113,6 +120,27 @@ const TOOLS: OpenAI.Chat.ChatCompletionTool[] = [
   {
     type: 'function',
     function: {
+      name: 'get_available_slots',
+      description: 'Consulta os horários disponíveis na agenda. Use SEMPRE antes de confirmar um agendamento ou reagendamento. Retorna dias e horários livres considerando a duração do atendimento, bloqueios e consultas já agendadas.',
+      parameters: {
+        type: 'object',
+        properties: {
+          date: {
+            type: 'string',
+            description: 'Data específica no formato YYYY-MM-DD. Se informado, retorna slots apenas deste dia.',
+          },
+          week_offset: {
+            type: 'number',
+            description: 'Semanas a partir de hoje: 0 = esta semana, 1 = próxima semana. Padrão: 0. Usado quando o paciente quer saber dias disponíveis na semana.',
+          },
+        },
+        required: [],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
       name: 'escalate_to_human',
       description: 'Escala a conversa para um atendente humano. Use quando: paciente estiver frustrado, solicitação não puder ser resolvida, ou paciente pedir explicitamente.',
       parameters: {
@@ -138,6 +166,141 @@ async function executeTool(
   settings: AgentSettings,
 ): Promise<string> {
   switch (toolName) {
+    case 'get_available_slots': {
+      const duration = settings.appointment_duration || 60;
+      const weekOffset = typeof args.week_offset === 'number' ? args.week_offset : 0;
+
+      // Define o intervalo de datas a verificar
+      let dateFrom: Date;
+      let dateTo: Date;
+      if (args.date) {
+        dateFrom = new Date(`${args.date}T00:00:00`);
+        dateTo   = new Date(`${args.date}T23:59:59`);
+      } else {
+        const today = new Date();
+        const dow = today.getDay(); // 0=Dom
+        dateFrom = new Date(today);
+        dateFrom.setDate(today.getDate() - dow + (weekOffset * 7));
+        dateFrom.setHours(0, 0, 0, 0);
+        dateTo = new Date(dateFrom);
+        dateTo.setDate(dateFrom.getDate() + 6);
+        dateTo.setHours(23, 59, 59, 999);
+      }
+
+      const fromStr = dateFrom.toISOString();
+      const toStr   = dateTo.toISOString();
+      const fromDate = dateFrom.toISOString().slice(0, 10);
+      const toDate   = dateTo.toISOString().slice(0, 10);
+
+      // Busca agendamentos existentes no período
+      const { data: existingAppts } = await supabase
+        .from('appointments')
+        .select('scheduled_at, duration_minutes')
+        .eq('org_id', orgId)
+        .in('status', ['scheduled', 'confirmed'])
+        .gte('scheduled_at', fromStr)
+        .lte('scheduled_at', toStr);
+
+      // Busca bloqueios no período
+      const { data: blockedSlots } = await supabase
+        .from('blocked_slots')
+        .select('date, all_day, start_time, end_time')
+        .eq('org_id', orgId)
+        .gte('date', fromDate)
+        .lte('date', toDate);
+
+      // Horário de funcionamento padrão (seg-sex 09h-18h) — usado se working_hours não estiver configurado
+      const DEFAULT_HOURS: Record<number, WorkingDay> = {
+        1: { active: true,  start: '09:00', end: '18:00' },
+        2: { active: true,  start: '09:00', end: '18:00' },
+        3: { active: true,  start: '09:00', end: '18:00' },
+        4: { active: true,  start: '09:00', end: '18:00' },
+        5: { active: true,  start: '09:00', end: '18:00' },
+        6: { active: false, start: '09:00', end: '12:00' },
+        0: { active: false, start: '09:00', end: '12:00' },
+      };
+
+      function getWorkDay(dow: number): WorkingDay {
+        if (settings.working_hours) {
+          return (settings.working_hours[String(dow)] as WorkingDay) || { active: false, start: '09:00', end: '18:00' };
+        }
+        return DEFAULT_HOURS[dow] || { active: false, start: '09:00', end: '18:00' };
+      }
+
+      function toMinutes(hhmm: string): number {
+        const [h, m] = hhmm.split(':').map(Number);
+        return h * 60 + m;
+      }
+
+      function fmtMinutes(mins: number): string {
+        return `${String(Math.floor(mins / 60)).padStart(2, '0')}:${String(mins % 60).padStart(2, '0')}`;
+      }
+
+      const PT_DAYS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+      const resultLines: string[] = [];
+
+      // Itera cada dia do intervalo
+      const cursor = new Date(dateFrom);
+      while (cursor <= dateTo) {
+        const dateKey = cursor.toISOString().slice(0, 10);
+        const dow = cursor.getDay();
+        const wd  = getWorkDay(dow);
+
+        if (!wd.active) { cursor.setDate(cursor.getDate() + 1); continue; }
+
+        const workStart = toMinutes(wd.start);
+        const workEnd   = toMinutes(wd.end);
+
+        // Slots ocupados por agendamentos existentes neste dia
+        const dayAppts = (existingAppts || []).filter(a => a.scheduled_at.slice(0, 10) === dateKey);
+        const occupied = dayAppts.map(a => {
+          const apptDate = new Date(a.scheduled_at);
+          const start = apptDate.getHours() * 60 + apptDate.getMinutes();
+          const dur   = a.duration_minutes || duration;
+          return { start, end: start + dur };
+        });
+
+        // Slots bloqueados por blocked_slots neste dia
+        const dayBlocked = (blockedSlots || []).filter(b => b.date === dateKey);
+        const blockedRanges = dayBlocked.map(b => {
+          if (b.all_day) return { start: workStart, end: workEnd };
+          return {
+            start: b.start_time ? toMinutes(b.start_time.slice(0, 5)) : workStart,
+            end:   b.end_time   ? toMinutes(b.end_time.slice(0, 5))   : workEnd,
+          };
+        });
+
+        // Dia inteiramente bloqueado?
+        if (blockedRanges.some(b => b.start <= workStart && b.end >= workEnd)) {
+          cursor.setDate(cursor.getDate() + 1);
+          continue;
+        }
+
+        // Gera candidatos de slots
+        const freeSlots: string[] = [];
+        for (let t = workStart; t + duration <= workEnd; t += duration) {
+          const slotEnd = t + duration;
+          const blocked =
+            occupied.some(o => t < o.end && slotEnd > o.start) ||
+            blockedRanges.some(b => t < b.end && slotEnd > b.start);
+          if (!blocked) freeSlots.push(fmtMinutes(t));
+        }
+
+        if (freeSlots.length > 0) {
+          const label = cursor.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: '2-digit' });
+          resultLines.push(`${label}: ${freeSlots.join(', ')}`);
+        }
+
+        cursor.setDate(cursor.getDate() + 1);
+      }
+
+      if (resultLines.length === 0) {
+        return `Nenhum horário disponível no período solicitado (${PT_DAYS[dateFrom.getDay()]} ${dateFrom.toLocaleDateString('pt-BR')} a ${PT_DAYS[dateTo.getDay()]} ${dateTo.toLocaleDateString('pt-BR')}). Cada atendimento tem duração de ${duration} minutos.`;
+      }
+
+      return `Horários disponíveis (atendimento de ${duration} min cada):\n${resultLines.join('\n')}`;
+    }
+
     case 'schedule_appointment': {
       const { data, error } = await supabase
         .from('appointments')
@@ -149,6 +312,7 @@ async function executeTool(
           scheduled_at: args.preferred_date && args.preferred_time
             ? `${args.preferred_date}T${args.preferred_time}:00`
             : null,
+          duration_minutes: settings.appointment_duration || 60,
           notes: args.notes || null,
           status: 'scheduled',
         })
@@ -398,7 +562,7 @@ export async function getOrgByInstance(instanceName: string): Promise<{
 
   const { data: settings } = await supabase
     .from('agent_settings')
-    .select('agent_name, greeting_message, tone, specialties, working_hours, custom_instructions, services')
+    .select('agent_name, greeting_message, tone, specialties, working_hours, custom_instructions, services, appointment_duration')
     .eq('org_id', org.id)
     .single();
 
@@ -412,6 +576,7 @@ export async function getOrgByInstance(instanceName: string): Promise<{
       working_hours: null,
       custom_instructions: null,
       services: null,
+      appointment_duration: 60,
     },
   };
 }

@@ -23,6 +23,7 @@ export default function ClientBento() {
   const [agentGreeting, setAgentGreeting]   = useState('')
   const [agentTone, setAgentTone]           = useState<'friendly' | 'formal'>('friendly')
   const [agentInstructions, setAgentInstructions] = useState('')
+  const [appointmentDuration, setAppointmentDuration] = useState(60)
   const [services, setServices]             = useState<Service[]>([])
 
   const [loading, setLoading]               = useState(true)
@@ -46,6 +47,7 @@ export default function ClientBento() {
           setAgentGreeting(data.greeting_message || '')
           setAgentTone(data.tone === 'formal' ? 'formal' : 'friendly')
           setAgentInstructions(data.custom_instructions || '')
+          setAppointmentDuration(data.appointment_duration ?? 60)
           setServices(data.services || [])
         }
         setLoading(false)
@@ -62,6 +64,7 @@ export default function ClientBento() {
       greeting_message: agentGreeting,
       tone: agentTone,
       custom_instructions: agentInstructions,
+      appointment_duration: appointmentDuration,
       specialties: services.map(s => s.name),
       services,
     }
@@ -192,6 +195,34 @@ export default function ClientBento() {
                     className={cn(
                       'px-4 py-2 rounded-xl text-sm font-medium border-2 transition-all',
                       agentTone === opt.value
+                        ? 'border-brand-400 text-brand-700 bg-white shadow-sm'
+                        : 'border-slate-200 text-slate-500 hover:border-slate-300'
+                    )}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="block text-sm font-medium text-slate-700">Duração do Atendimento</label>
+              <p className="text-xs text-slate-400">Tempo padrão de cada consulta/serviço. Aplicado apenas em novos agendamentos.</p>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { value: 30,  label: '30 min' },
+                  { value: 45,  label: '45 min' },
+                  { value: 60,  label: '1 hora' },
+                  { value: 90,  label: '1h30' },
+                  { value: 120, label: '2 horas' },
+                ].map(opt => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setAppointmentDuration(opt.value)}
+                    className={cn(
+                      'px-4 py-2 rounded-xl text-sm font-medium border-2 transition-all',
+                      appointmentDuration === opt.value
                         ? 'border-brand-400 text-brand-700 bg-white shadow-sm'
                         : 'border-slate-200 text-slate-500 hover:border-slate-300'
                     )}
