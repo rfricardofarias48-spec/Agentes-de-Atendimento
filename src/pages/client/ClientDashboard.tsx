@@ -96,7 +96,9 @@ export default function ClientDashboard() {
         const d = toBRT(new Date(a.scheduled_at)); return d >= day && d < next
       }).length
       const isToday = day.getTime() === brt.getTime()
-      return { label: String(day.getDate()).padStart(2, '0'), count, isToday, isPast: !isToday }
+      const dd = String(day.getDate()).padStart(2, '0')
+      const mm = String(day.getMonth() + 1).padStart(2, '0')
+      return { label: `${dd}/${mm}`, count, isToday, isPast: !isToday }
     })
   }, [appointments])
 
