@@ -60,7 +60,7 @@ export default function ClientSettings() {
     setProfileMsg(null)
     const { error } = await supabase
       .from('organizations')
-      .update({ name: clinicName })
+      .update({ name: clinicName, phone: phone || null })
       .eq('id', orgId)
     setProfileMsg(error
       ? { ok: false, text: error.message }
