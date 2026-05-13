@@ -597,7 +597,7 @@ export default function ClientAppointments() {
                         isWeekend && !isToday ? 'bg-slate-50/60' : '', hasBlock ? 'bg-slate-50/80' : '')}>
                         <p className={cn('text-[10px] font-bold uppercase tracking-[0.12em]',
                           isToday ? 'text-brand-500' : hasBlock ? 'text-slate-500' : 'text-slate-400')}>
-                          {DAY_PT[day.getDay()]}{hasBlock && <span className="ml-1">🔒</span>}
+                          {DAY_PT[day.getDay()]}{hasBlock && <span className="ml-1 inline-block w-2 h-2 rounded-sm bg-slate-400 align-middle" />}
                         </p>
                         <div className={cn('mt-1.5 mx-auto w-8 h-8 flex items-center justify-center rounded-full text-[13px] font-bold transition-all duration-200',
                           isToday ? 'text-white shadow-[0_4px_10px_rgba(44,130,181,0.35)]' : 'text-slate-600 hover:bg-slate-100')}
@@ -612,8 +612,8 @@ export default function ClientAppointments() {
                 <div className="flex w-full relative" style={{ height: totalHeight + 32 }}>
                   <div className="relative shrink-0 bg-white border-r border-slate-100" style={{ width: TIME_COL_W, minWidth: TIME_COL_W }}>
                     {hours.map(h => (
-                      <div key={h} className="absolute right-3 flex items-start justify-end" style={{ top: (h - startHour) * HOUR_HEIGHT, height: HOUR_HEIGHT }}>
-                        <span className="text-[11px] text-slate-400 font-medium pt-1.5 tabular-nums">{String(h).padStart(2, '0')}:00</span>
+                      <div key={h} className="absolute right-3 flex items-center justify-end" style={{ top: (h - startHour) * HOUR_HEIGHT, height: HOUR_HEIGHT }}>
+                        <span className="text-[11px] text-slate-400 font-medium tabular-nums">{String(h).padStart(2, '0')}:00</span>
                       </div>
                     ))}
                   </div>
@@ -638,25 +638,21 @@ export default function ClientAppointments() {
                           b.all_day ? (
                             <div key={b.id} className="absolute inset-0 pointer-events-none" style={{ borderLeft: '3px solid #94a3b8' }}>
                               <div className="absolute inset-0" style={{ background: 'repeating-linear-gradient(-45deg,rgba(100,116,139,0.06) 0px,rgba(100,116,139,0.06) 4px,transparent 4px,transparent 12px)' }} />
-                              {b.reason && (
-                                <div className="absolute inset-x-0 top-3 flex justify-center">
-                                  <span className="text-[11px] font-semibold text-slate-500 tracking-wide px-1 truncate max-w-full text-center">
-                                    {b.reason}
-                                  </span>
-                                </div>
-                              )}
+                              <div className="absolute inset-x-0 top-3 flex justify-center">
+                                <span className="text-[11px] font-semibold text-slate-500 tracking-wide px-2 py-0.5 rounded-md text-center" style={{ background: 'rgba(255,255,255,0.75)' }}>
+                                  {b.reason || 'Bloqueado'}
+                                </span>
+                              </div>
                             </div>
                           ) : (b.start_time && b.end_time) ? (
                             <div key={b.id} className="absolute left-0 right-0 pointer-events-none overflow-hidden"
                               style={{ top: blockTop(b.start_time), height: blockHeight(b.start_time, b.end_time), borderLeft: '3px solid #94a3b8' }}>
                               <div className="absolute inset-0" style={{ background: 'repeating-linear-gradient(-45deg,rgba(100,116,139,0.09) 0px,rgba(100,116,139,0.09) 4px,transparent 4px,transparent 12px)' }} />
-                              {b.reason && (
-                                <div className="absolute inset-0 flex items-center justify-center">
-                                  <span className="text-[11px] font-semibold text-slate-500 tracking-wide px-2 truncate max-w-full text-center">
-                                    {b.reason}
-                                  </span>
-                                </div>
-                              )}
+                              <div className="absolute inset-0 flex items-center justify-center">
+                                <span className="text-[11px] font-semibold text-slate-500 tracking-wide px-2 py-0.5 rounded-md text-center" style={{ background: 'rgba(255,255,255,0.75)', maxWidth: 'calc(100% - 12px)' }}>
+                                  {b.reason || 'Bloqueado'}
+                                </span>
+                              </div>
                             </div>
                           ) : null
                         ))}
