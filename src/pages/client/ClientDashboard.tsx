@@ -155,7 +155,7 @@ export default function ClientDashboard() {
       </div>
 
       {/* ── Weekly Chart ─────────────────────────────────────────── */}
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-[0_2px_12px_rgba(0,0,0,0.03)] overflow-hidden">
+      <div className="rounded-2xl overflow-hidden" style={{ background: 'linear-gradient(160deg,#1e2a3a 0%,#243447 100%)', boxShadow: '0 4px 20px rgba(0,0,0,0.15)' }}>
         <style>{`
           @keyframes floatIn {
             from { opacity: 0; transform: translateY(5px) translateX(-50%); }
@@ -167,28 +167,24 @@ export default function ClientDashboard() {
           {/* Header */}
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-2.5">
-              <div className="w-7 h-7 rounded-xl flex items-center justify-center" style={{ background: 'rgba(44,130,181,0.1)' }}>
-                <TrendingUp className="w-3.5 h-3.5" style={{ color: '#2C82B5' }} />
+              <div className="w-7 h-7 rounded-xl flex items-center justify-center" style={{ background: 'rgba(44,130,181,0.2)' }}>
+                <TrendingUp className="w-3.5 h-3.5" style={{ color: '#5bafd4' }} />
               </div>
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400 leading-none mb-0.5">Últimos 15 dias</p>
-                <p className="text-sm font-bold text-gray-900 leading-none">Agendamentos por dia</p>
+                <p className="text-[10px] font-bold uppercase tracking-[0.14em] leading-none mb-0.5" style={{ color: 'rgba(148,163,184,0.6)' }}>Últimos 15 dias</p>
+                <p className="text-sm font-bold leading-none" style={{ color: '#e2e8f0' }}>Agendamentos por dia</p>
               </div>
             </div>
             <div className="text-right">
-              <p className="text-3xl font-black text-gray-900 leading-none tabular-nums">
+              <p className="text-3xl font-black leading-none tabular-nums" style={{ color: '#f1f5f9' }}>
                 <AnimatedNumber value={weeklyData.reduce((s, d) => s + d.count, 0)} ready={chartReady} delay={650} />
               </p>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400 mt-1">agendamentos</p>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.12em] mt-1" style={{ color: 'rgba(148,163,184,0.5)' }}>agendamentos</p>
             </div>
           </div>
 
           {/* Chart bars */}
           <div className="relative" style={{ height: '140px' }}>
-            {[0.75, 0.5, 0.25].map(pct => (
-              <div key={pct} className="absolute left-0 right-0 pointer-events-none"
-                style={{ bottom: `${pct * 140}px`, borderTop: '1px dashed #f1f5f9' }} />
-            ))}
             <div className="absolute inset-0 flex items-end gap-1">
               {weeklyData.map((day, i) => {
                 const maxCount = Math.max(...weeklyData.map(d => d.count), 1)
@@ -199,13 +195,13 @@ export default function ClientDashboard() {
           </div>
 
           {/* Baseline + labels */}
-          <div className="mt-3 h-px bg-slate-100" />
+          <div className="mt-3 h-px" style={{ background: 'rgba(255,255,255,0.07)' }} />
           <div className="flex gap-1 mt-2.5">
             {weeklyData.map((day, i) => (
               <div key={i} className="flex-1 text-center">
                 <span
-                  className={cn('text-[10px] font-bold tabular-nums transition-opacity duration-300', day.isToday ? 'text-brand-600' : 'text-slate-400')}
-                  style={{ opacity: chartReady ? 1 : 0, transitionDelay: `${i * 30 + 200}ms` }}
+                  className="text-[10px] font-bold tabular-nums transition-opacity duration-300"
+                  style={{ opacity: chartReady ? 1 : 0, transitionDelay: `${i * 30 + 200}ms`, color: day.isToday ? '#5bafd4' : 'rgba(148,163,184,0.5)' }}
                 >
                   {day.label}
                 </span>
@@ -480,8 +476,8 @@ function ChartBar({
 
   const barBg = isToday
     ? 'linear-gradient(180deg, #5bafd4 0%, #2C82B5 100%)'
-    : count > 0 ? 'linear-gradient(180deg, #94a3b8 0%, #7a8fa3 100%)'
-    : '#dde3ea'
+    : count > 0 ? 'linear-gradient(180deg, rgba(148,163,184,0.5) 0%, rgba(100,116,139,0.4) 100%)'
+    : 'rgba(255,255,255,0.05)'
 
   return (
     <div className="flex-1 relative flex flex-col justify-end" style={{ height: `${CHART_H}px` }}
@@ -492,18 +488,18 @@ function ChartBar({
         <div className="absolute left-1/2 z-30 pointer-events-none"
           style={{ bottom: `${heightPx + 10}px`, animation: 'floatIn 0.18s ease-out both' }}>
           <div className="px-2.5 py-1.5 rounded-lg text-[11px] font-bold whitespace-nowrap"
-            style={{ background: '#fff', color: '#1e3a5f', transform: 'translateX(-50%)', boxShadow: '0 4px 16px rgba(0,0,0,0.12)', border: '1px solid #e2eaf3' }}>
+            style={{ background: 'rgba(15,25,40,0.92)', color: '#e2e8f0', transform: 'translateX(-50%)', boxShadow: '0 4px 16px rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.08)' }}>
             {displayCount} {displayCount === 1 ? 'consulta' : 'consultas'}
           </div>
           <div className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0"
-            style={{ borderLeft: '5px solid transparent', borderRight: '5px solid transparent', borderTop: '5px solid #fff' }} />
+            style={{ borderLeft: '5px solid transparent', borderRight: '5px solid transparent', borderTop: '5px solid rgba(15,25,40,0.92)' }} />
         </div>
       )}
 
       {/* Count */}
       <div className="text-center mb-1.5 transition-all duration-200"
         style={{ opacity: ready && count > 0 ? 1 : 0, transitionDelay: `${index * 55 + 450}ms`, transform: hovered ? 'scale(1.2)' : 'scale(1)' }}>
-        <span className="text-[11px] font-bold tabular-nums" style={{ color: isToday ? '#2C82B5' : '#64748b' }}>
+        <span className="text-[11px] font-bold tabular-nums" style={{ color: isToday ? '#5bafd4' : 'rgba(148,163,184,0.6)' }}>
           {displayCount}
         </span>
       </div>
