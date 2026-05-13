@@ -357,14 +357,28 @@ export default function AdminClients() {
                     <td className="py-3.5 px-5 text-xs text-slate-400">{formatDateShort(org.created_at)}</td>
                     <td className="py-3.5 px-5">
                       <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => setSetupOrg(org)}
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-white transition-all hover:shadow-[0_3px_10px_rgba(44,130,181,0.4)] hover:-translate-y-[1px]"
-                          style={{ background: 'linear-gradient(135deg, #2C82B5, #2570a0)' }}
-                        >
-                          <Zap className="w-3 h-3" />
-                          Finalizar SETUP
-                        </button>
+                        {(() => {
+                          const done = !!(org.evolution_instance && org.evolution_token && org.chatwoot_account_id && org.chatwoot_token)
+                          return done ? (
+                            <button
+                              onClick={() => setSetupOrg(org)}
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all hover:-translate-y-[1px]"
+                              style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', color: '#15803d' }}
+                            >
+                              <CheckCircle2 className="w-3 h-3" />
+                              Setup OK
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => setSetupOrg(org)}
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-white transition-all hover:shadow-[0_3px_10px_rgba(44,130,181,0.4)] hover:-translate-y-[1px]"
+                              style={{ background: 'linear-gradient(135deg, #2C82B5, #2570a0)' }}
+                            >
+                              <Zap className="w-3 h-3" />
+                              Finalizar SETUP
+                            </button>
+                          )
+                        })()}
                         <Link to={`/admin/clients/${org.id}`}>
                           <button className="px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-400 border border-slate-200 hover:text-brand-600 hover:border-brand-200 hover:bg-brand-50 transition-all">
                             Gerenciar
