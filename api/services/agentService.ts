@@ -29,6 +29,7 @@ interface Organization {
   chatwoot_account_id: number | null;
   chatwoot_token: string | null;
   chatwoot_inbox_id: number | null;
+  chatwoot_url: string | null;
   agent_tone: 'formal' | 'friendly';
 }
 
@@ -807,7 +808,7 @@ export async function getOrgByInstance(instanceName: string): Promise<{
 } | null> {
   const { data: org } = await supabase
     .from('organizations')
-    .select('id, name, evolution_instance, evolution_token, chatwoot_account_id, chatwoot_token, chatwoot_inbox_id, agent_tone, status')
+    .select('id, name, evolution_instance, evolution_token, chatwoot_account_id, chatwoot_token, chatwoot_inbox_id, chatwoot_url, agent_tone, status')
     .eq('evolution_instance', instanceName)
     .eq('status', 'active')
     .single();
