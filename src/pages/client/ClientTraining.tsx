@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import {
-  Save, Plus, Trash2, FileText, ChevronDown, Upload, X, Loader2, CheckCircle2, XCircle,
+  Save, Plus, Trash2, FileText, ChevronDown, Upload, X, Loader2, CheckCircle2, XCircle, Bell,
 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
