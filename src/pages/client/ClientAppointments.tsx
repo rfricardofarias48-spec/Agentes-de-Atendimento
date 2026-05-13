@@ -163,35 +163,35 @@ function RangeCalendar({ start, end, onChange }: {
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden select-none">
-      <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: '1px solid #f1f5f9' }}>
+      <div className="flex items-center justify-between px-3 py-2" style={{ borderBottom: '1px solid #f1f5f9' }}>
         <button type="button" onClick={prevMonth}
-          className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors">
-          <ChevronLeft className="w-4 h-4" />
+          className="w-6 h-6 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors">
+          <ChevronLeft className="w-3.5 h-3.5" />
         </button>
-        <span className="text-[13px] font-bold text-slate-700">{MONTH_NAMES[month]} {year}</span>
+        <span className="text-[12px] font-bold text-slate-700">{MONTH_NAMES[month]} {year}</span>
         <button type="button" onClick={nextMonth}
-          className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors">
-          <ChevronRight className="w-4 h-4" />
+          className="w-6 h-6 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors">
+          <ChevronRight className="w-3.5 h-3.5" />
         </button>
       </div>
 
-      <div className="grid grid-cols-7 px-2 pt-2">
+      <div className="grid grid-cols-7 px-1 pt-1">
         {['D','S','T','Q','Q','S','S'].map((d, i) => (
-          <div key={i} className="text-center text-[10px] font-bold text-slate-400 py-1">{d}</div>
+          <div key={i} className="text-center text-[9px] font-bold text-slate-400 py-0.5">{d}</div>
         ))}
       </div>
 
-      <div className="grid grid-cols-7 px-2 pb-2">
+      <div className="grid grid-cols-7 px-1 pb-1">
         {cells.map((day, i) => {
-          if (!day) return <div key={i} className="aspect-square" />
+          if (!day) return <div key={i} className="h-8" />
           const ds      = toStr(year, month, day)
           const isStart = !!start && ds === start
           const isEnd   = !!ee && ds === ee
           const inRange = !!start && !!ee && ds > start && ds < ee
           return (
-            <div key={i} className="relative aspect-square flex items-center justify-center p-[2px]">
+            <div key={i} className="relative h-8 flex items-center justify-center">
               {hasRange && (isStart || isEnd || inRange) && (
-                <div className="absolute inset-y-[3px] bg-amber-100 pointer-events-none"
+                <div className="absolute inset-y-[2px] bg-amber-100 pointer-events-none"
                   style={{ left: isStart ? '50%' : 0, right: isEnd ? '50%' : 0 }} />
               )}
               <button type="button"
@@ -199,7 +199,7 @@ function RangeCalendar({ start, end, onChange }: {
                 onMouseEnter={() => { if (phase === 'end') setHover(ds) }}
                 onMouseLeave={() => setHover('')}
                 className={cn(
-                  'relative z-10 w-full h-full flex items-center justify-center text-[12px] font-medium rounded-full transition-colors',
+                  'relative z-10 w-7 h-7 flex items-center justify-center text-[11px] font-medium rounded-full transition-colors',
                   isStart || isEnd ? 'bg-amber-500 text-white font-bold shadow-sm' :
                   inRange ? 'text-amber-800 hover:bg-amber-200' :
                   ds === todayStr ? 'text-amber-600 font-bold ring-1 ring-amber-300 hover:bg-amber-50' :
@@ -212,7 +212,7 @@ function RangeCalendar({ start, end, onChange }: {
         })}
       </div>
 
-      <div className="px-4 py-2.5 text-[11px] text-center" style={{ borderTop: '1px solid #f1f5f9', color: '#94a3b8' }}>
+      <div className="px-3 py-2 text-[10px] text-center" style={{ borderTop: '1px solid #f1f5f9', color: '#94a3b8' }}>
         {!start
           ? 'Clique para selecionar o início'
           : phase === 'end'
