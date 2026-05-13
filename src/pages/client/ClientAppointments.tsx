@@ -113,6 +113,119 @@ function fmtBlockDate(dateStr: string) {
   return new Date(dateStr + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: 'short' })
 }
 
+// ── RangeCalendar ──────────────────────────────────────────────
+const MONTH_NAMES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
+
+function RangeCalendar({ start, end, onChange }: {
+  start: string
+  end: string
+  onChange: (s: string, e: string) => void
+}) {
+  const todayStr = new Date().toISOString().slice(0, 10)
+  const initDate = start ? new Date(start + 'T12:00:00') : new Date()
+  const [year, setYear]   = useState(initDate.getFullYear())
+  const [month, setMonth] = useState(initDate.getMonth())
+  const [phase, setPhase] = useState<'start' | 'end'>(start ? 'end' : 'start')
+  const [hover, setHover] = useState('')
+
+  function toStr(y: number, m: number, d: number) {
+    return `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+  }
+  function prevMonth() { if (month === 0) { setYear(y => y - 1); setMonth(11) } else setMonth(m => m - 1) }
+  function nextMonth() { if (month === 11) { setYear(y => y + 1); setMonth(0) } else setMonth(m => m + 1) }
+
+  const firstWeekday = new Date(year, month, 1).getDay()
+  const daysInMonth  = new Date(year, month + 1, 0).getDate()
+  const cells: (number | null)[] = [
+    ...Array(firstWeekday).fill(null),
+    ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
+  ]
+  while (cells.length % 7 !== 0) cells.push(null)
+
+  function handleClick(day: number) {
+    const ds = toStr(year, month, day)
+    if (phase === 'start') {
+      onChange(ds, ''); setPhase('end')
+    } else {
+      if (ds < start) { onChange(ds, ''); setPhase('end') }
+      else { onChange(start, ds); setPhase('start') }
+    }
+  }
+
+  function effEnd() {
+    if (end) return end
+    if (phase === 'end' && hover && start && hover >= start) return hover
+    return ''
+  }
+
+  const ee = effEnd()
+  const hasRange = !!start && !!ee && start !== ee
+
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden select-none">
+      <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: '1px solid #f1f5f9' }}>
+        <button type="button" onClick={prevMonth}
+          className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors">
+          <ChevronLeft className="w-4 h-4" />
+        </button>
+        <span className="text-[13px] font-bold text-slate-700">{MONTH_NAMES[month]} {year}</span>
+        <button type="button" onClick={nextMonth}
+          className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors">
+          <ChevronRight className="w-4 h-4" />
+        </button>
+      </div>
+
+      <div className="grid grid-cols-7 px-2 pt-2">
+        {['D','S','T','Q','Q','S','S'].map((d, i) => (
+          <div key={i} className="text-center text-[10px] font-bold text-slate-400 py-1">{d}</div>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-7 px-2 pb-2">
+        {cells.map((day, i) => {
+          if (!day) return <div key={i} className="aspect-square" />
+          const ds      = toStr(year, month, day)
+          const isStart = !!start && ds === start
+          const isEnd   = !!ee && ds === ee
+          const inRange = !!start && !!ee && ds > start && ds < ee
+          return (
+            <div key={i} className="relative aspect-square flex items-center justify-center p-[2px]">
+              {hasRange && (isStart || isEnd || inRange) && (
+                <div className="absolute inset-y-[3px] bg-amber-100 pointer-events-none"
+                  style={{ left: isStart ? '50%' : 0, right: isEnd ? '50%' : 0 }} />
+              )}
+              <button type="button"
+                onClick={() => handleClick(day)}
+                onMouseEnter={() => { if (phase === 'end') setHover(ds) }}
+                onMouseLeave={() => setHover('')}
+                className={cn(
+                  'relative z-10 w-full h-full flex items-center justify-center text-[12px] font-medium rounded-full transition-colors',
+                  isStart || isEnd ? 'bg-amber-500 text-white font-bold shadow-sm' :
+                  inRange ? 'text-amber-800 hover:bg-amber-200' :
+                  ds === todayStr ? 'text-amber-600 font-bold ring-1 ring-amber-300 hover:bg-amber-50' :
+                  'text-slate-600 hover:bg-slate-100'
+                )}>
+                {day}
+              </button>
+            </div>
+          )
+        })}
+      </div>
+
+      <div className="px-4 py-2.5 text-[11px] text-center" style={{ borderTop: '1px solid #f1f5f9', color: '#94a3b8' }}>
+        {!start
+          ? 'Clique para selecionar o início'
+          : phase === 'end'
+            ? 'Selecione o dia final do período'
+            : (end && end !== start)
+              ? `${fmtBlockDate(start)} → ${fmtBlockDate(end)}`
+              : fmtBlockDate(start)
+        }
+      </div>
+    </div>
+  )
+}
+
 // ── Component ──────────────────────────────────────────────────
 export default function ClientAppointments() {
   const { orgId } = useAuth()
@@ -221,8 +334,7 @@ export default function ClientAppointments() {
   function closeModal() { setShowModal(false) }
 
   function openBlockModal() {
-    const today = new Date().toISOString().slice(0, 10)
-    setBlockForm({ ...EMPTY_BLOCK, date: today })
+    setBlockForm(EMPTY_BLOCK)
     setPendingBlocks([])
     setBlockError('')
     setShowBlockModal(true)
@@ -631,18 +743,11 @@ export default function ClientAppointments() {
               </div>
 
               {/* Datas */}
-              <div className={cn('grid gap-3', blockForm.all_day ? 'grid-cols-2' : 'grid-cols-2')}>
-                <FormField label="Data início" required>
-                  <Input type="date" value={blockForm.date}
-                    onChange={e => setBlockForm(f => ({ ...f, date: e.target.value }))}
-                    className="rounded-xl border-slate-200 focus-visible:ring-amber-400 h-10 text-sm" />
-                </FormField>
-                <FormField label="Data fim (opcional)">
-                  <Input type="date" value={blockForm.date_end} min={blockForm.date}
-                    onChange={e => setBlockForm(f => ({ ...f, date_end: e.target.value }))}
-                    className="rounded-xl border-slate-200 focus-visible:ring-amber-400 h-10 text-sm" />
-                </FormField>
-              </div>
+              <RangeCalendar
+                start={blockForm.date}
+                end={blockForm.date_end}
+                onChange={(s, e) => setBlockForm(f => ({ ...f, date: s, date_end: e }))}
+              />
 
               {/* Horário — só quando específico */}
               {!blockForm.all_day && (
