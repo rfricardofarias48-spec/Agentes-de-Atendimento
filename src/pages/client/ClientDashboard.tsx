@@ -155,7 +155,7 @@ export default function ClientDashboard() {
       </div>
 
       {/* ── Weekly Chart ─────────────────────────────────────────── */}
-      <div className="rounded-2xl overflow-hidden" style={{ background: 'linear-gradient(160deg,#1e2a3a 0%,#243447 100%)', boxShadow: '0 4px 20px rgba(0,0,0,0.15)' }}>
+      <div className="rounded-2xl overflow-hidden" style={{ background: 'linear-gradient(160deg,#eaf4fd 0%,#ddeefa 100%)', border: '1px solid #c8e2f5', boxShadow: '0 2px 16px rgba(44,130,181,0.08)' }}>
         <style>{`
           @keyframes floatIn {
             from { opacity: 0; transform: translateY(5px) translateX(-50%); }
@@ -167,19 +167,19 @@ export default function ClientDashboard() {
           {/* Header */}
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-2.5">
-              <div className="w-7 h-7 rounded-xl flex items-center justify-center" style={{ background: 'rgba(44,130,181,0.2)' }}>
-                <TrendingUp className="w-3.5 h-3.5" style={{ color: '#5bafd4' }} />
+              <div className="w-7 h-7 rounded-xl flex items-center justify-center" style={{ background: 'rgba(44,130,181,0.12)' }}>
+                <TrendingUp className="w-3.5 h-3.5" style={{ color: '#2C82B5' }} />
               </div>
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.14em] leading-none mb-0.5" style={{ color: 'rgba(148,163,184,0.6)' }}>Últimos 15 dias</p>
-                <p className="text-sm font-bold leading-none" style={{ color: '#e2e8f0' }}>Agendamentos por dia</p>
+                <p className="text-[10px] font-bold uppercase tracking-[0.14em] leading-none mb-0.5" style={{ color: '#7aadcc' }}>Últimos 15 dias</p>
+                <p className="text-sm font-bold leading-none" style={{ color: '#1e3a5f' }}>Agendamentos por dia</p>
               </div>
             </div>
             <div className="text-right">
-              <p className="text-3xl font-black leading-none tabular-nums" style={{ color: '#f1f5f9' }}>
+              <p className="text-3xl font-black leading-none tabular-nums" style={{ color: '#1e3a5f' }}>
                 <AnimatedNumber value={weeklyData.reduce((s, d) => s + d.count, 0)} ready={chartReady} delay={650} />
               </p>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.12em] mt-1" style={{ color: 'rgba(148,163,184,0.5)' }}>agendamentos</p>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.12em] mt-1" style={{ color: '#7aadcc' }}>agendamentos</p>
             </div>
           </div>
 
@@ -195,13 +195,13 @@ export default function ClientDashboard() {
           </div>
 
           {/* Baseline + labels */}
-          <div className="mt-3 h-px" style={{ background: 'rgba(255,255,255,0.07)' }} />
+          <div className="mt-3 h-px" style={{ background: 'rgba(44,130,181,0.15)' }} />
           <div className="flex gap-1 mt-2.5">
             {weeklyData.map((day, i) => (
               <div key={i} className="flex-1 text-center">
                 <span
                   className="text-[10px] font-bold tabular-nums transition-opacity duration-300"
-                  style={{ opacity: chartReady ? 1 : 0, transitionDelay: `${i * 30 + 200}ms`, color: day.isToday ? '#5bafd4' : 'rgba(148,163,184,0.5)' }}
+                  style={{ opacity: chartReady ? 1 : 0, transitionDelay: `${i * 30 + 200}ms`, color: day.isToday ? '#2C82B5' : '#8ab4cc' }}
                 >
                   {day.label}
                 </span>
@@ -475,9 +475,9 @@ function ChartBar({
   const heightPx = count > 0 ? Math.max((count / maxCount) * CHART_H * 0.88, 16) : (isToday || isPast) ? 3 : 0
 
   const barBg = isToday
-    ? 'linear-gradient(180deg, #5bafd4 0%, #2C82B5 100%)'
-    : count > 0 ? 'linear-gradient(180deg, rgba(148,163,184,0.5) 0%, rgba(100,116,139,0.4) 100%)'
-    : 'rgba(255,255,255,0.05)'
+    ? 'linear-gradient(180deg, #4fa8d4 0%, #2570a0 100%)'
+    : count > 0 ? 'linear-gradient(180deg, rgba(91,175,212,0.65) 0%, rgba(44,130,181,0.5) 100%)'
+    : 'rgba(44,130,181,0.08)'
 
   return (
     <div className="flex-1 relative flex flex-col justify-end" style={{ height: `${CHART_H}px` }}
@@ -488,18 +488,18 @@ function ChartBar({
         <div className="absolute left-1/2 z-30 pointer-events-none"
           style={{ bottom: `${heightPx + 10}px`, animation: 'floatIn 0.18s ease-out both' }}>
           <div className="px-2.5 py-1.5 rounded-lg text-[11px] font-bold whitespace-nowrap"
-            style={{ background: 'rgba(15,25,40,0.92)', color: '#e2e8f0', transform: 'translateX(-50%)', boxShadow: '0 4px 16px rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.08)' }}>
+            style={{ background: '#1e3a5f', color: '#e2eefa', transform: 'translateX(-50%)', boxShadow: '0 4px 16px rgba(30,58,95,0.35)', border: '1px solid rgba(91,175,212,0.2)' }}>
             {displayCount} {displayCount === 1 ? 'consulta' : 'consultas'}
           </div>
           <div className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0"
-            style={{ borderLeft: '5px solid transparent', borderRight: '5px solid transparent', borderTop: '5px solid rgba(15,25,40,0.92)' }} />
+            style={{ borderLeft: '5px solid transparent', borderRight: '5px solid transparent', borderTop: '5px solid #1e3a5f' }} />
         </div>
       )}
 
       {/* Count */}
       <div className="text-center mb-1.5 transition-all duration-200"
         style={{ opacity: ready && count > 0 ? 1 : 0, transitionDelay: `${index * 55 + 450}ms`, transform: hovered ? 'scale(1.2)' : 'scale(1)' }}>
-        <span className="text-[11px] font-bold tabular-nums" style={{ color: isToday ? '#5bafd4' : 'rgba(148,163,184,0.6)' }}>
+        <span className="text-[11px] font-bold tabular-nums" style={{ color: isToday ? '#2570a0' : '#6a9dbf' }}>
           {displayCount}
         </span>
       </div>
