@@ -469,11 +469,12 @@ export default function ClientAppointments() {
   }
 
   function isBlockedTime(date: string, time: string): string | null {
+    const fmt = (t: string) => t.slice(0, 5)
     const dayBlocks = blockedSlots.filter(b => b.date === date)
     for (const b of dayBlocks) {
-      if (b.all_day) return `Este dia está bloqueado na agenda${b.reason ? ` (${b.reason})` : ''}.`
-      if (b.start_time && b.end_time && time >= b.start_time && time < b.end_time)
-        return `Horário bloqueado das ${b.start_time} às ${b.end_time}${b.reason ? ` — ${b.reason}` : ''}.`
+      if (b.all_day) return `Este dia está bloqueado na agenda${b.reason ? ` — ${b.reason}` : ''}.`
+      if (b.start_time && b.end_time && time >= b.start_time.slice(0, 5) && time < b.end_time.slice(0, 5))
+        return `Horário bloqueado das ${fmt(b.start_time)} às ${fmt(b.end_time)}${b.reason ? ` — ${b.reason}` : ''}.`
     }
     return null
   }
@@ -1008,12 +1009,7 @@ export default function ClientAppointments() {
           <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between px-6 py-5 rounded-t-3xl"
               style={{ background: 'linear-gradient(135deg, #2C82B5 0%, #1e5f88 100%)' }}>
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-xl bg-white/15 flex items-center justify-center border border-white/20">
-                  <Calendar className="w-4 h-4 text-white" />
-                </div>
-                <h2 className="text-base font-bold text-white">Agendamento Manual</h2>
-              </div>
+              <h2 className="text-base font-bold text-white">Agendamento Manual</h2>
               <button onClick={closeModal} className="w-8 h-8 flex items-center justify-center rounded-xl bg-white/10 hover:bg-white/20 transition-colors">
                 <X className="w-4 h-4 text-white" />
               </button>
@@ -1072,8 +1068,11 @@ export default function ClientAppointments() {
                   onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
               </FormField>
               {formError && (
-                <div className="flex items-center gap-2 text-sm text-rose-600 bg-rose-50 border border-rose-100 rounded-xl px-4 py-3">
-                  <X className="w-4 h-4 shrink-0" />{formError}
+                <div className="flex items-start gap-3 rounded-2xl px-4 py-3.5" style={{ background: 'linear-gradient(135deg,#fff1f2,#fff5f5)', border: '1px solid #fecdd3' }}>
+                  <div className="w-5 h-5 rounded-full bg-rose-100 flex items-center justify-center shrink-0 mt-0.5">
+                    <X className="w-3 h-3 text-rose-500" />
+                  </div>
+                  <p className="text-[13px] font-semibold text-rose-700 leading-snug">{formError}</p>
                 </div>
               )}
               <div className="flex gap-3 pt-1">
