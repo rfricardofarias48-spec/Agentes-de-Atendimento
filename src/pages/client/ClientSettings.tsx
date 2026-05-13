@@ -100,7 +100,11 @@ export default function ClientSettings() {
       reminder_24h: reminder24h,
       reminder_2h: reminder2h,
       auto_send_pdf: autoSendPdf,
-      notification_phone: notificationPhone.replace(/\D/g, '') || null,
+      notification_phone: (() => {
+        const digits = notificationPhone.replace(/\D/g, '')
+        if (!digits) return null
+        return digits.startsWith('55') ? digits : `55${digits}`
+      })(),
     }
     const { error } = existing
       ? await supabase.from('agent_settings').update(payload).eq('org_id', orgId)

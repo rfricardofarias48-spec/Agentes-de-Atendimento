@@ -51,6 +51,7 @@ export default function ClientDashboard() {
   const [org, setOrg] = useState<Organization | null>(null)
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [conversations, setConversations] = useState<Conversation[]>([])
+  const [notificationPhone, setNotificationPhone] = useState<string | null>(null)
   const [period, setPeriod] = useState<Period>('month')
   const [loading, setLoading] = useState(true)
   const [chartReady, setChartReady] = useState(false)
@@ -60,14 +61,16 @@ export default function ClientDashboard() {
     async function load() {
       const monthAgo = new Date()
       monthAgo.setDate(monthAgo.getDate() - 30)
-      const [{ data: orgData }, { data: apptData }, { data: convData }] = await Promise.all([
+      const [{ data: orgData }, { data: apptData }, { data: convData }, { data: settingsData }] = await Promise.all([
         supabase.from('organizations').select('*').eq('id', orgId!).single(),
         supabase.from('appointments').select('*').eq('org_id', orgId!).gte('scheduled_at', monthAgo.toISOString()).order('scheduled_at', { ascending: false }),
         supabase.from('conversations').select('*').eq('org_id', orgId!).gte('started_at', monthAgo.toISOString()),
+        supabase.from('agent_settings').select('notification_phone').eq('org_id', orgId!).single(),
       ])
       if (orgData) setOrg(orgData)
       if (apptData) setAppointments(apptData)
       if (convData) setConversations(convData)
+      if (settingsData) setNotificationPhone(settingsData.notification_phone ?? null)
       setLoading(false)
     }
     load()
@@ -285,7 +288,7 @@ export default function ClientDashboard() {
         </div>
 
         {/* Agent card — 2 cols */}
-        <AgentCard org={org} conversations={conversations} />
+        <AgentCard org={org} conversations={conversations} notificationPhone={notificationPhone} />
 
       </div>
 
@@ -295,7 +298,7 @@ export default function ClientDashboard() {
 
 // ── Agent Card ───────────────────────────────────────────────────
 
-function AgentCard({ org, conversations }: { org: Organization | null; conversations: Conversation[] }) {
+function AgentCard({ org, conversations, notificationPhone }: { org: Organization | null; conversations: Conversation[]; notificationPhone: string | null }) {
   const used   = org?.conversations_used ?? 0
   const limit  = org?.max_conversations_month ?? 1
   const pct    = Math.min((used / limit) * 100, 100)
@@ -376,6 +379,23 @@ function AgentCard({ org, conversations }: { org: Organization | null; conversat
               <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-400 leading-none">Escaladas</p>
               <p className="text-[12px] font-black text-gray-900 mt-0.5 leading-none tabular-nums">{escalated} conversas</p>
             </div>
+          </div>
+        </div>
+
+        {/* Número de contato do Bento */}
+        <div className="rounded-xl px-3.5 py-3 flex items-center gap-2.5" style={{ background: '#f8fafc', border: '1px solid #f1f5f9' }}>
+          <div className="w-5 h-5 rounded-md bg-emerald-50 flex items-center justify-center shrink-0">
+            <span className="text-[10px]">📱</span>
+          </div>
+          <div className="min-w-0">
+            <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-400 leading-none">Alertas para</p>
+            {notificationPhone ? (
+              <p className="text-[12px] font-black text-gray-900 mt-0.5 leading-none tabular-nums truncate">
+                +{notificationPhone}
+              </p>
+            ) : (
+              <p className="text-[11px] text-slate-400 mt-0.5 leading-none">Não configurado</p>
+            )}
           </div>
         </div>
 
