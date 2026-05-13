@@ -188,8 +188,8 @@ export default function ClientDashboard() {
             <div className="absolute inset-0 flex items-end gap-1">
               {weeklyData.map((day, i) => {
                 const maxCount = Math.max(...weeklyData.map(d => d.count), 1)
-                return <ChartBar key={i} label={day.label} count={day.count} isToday={day.isToday}
-                  isPast={day.isPast} index={i} maxCount={maxCount} ready={chartReady} />
+                return <ChartBar key={i} label={day.label} count={day.count}
+                  index={i} maxCount={maxCount} ready={chartReady} />
               })}
             </div>
           </div>
@@ -447,10 +447,9 @@ function AnimatedNumber({ value, ready, delay = 0 }: { value: number; ready: boo
 // ── Chart Bar ────────────────────────────────────────────────────
 
 function ChartBar({
-  count, isToday, isPast, index, maxCount, ready,
+  count, index, maxCount, ready,
 }: {
-  count: number; isToday: boolean; isPast: boolean
-  index: number; maxCount: number; ready: boolean; label: string
+  count: number; index: number; maxCount: number; ready: boolean; label: string
 }) {
   const [displayCount, setDisplayCount] = useState(0)
   const [hovered, setHovered] = useState(false)
