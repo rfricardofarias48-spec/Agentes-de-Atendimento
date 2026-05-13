@@ -201,7 +201,7 @@ export default function ClientDashboard() {
               <div key={i} className="flex-1 text-center">
                 <span
                   className="text-[10px] font-bold tabular-nums transition-opacity duration-300"
-                  style={{ opacity: chartReady ? 1 : 0, transitionDelay: `${i * 30 + 200}ms`, color: day.isToday ? '#5bafd4' : 'rgba(148,163,184,0.5)' }}
+                  style={{ opacity: chartReady ? 1 : 0, transitionDelay: `${i * 30 + 200}ms`, color: day.isToday ? 'rgba(255,255,255,0.9)' : 'rgba(148,163,184,0.4)' }}
                 >
                   {day.label}
                 </span>
@@ -472,12 +472,9 @@ function ChartBar({
   }, [ready, count, index])
 
   const CHART_H = 140
-  const heightPx = count > 0 ? Math.max((count / maxCount) * CHART_H * 0.88, 16) : (isToday || isPast) ? 3 : 0
+  const heightPx = count > 0 ? Math.max((count / maxCount) * CHART_H * 0.88, 16) : 4
 
-  const barBg = isToday
-    ? 'linear-gradient(180deg, #5bafd4 0%, #2C82B5 100%)'
-    : count > 0 ? 'linear-gradient(180deg, rgba(148,163,184,0.5) 0%, rgba(100,116,139,0.4) 100%)'
-    : 'rgba(255,255,255,0.05)'
+  const barBg = 'rgba(255,255,255,0.18)'
 
   return (
     <div className="flex-1 relative flex flex-col justify-end px-[3px]" style={{ height: `${CHART_H}px` }}
@@ -499,7 +496,7 @@ function ChartBar({
       {/* Count */}
       <div className="text-center mb-1.5 transition-all duration-200"
         style={{ opacity: ready && count > 0 ? 1 : 0, transitionDelay: `${index * 55 + 450}ms`, transform: hovered ? 'scale(1.2)' : 'scale(1)' }}>
-        <span className="text-[11px] font-bold tabular-nums" style={{ color: isToday ? '#5bafd4' : 'rgba(148,163,184,0.6)' }}>
+        <span className="text-[11px] font-bold tabular-nums" style={{ color: 'rgba(255,255,255,0.7)' }}>
           {displayCount}
         </span>
       </div>
