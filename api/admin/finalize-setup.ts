@@ -128,45 +128,58 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       : 'Nenhum telefone cadastrado — peça ao cliente preencher nas Configurações ou salve via painel',
   });
 
-  // ── 5. Gerar link de acesso ──────────────────────────────────────────────
-  let accessLink = APP_URL;
-  let linkOk = false;
-  if (linkedEmail) {
-    try {
-      const { data: linkData, error: linkErr } = await supabaseAdmin.auth.admin.generateLink({
-        type: 'recovery',
-        email: linkedEmail,
-        options: { redirectTo: `${APP_URL}/reset-password` },
-      });
-      if (!linkErr && linkData?.properties?.action_link) {
-        accessLink = linkData.properties.action_link;
-        linkOk = true;
-      }
-    } catch { /* usa APP_URL como fallback */ }
+  // ── 5. Gerar e definir senha temporária ────────────────────────────────
+  let tempPassword = '';
+  let passwordOk = false;
+
+  // Busca o user_id vinculado à org
+  const { data: profile } = await supabaseAdmin
+    .from('user_profiles')
+    .select('user_id')
+    .eq('org_id', orgId)
+    .maybeSingle();
+
+  if (profile?.user_id) {
+    // Gera senha temporária: 4 letras + 4 dígitos, ex: "Kx7p2931"
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz';
+    const digits = '23456789';
+    tempPassword =
+      Array.from({ length: 4 }, () => chars[Math.floor(Math.random() * chars.length)]).join('') +
+      Array.from({ length: 4 }, () => digits[Math.floor(Math.random() * digits.length)]).join('');
+
+    const { error: pwErr } = await supabaseAdmin.auth.admin.updateUserById(
+      profile.user_id,
+      { password: tempPassword },
+    );
+    passwordOk = !pwErr;
+    if (pwErr) console.error('[finalize-setup] Erro ao definir senha:', pwErr);
   }
+
   steps.push({
-    id: 'link',
-    label: 'Link de acesso gerado',
-    ok: linkOk,
-    detail: linkOk
-      ? 'Link de redefinição de senha gerado'
-      : linkedEmail
-        ? 'Falha ao gerar link — usuário pode acessar via ' + APP_URL
-        : 'Nenhum e-mail vinculado à organização',
+    id: 'password',
+    label: 'Senha temporária gerada',
+    ok: passwordOk,
+    detail: passwordOk
+      ? `Senha definida — será enviada na mensagem`
+      : profile?.user_id
+        ? 'Falha ao definir senha temporária'
+        : 'Nenhum usuário vinculado à organização',
   });
 
   // ── 6. Enviar mensagem de boas-vindas ────────────────────────────────────
   const canSend = evolutionConnected && hasPhone;
   if (canSend) {
+    const loginEmail = linkedEmail || org.billing_email;
     const message = [
       `Olá! Bem-vindo(a) à plataforma Agentes de Atendimento! 🎉`,
       ``,
-      `Sua conta foi configurada com sucesso.`,
+      `Sua conta está pronta. Acesse agora:`,
+      `*${APP_URL}*`,
       ``,
-      `*Login:* ${linkedEmail || org.billing_email}`,
-      `*Acesso:* ${accessLink}`,
+      `*Login:* ${loginEmail}`,
+      ...(passwordOk ? [`*Senha temporária:* ${tempPassword}`] : []),
       ``,
-      `Clique no link acima para definir sua senha e acessar o painel.`,
+      `Após entrar, você pode alterar a senha em Configurações → Segurança.`,
       ``,
       `Qualquer dúvida estamos à disposição!`,
     ].join('\n');
