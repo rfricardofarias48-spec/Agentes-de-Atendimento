@@ -22,6 +22,7 @@ export default function ClientBento() {
   const [agentId, setAgentId]               = useState<string | null>(null)
   const [agentInstructions, setAgentInstructions] = useState('')
   const [appointmentDuration, setAppointmentDuration] = useState(60)
+  const [notificationPhone, setNotificationPhone] = useState<string | null>(null)
   const [services, setServices]             = useState<Service[]>([])
 
   const [loading, setLoading]               = useState(true)
@@ -38,12 +39,13 @@ export default function ClientBento() {
 
   useEffect(() => {
     if (!orgId) return
-    supabase.from('agent_settings').select('*').eq('org_id', orgId).single()
+    supabase.from('agent_settings').select('*,notification_phone').eq('org_id', orgId).single()
       .then(({ data }) => {
         if (data) {
           setAgentId(data.id)
           setAgentInstructions(data.custom_instructions || '')
           setAppointmentDuration(data.appointment_duration ?? 60)
+          setNotificationPhone(data.notification_phone ?? null)
           setServices(data.services || [])
         }
         setLoading(false)
@@ -219,6 +221,36 @@ export default function ClientBento() {
               rows={8}
               className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm resize-none font-mono focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent transition-all"
             />
+          </div>
+
+          {/* Número de alertas */}
+          <div className="bg-white rounded-[2rem] border border-slate-100 shadow-[0px_4px_20px_rgba(0,0,0,0.02)] p-6 space-y-3">
+            <div className="flex items-start gap-3">
+              <div className="w-7 h-7 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-center shrink-0 mt-0.5">
+                <Bell className="w-3.5 h-3.5 text-amber-500" />
+              </div>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">Alertas do Bento</p>
+                <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                  Quando uma conversa precisar de intervenção humana, o Bento enviará um aviso para o número abaixo. Para alterar, acesse <span className="font-medium text-slate-500">Configurações → Notificações</span>.
+                </p>
+              </div>
+            </div>
+            <div className="relative">
+              <input
+                type="text"
+                readOnly
+                value={notificationPhone
+                  ? `+${notificationPhone}`
+                  : 'Nenhum número cadastrado'}
+                className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm bg-slate-50 text-slate-500 cursor-default select-none"
+              />
+              {!notificationPhone && (
+                <p className="text-[11px] text-amber-500 mt-1.5 font-medium">
+                  ⚠️ Cadastre um número em Configurações para receber alertas.
+                </p>
+              )}
+            </div>
           </div>
         </div>
 
