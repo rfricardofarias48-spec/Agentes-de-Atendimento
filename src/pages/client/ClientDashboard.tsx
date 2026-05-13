@@ -4,7 +4,7 @@ import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { type Appointment, type Conversation, type Organization } from '../../types'
 import { statusLabel } from '../../lib/utils'
-import { TZ, toBRT, brtDateStr } from '../../lib/date'
+import { toBRT } from '../../lib/date'
 
 function formatApptDate(iso: string): string {
   const d = toBRT(new Date(iso))
