@@ -96,7 +96,7 @@ export default function ClientDashboard() {
         const d = toBRT(new Date(a.scheduled_at)); return d >= day && d < next
       }).length
       const isToday = day.getTime() === brt.getTime()
-      return { label: String(day.getDate()).padStart(2, '0'), count, isToday, isPast: !isToday, isFuture: false }
+      return { label: String(day.getDate()).padStart(2, '0'), count, isToday, isPast: !isToday }
     })
   }, [appointments])
 
@@ -193,7 +193,7 @@ export default function ClientDashboard() {
               {weeklyData.map((day, i) => {
                 const maxCount = Math.max(...weeklyData.map(d => d.count), 1)
                 return <ChartBar key={i} label={day.label} count={day.count} isToday={day.isToday}
-                  isPast={day.isPast} isFuture={day.isFuture} index={i} maxCount={maxCount} ready={chartReady} />
+                  isPast={day.isPast} index={i} maxCount={maxCount} ready={chartReady} />
               })}
             </div>
           </div>
