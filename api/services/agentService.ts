@@ -6,7 +6,7 @@
 
 import OpenAI from 'openai';
 import { createClient } from '@supabase/supabase-js';
-import { searchMemory, addMemory } from './mem0Service.js';
+import { searchMemory, addMemory, getMemories } from './mem0Service.js';
 import { sendText, sendDocument } from './evolutionService.js';
 import { mirrorMessage } from './chatwootService.js';
 
@@ -139,6 +139,18 @@ const TOOLS: OpenAI.Chat.ChatCompletionTool[] = [
   {
     type: 'function',
     function: {
+      name: 'get_patient_info',
+      description: 'Recupera tudo que o sistema sabe sobre este paciente/cliente com base em conversas anteriores. Use quando o paciente mencionar reagendamento, cancelamento ou qualquer referência a algo anterior sem dar detalhes — assim você não precisa pedir que ele repita informações.',
+      parameters: {
+        type: 'object',
+        properties: {},
+        required: [],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
       name: 'get_available_slots',
       description: 'Consulta os horários disponíveis na agenda. Use SEMPRE antes de confirmar um agendamento ou reagendamento. Retorna dias e horários livres considerando a duração do atendimento, bloqueios e consultas já agendadas.',
       parameters: {
@@ -185,6 +197,13 @@ async function executeTool(
   settings: AgentSettings,
 ): Promise<string> {
   switch (toolName) {
+    case 'get_patient_info': {
+      const memUserId = `${orgId}:${phone}`;
+      const all = await getMemories(memUserId);
+      if (!all.length) return 'Nenhuma informação registrada sobre este contato ainda.';
+      return `Histórico do contato (${phone}):\n${all.map(m => `• ${m}`).join('\n')}`;
+    }
+
     case 'get_available_slots': {
       const duration = settings.appointment_duration || 60;
       const weekOffset = typeof args.week_offset === 'number' ? args.week_offset : 0;
