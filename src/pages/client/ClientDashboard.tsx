@@ -157,62 +157,39 @@ export default function ClientDashboard() {
       </div>
 
       {/* ── Weekly Chart ─────────────────────────────────────────── */}
-      <div
-        className="relative overflow-hidden rounded-2xl shadow-[0_4px_32px_rgba(0,0,0,0.22)] border border-white/[0.05]"
-        style={{ background: 'linear-gradient(160deg, #18181b 0%, #0f0f11 100%)' }}
-      >
+      <div className="bg-white rounded-2xl border border-slate-100 shadow-[0_2px_12px_rgba(0,0,0,0.03)] overflow-hidden">
         <style>{`
-          @keyframes todayGlow {
-            0%,100% { box-shadow: 0 0 18px rgba(44,130,181,0.50), 0 0 40px rgba(44,130,181,0.20); }
-            50%      { box-shadow: 0 0 32px rgba(44,130,181,0.80), 0 0 64px rgba(44,130,181,0.35); }
-          }
-          @keyframes shimmerPass {
-            0%   { left: -18%; opacity: 0; }
-            8%   { opacity: 1; }
-            92%  { opacity: 1; }
-            100% { left: 112%; opacity: 0; }
-          }
           @keyframes floatIn {
-            from { opacity: 0; transform: translateY(6px) translateX(-50%); }
-            to   { opacity: 1; transform: translateY(0)  translateX(-50%); }
+            from { opacity: 0; transform: translateY(5px) translateX(-50%); }
+            to   { opacity: 1; transform: translateY(0)   translateX(-50%); }
           }
         `}</style>
 
-        {/* Grid texture */}
-        <div className="absolute inset-0 pointer-events-none" style={{ opacity: 0.025, backgroundImage: 'repeating-linear-gradient(0deg,#fff 0,#fff 1px,transparent 1px,transparent 28px),repeating-linear-gradient(90deg,#fff 0,#fff 1px,transparent 1px,transparent 28px)' }} />
-        {/* Ambient glow */}
-        <div className="absolute bottom-0 left-0 right-0 h-48 pointer-events-none" style={{ background: 'radial-gradient(ellipse 90% 100% at 50% 100%, rgba(44,130,181,0.14), transparent)' }} />
-        {/* Shimmer */}
-        {chartReady && (
-          <div className="absolute top-0 bottom-0 w-20 pointer-events-none z-20"
-            style={{ background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.055), transparent)', animation: 'shimmerPass 1.1s ease-in-out 0.85s both' }} />
-        )}
-
-        <div className="relative z-10 px-6 pt-6 pb-5">
+        <div className="px-6 pt-5 pb-5">
           {/* Header */}
-          <div className="flex items-center justify-between mb-7">
+          <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-2.5">
-              <div className="w-7 h-7 rounded-xl bg-white/[0.07] border border-white/[0.08] flex items-center justify-center">
-                <TrendingUp className="w-3.5 h-3.5 text-brand-400" />
+              <div className="w-7 h-7 rounded-xl flex items-center justify-center" style={{ background: 'rgba(44,130,181,0.1)' }}>
+                <TrendingUp className="w-3.5 h-3.5" style={{ color: '#2C82B5' }} />
               </div>
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500 leading-none mb-0.5">Esta semana</p>
-                <p className="text-sm font-bold text-slate-200 leading-none">Agendamentos por dia</p>
+                <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400 leading-none mb-0.5">Esta semana</p>
+                <p className="text-sm font-bold text-gray-900 leading-none">Agendamentos por dia</p>
               </div>
             </div>
             <div className="text-right">
-              <p className="text-3xl font-black text-white leading-none tabular-nums">
+              <p className="text-3xl font-black text-gray-900 leading-none tabular-nums">
                 <AnimatedNumber value={weeklyData.reduce((s, d) => s + d.count, 0)} ready={chartReady} delay={650} />
               </p>
-              <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-600 mt-1">agendamentos</p>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400 mt-1">agendamentos</p>
             </div>
           </div>
 
           {/* Chart bars */}
-          <div className="relative" style={{ height: '148px' }}>
+          <div className="relative" style={{ height: '140px' }}>
             {[0.75, 0.5, 0.25].map(pct => (
               <div key={pct} className="absolute left-0 right-0 pointer-events-none"
-                style={{ bottom: `${pct * 148}px`, borderTop: '1px dashed rgba(255,255,255,0.05)' }} />
+                style={{ bottom: `${pct * 140}px`, borderTop: '1px dashed #f1f5f9' }} />
             ))}
             <div className="absolute inset-0 flex items-end gap-2.5">
               {weeklyData.map((day, i) => {
@@ -224,12 +201,14 @@ export default function ClientDashboard() {
           </div>
 
           {/* Baseline + labels */}
-          <div className="mt-4 h-px" style={{ background: 'rgba(255,255,255,0.06)' }} />
-          <div className="flex gap-2.5 mt-3">
+          <div className="mt-3 h-px bg-slate-100" />
+          <div className="flex gap-2.5 mt-2.5">
             {weeklyData.map((day, i) => (
               <div key={i} className="flex-1 text-center">
-                <span className={cn('text-[10px] font-bold uppercase tracking-[0.1em] transition-opacity duration-300', day.isToday ? 'text-brand-400' : 'text-slate-600')}
-                  style={{ opacity: chartReady ? 1 : 0, transitionDelay: `${i * 55 + 300}ms` }}>
+                <span
+                  className={cn('text-[10px] font-bold uppercase tracking-[0.1em] transition-opacity duration-300', day.isToday ? 'text-brand-600' : 'text-slate-400')}
+                  style={{ opacity: chartReady ? 1 : 0, transitionDelay: `${i * 55 + 300}ms` }}
+                >
                   {day.label}
                 </span>
               </div>
@@ -498,15 +477,15 @@ function ChartBar({
     return () => { clearTimeout(timer); cancelAnimationFrame(raf) }
   }, [ready, count, index])
 
-  const CHART_H = 148
-  const heightPx = count > 0 ? Math.max((count / maxCount) * CHART_H * 0.88, 18) : (isToday || isPast) ? 3 : 0
+  const CHART_H = 140
+  const heightPx = count > 0 ? Math.max((count / maxCount) * CHART_H * 0.88, 16) : (isToday || isPast) ? 3 : 0
 
   const barBg = isToday
-    ? 'linear-gradient(180deg, #93d5f0 0%, #5fb3d8 25%, #2C82B5 65%, #1a4f7a 100%)'
-    : isPast && count > 0 ? 'linear-gradient(180deg, rgba(93,172,215,0.55) 0%, rgba(44,130,181,0.32) 100%)'
-    : isPast  ? 'rgba(255,255,255,0.07)'
-    : isFuture && count > 0 ? 'linear-gradient(180deg, rgba(93,172,215,0.25) 0%, rgba(44,130,181,0.14) 100%)'
-    : 'rgba(255,255,255,0.03)'
+    ? 'linear-gradient(180deg, #5bafd4 0%, #2C82B5 100%)'
+    : isPast && count > 0 ? 'linear-gradient(180deg, #93c5e8 0%, #6aadd9 100%)'
+    : isPast  ? '#f1f5f9'
+    : isFuture && count > 0 ? 'linear-gradient(180deg, #bfdbee 0%, #a8cfe6 100%)'
+    : '#f8fafc'
 
   return (
     <div className="flex-1 relative flex flex-col justify-end" style={{ height: `${CHART_H}px` }}
@@ -516,19 +495,19 @@ function ChartBar({
       {hovered && count > 0 && (
         <div className="absolute left-1/2 z-30 pointer-events-none"
           style={{ bottom: `${heightPx + 10}px`, animation: 'floatIn 0.18s ease-out both' }}>
-          <div className="px-2.5 py-1.5 rounded-xl text-[11px] font-bold text-white whitespace-nowrap border border-white/15"
-            style={{ background: 'rgba(20,20,25,0.92)', backdropFilter: 'blur(8px)', transform: 'translateX(-50%)', boxShadow: '0 4px 16px rgba(0,0,0,0.4)' }}>
+          <div className="px-2.5 py-1.5 rounded-lg text-[11px] font-bold whitespace-nowrap"
+            style={{ background: '#fff', color: '#1e3a5f', transform: 'translateX(-50%)', boxShadow: '0 4px 16px rgba(0,0,0,0.12)', border: '1px solid #e2eaf3' }}>
             {displayCount} {displayCount === 1 ? 'consulta' : 'consultas'}
           </div>
           <div className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0"
-            style={{ borderLeft: '5px solid transparent', borderRight: '5px solid transparent', borderTop: '5px solid rgba(20,20,25,0.92)' }} />
+            style={{ borderLeft: '5px solid transparent', borderRight: '5px solid transparent', borderTop: '5px solid #fff' }} />
         </div>
       )}
 
       {/* Count */}
       <div className="text-center mb-1.5 transition-all duration-200"
         style={{ opacity: ready && count > 0 ? 1 : 0, transitionDelay: `${index * 55 + 450}ms`, transform: hovered ? 'scale(1.2)' : 'scale(1)' }}>
-        <span className="text-[11px] font-bold tabular-nums" style={{ color: isToday ? '#7ec8e3' : 'rgba(148,163,184,0.65)' }}>
+        <span className="text-[11px] font-bold tabular-nums" style={{ color: isToday ? '#2C82B5' : '#94a3b8' }}>
           {displayCount}
         </span>
       </div>
@@ -538,22 +517,13 @@ function ChartBar({
         style={{
           height: ready ? `${heightPx}px` : '0px',
           background: barBg,
-          borderRadius: count === 0 ? '2px' : '10px 10px 3px 3px',
-          transition: `height 0.68s cubic-bezier(0.34,1.56,0.64,1) ${index * 55}ms, filter 0.15s ease, transform 0.15s ease`,
-          animation: isToday && ready ? 'todayGlow 2.8s ease-in-out infinite' : 'none',
-          filter: hovered && count > 0 ? 'brightness(1.35) saturate(1.2)' : 'brightness(1)',
-          transform: hovered && count > 0 ? 'scaleX(1.07)' : 'scaleX(1)',
+          borderRadius: count === 0 ? '3px' : '8px 8px 3px 3px',
+          transition: `height 0.65s cubic-bezier(0.34,1.56,0.64,1) ${index * 55}ms, filter 0.15s ease, transform 0.15s ease`,
+          filter: hovered && count > 0 ? 'brightness(0.92) saturate(1.1)' : 'brightness(1)',
+          transform: hovered && count > 0 ? 'scaleX(1.06)' : 'scaleX(1)',
           transformOrigin: 'bottom center',
-        }}>
-        {isToday && count > 0 && (
-          <div className="absolute top-0 bottom-0 pointer-events-none"
-            style={{ left: '18%', width: '20%', background: 'linear-gradient(180deg, rgba(255,255,255,0.38), rgba(255,255,255,0.04))', borderRadius: '0 0 4px 4px' }} />
-        )}
-        {count > 0 && (
-          <div className="absolute top-0 left-[10%] right-[10%] h-px rounded-full"
-            style={{ background: isToday ? 'rgba(255,255,255,0.55)' : 'rgba(255,255,255,0.18)' }} />
-        )}
-      </div>
+        }}
+      />
     </div>
   )
 }
