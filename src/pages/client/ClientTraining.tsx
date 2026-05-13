@@ -20,8 +20,6 @@ export default function ClientBento() {
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [agentId, setAgentId]               = useState<string | null>(null)
-  const [agentGreeting, setAgentGreeting]   = useState('')
-  const [agentTone, setAgentTone]           = useState<'friendly' | 'formal'>('friendly')
   const [agentInstructions, setAgentInstructions] = useState('')
   const [appointmentDuration, setAppointmentDuration] = useState(60)
   const [services, setServices]             = useState<Service[]>([])
@@ -44,8 +42,6 @@ export default function ClientBento() {
       .then(({ data }) => {
         if (data) {
           setAgentId(data.id)
-          setAgentGreeting(data.greeting_message || '')
-          setAgentTone(data.tone === 'formal' ? 'formal' : 'friendly')
           setAgentInstructions(data.custom_instructions || '')
           setAppointmentDuration(data.appointment_duration ?? 60)
           setServices(data.services || [])
@@ -61,8 +57,7 @@ export default function ClientBento() {
     const payload = {
       org_id: orgId,
       agent_name: 'Bento',
-      greeting_message: agentGreeting,
-      tone: agentTone,
+      tone: 'friendly',
       custom_instructions: agentInstructions,
       appointment_duration: appointmentDuration,
       specialties: services.map(s => s.name),
@@ -182,30 +177,6 @@ export default function ClientBento() {
             <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">Perfil do Agente</p>
 
             <div className="space-y-1.5">
-              <label className="block text-sm font-medium text-slate-700">Tom de Voz</label>
-              <div className="flex gap-2">
-                {([
-                  { value: 'friendly', label: 'Amigável' },
-                  { value: 'formal',   label: 'Formal' },
-                ] as const).map(opt => (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    onClick={() => setAgentTone(opt.value)}
-                    className={cn(
-                      'px-4 py-2 rounded-xl text-sm font-medium border-2 transition-all',
-                      agentTone === opt.value
-                        ? 'border-brand-400 text-brand-700 bg-white shadow-sm'
-                        : 'border-slate-200 text-slate-500 hover:border-slate-300'
-                    )}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-1.5">
               <label className="block text-sm font-medium text-slate-700">Duração do Atendimento</label>
               <p className="text-xs text-slate-400">Tempo padrão de cada consulta/serviço. Aplicado apenas em novos agendamentos.</p>
               <div className="flex flex-wrap gap-2">
@@ -233,16 +204,6 @@ export default function ClientBento() {
               </div>
             </div>
 
-            <div className="space-y-1.5">
-              <label className="block text-sm font-medium text-slate-700">Mensagem de Saudação</label>
-              <textarea
-                value={agentGreeting}
-                onChange={e => setAgentGreeting(e.target.value)}
-                placeholder="Olá! Sou o assistente da clínica. Como posso ajudar?"
-                rows={3}
-                className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent transition-all"
-              />
-            </div>
           </div>
 
           {/* Instruções Personalizadas */}
