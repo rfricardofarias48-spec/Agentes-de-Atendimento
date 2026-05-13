@@ -241,10 +241,15 @@ export default function AdminClientDetail() {
     setSaving(true)
     setSetupResult(null)
 
+    // Normaliza o telefone: garante prefixo 55 se preenchido
+    const rawPhone = (org.phone ?? '').replace(/\D/g, '')
+    const normalizedPhone = rawPhone ? (rawPhone.startsWith('55') ? rawPhone : `55${rawPhone}`) : null
+
     const payload = {
       name: org.name,
       plan: org.plan,
       status: org.status,
+      phone: normalizedPhone,
       whatsapp_numbers: org.whatsapp_numbers ?? [],
       agent_tone: agentTone,
       max_conversations_month: org.max_conversations_month,
@@ -259,6 +264,14 @@ export default function AdminClientDetail() {
     const { error } = await supabase.from('organizations').update(payload).eq('id', id!)
     setSaving(false)
     if (error) { alert('Erro ao salvar: ' + error.message); return }
+
+    // Sincroniza notification_phone no agent_settings para o Bento
+    if (normalizedPhone !== undefined) {
+      await supabase.from('agent_settings')
+        .update({ notification_phone: normalizedPhone })
+        .eq('org_id', id!)
+    }
+
     if (org.evolution_instance && org.evolution_token) await runSetup(id!)
   }
 
@@ -435,9 +448,19 @@ export default function AdminClientDetail() {
                   </div>
                 </Field>
 
-                <Field label="Nome da Clínica">
-                  <TextInput value={org.name ?? ''} onChange={v => setOrg(o => ({ ...o, name: v }))} placeholder="Clínica São Lucas" />
-                </Field>
+                <div className="grid grid-cols-2 gap-4">
+                  <Field label="Nome da Clínica">
+                    <TextInput value={org.name ?? ''} onChange={v => setOrg(o => ({ ...o, name: v }))} placeholder="Clínica São Lucas" />
+                  </Field>
+                  <Field label="Telefone / WhatsApp">
+                    <TextInput
+                      value={org.phone ?? ''}
+                      onChange={v => setOrg(o => ({ ...o, phone: v }))}
+                      placeholder="5551999990000"
+                      type="tel"
+                    />
+                  </Field>
+                </div>
 
                 <Field label="Plano">
                   <div className="flex gap-2 flex-wrap">
