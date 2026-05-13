@@ -498,7 +498,8 @@ async function executeTool(
           `👤 Cliente: *${patientLabel}*\n` +
           `📱 Número: ${phone}\n` +
           `💬 Motivo: ${args.reason || 'Solicitado pelo cliente'}` +
-          chatwootLink;
+          chatwootLink +
+          `\n\n_Responda aqui para consultar o histórico completo do cliente._`;
 
         sendText(
           org.evolution_instance,
@@ -721,6 +722,75 @@ REGRAS IMPORTANTES:
     { role: 'user', content: text },
     { role: 'assistant', content: reply },
   ]);
+}
+
+// ─── Modo profissional (notification_phone responde ao bot) ──
+
+export async function processProMessage(
+  org: Organization,
+  settings: AgentSettings,
+  proPhone: string,
+  text: string,
+): Promise<void> {
+  // Busca a conversa escalada mais recente desta org
+  const { data: lastEscalated } = await supabase
+    .from('conversations')
+    .select('patient_phone, patient_name, chatwoot_conversation_id')
+    .eq('org_id', org.id)
+    .eq('escalated_to_human', true)
+    .order('last_message_at', { ascending: false })
+    .limit(1)
+    .single();
+
+  if (!lastEscalated) {
+    await sendText(org.evolution_instance, proPhone, 'Nenhuma conversa escalada encontrada no momento.', org.evolution_token);
+    return;
+  }
+
+  const memUserId = `${org.id}:${lastEscalated.patient_phone}`;
+
+  // Busca contexto completo do paciente em paralelo
+  const [memories, { data: appointments }] = await Promise.all([
+    getMemories(memUserId),
+    supabase
+      .from('appointments')
+      .select('specialty, scheduled_at, status, notes, doctor_name')
+      .eq('org_id', org.id)
+      .eq('patient_phone', lastEscalated.patient_phone)
+      .order('scheduled_at', { ascending: false })
+      .limit(5),
+  ]);
+
+  const memoriesStr = memories.length
+    ? `Histórico (Mem0):\n${memories.map(m => `• ${m}`).join('\n')}`
+    : 'Sem histórico de memórias registrado.';
+
+  const appointmentsStr = appointments?.length
+    ? `Agendamentos:\n${appointments.map(a => {
+        const dt = new Date(a.scheduled_at).toLocaleString('pt-BR');
+        return `• ${a.specialty}${a.doctor_name ? ' com ' + a.doctor_name : ''} — ${dt} (${a.status})${a.notes ? ' — ' + a.notes : ''}`;
+      }).join('\n')}`
+    : 'Sem agendamentos registrados.';
+
+  const systemPrompt =
+    `Você é ${settings.agent_name}, assistente interno do estabelecimento.\n` +
+    `Responda ao profissional de forma direta e objetiva sobre o seguinte cliente:\n\n` +
+    `👤 Nome: ${lastEscalated.patient_name || 'não identificado'}\n` +
+    `📱 Telefone: ${lastEscalated.patient_phone}\n\n` +
+    `${memoriesStr}\n\n` +
+    `${appointmentsStr}`;
+
+  const response = await openai.chat.completions.create({
+    model: MODEL,
+    messages: [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: text },
+    ],
+    max_tokens: 500,
+  });
+
+  const reply = response.choices[0].message.content || 'Não consegui processar sua pergunta.';
+  await sendText(org.evolution_instance, proPhone, reply, org.evolution_token);
 }
 
 // ─── Lookup de organização por instância ─────────────────────

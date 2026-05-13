@@ -8,7 +8,7 @@
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { cleanPhone } from '../services/evolutionService.js';
-import { getOrgByInstance, processMessage } from '../services/agentService.js';
+import { getOrgByInstance, processMessage, processProMessage } from '../services/agentService.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
@@ -70,6 +70,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     console.log(`[Webhook/Evolution] Processing org="${ctx.org.name}" phone="${phone}"`);
+
+    // Se quem mandou é o profissional (notification_phone), entra em modo profissional
+    const notifPhone = ctx.settings.notification_phone?.replace(/\D/g, '') || '';
+    if (notifPhone && phone === notifPhone) {
+      await processProMessage(ctx.org, ctx.settings, phone, text.trim());
+      return;
+    }
 
     await processMessage(ctx.org, ctx.settings, phone, text.trim(), pushName);
   } catch (err) {
