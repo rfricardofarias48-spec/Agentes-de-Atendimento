@@ -86,19 +86,17 @@ export default function ClientDashboard() {
     }
   }, [appointments, conversations, period])
 
-  // Weekly chart data (Mon→Sun current week) — all comparisons in BRT
+  // Last 15 days chart data — all comparisons in BRT
   const weeklyData = useMemo(() => {
     const brt = toBRT(new Date()); brt.setHours(0, 0, 0, 0)
-    const monday = new Date(brt)
-    monday.setDate(brt.getDate() - ((brt.getDay() + 6) % 7))
-    const LABELS = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom']
-    return Array.from({ length: 7 }, (_, i) => {
-      const day = new Date(monday); day.setDate(monday.getDate() + i)
+    return Array.from({ length: 15 }, (_, i) => {
+      const day = new Date(brt); day.setDate(brt.getDate() - (14 - i))
       const next = new Date(day); next.setDate(day.getDate() + 1)
       const count = appointments.filter(a => {
         const d = toBRT(new Date(a.scheduled_at)); return d >= day && d < next
       }).length
-      return { label: LABELS[i], count, isToday: day.getTime() === brt.getTime(), isPast: day < brt, isFuture: day > brt }
+      const isToday = day.getTime() === brt.getTime()
+      return { label: String(day.getDate()).padStart(2, '0'), count, isToday, isPast: !isToday, isFuture: false }
     })
   }, [appointments])
 
@@ -173,7 +171,7 @@ export default function ClientDashboard() {
                 <TrendingUp className="w-3.5 h-3.5" style={{ color: '#2C82B5' }} />
               </div>
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400 leading-none mb-0.5">Esta semana</p>
+                <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400 leading-none mb-0.5">Últimos 15 dias</p>
                 <p className="text-sm font-bold text-gray-900 leading-none">Agendamentos por dia</p>
               </div>
             </div>
@@ -191,7 +189,7 @@ export default function ClientDashboard() {
               <div key={pct} className="absolute left-0 right-0 pointer-events-none"
                 style={{ bottom: `${pct * 140}px`, borderTop: '1px dashed #f1f5f9' }} />
             ))}
-            <div className="absolute inset-0 flex items-end gap-2.5">
+            <div className="absolute inset-0 flex items-end gap-1">
               {weeklyData.map((day, i) => {
                 const maxCount = Math.max(...weeklyData.map(d => d.count), 1)
                 return <ChartBar key={i} label={day.label} count={day.count} isToday={day.isToday}
@@ -202,12 +200,12 @@ export default function ClientDashboard() {
 
           {/* Baseline + labels */}
           <div className="mt-3 h-px bg-slate-100" />
-          <div className="flex gap-2.5 mt-2.5">
+          <div className="flex gap-1 mt-2.5">
             {weeklyData.map((day, i) => (
               <div key={i} className="flex-1 text-center">
                 <span
-                  className={cn('text-[10px] font-bold uppercase tracking-[0.1em] transition-opacity duration-300', day.isToday ? 'text-brand-600' : 'text-slate-400')}
-                  style={{ opacity: chartReady ? 1 : 0, transitionDelay: `${i * 55 + 300}ms` }}
+                  className={cn('text-[10px] font-bold tabular-nums transition-opacity duration-300', day.isToday ? 'text-brand-600' : 'text-slate-400')}
+                  style={{ opacity: chartReady ? 1 : 0, transitionDelay: `${i * 30 + 200}ms` }}
                 >
                   {day.label}
                 </span>
@@ -482,10 +480,8 @@ function ChartBar({
 
   const barBg = isToday
     ? 'linear-gradient(180deg, #5bafd4 0%, #2C82B5 100%)'
-    : isPast && count > 0 ? 'linear-gradient(180deg, #93c5e8 0%, #6aadd9 100%)'
-    : isPast  ? '#f1f5f9'
-    : isFuture && count > 0 ? 'linear-gradient(180deg, #bfdbee 0%, #a8cfe6 100%)'
-    : '#f8fafc'
+    : count > 0 ? 'linear-gradient(180deg, #94a3b8 0%, #7a8fa3 100%)'
+    : '#dde3ea'
 
   return (
     <div className="flex-1 relative flex flex-col justify-end" style={{ height: `${CHART_H}px` }}
@@ -507,7 +503,7 @@ function ChartBar({
       {/* Count */}
       <div className="text-center mb-1.5 transition-all duration-200"
         style={{ opacity: ready && count > 0 ? 1 : 0, transitionDelay: `${index * 55 + 450}ms`, transform: hovered ? 'scale(1.2)' : 'scale(1)' }}>
-        <span className="text-[11px] font-bold tabular-nums" style={{ color: isToday ? '#2C82B5' : '#94a3b8' }}>
+        <span className="text-[11px] font-bold tabular-nums" style={{ color: isToday ? '#2C82B5' : '#64748b' }}>
           {displayCount}
         </span>
       </div>
