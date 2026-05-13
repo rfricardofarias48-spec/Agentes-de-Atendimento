@@ -106,7 +106,7 @@ const TOOLS: OpenAI.Chat.ChatCompletionTool[] = [
     type: 'function',
     function: {
       name: 'cancel_appointment',
-      description: 'Cancela uma consulta agendada.',
+      description: 'Cancela um agendamento existente.',
       parameters: {
         type: 'object',
         properties: {
@@ -114,6 +114,25 @@ const TOOLS: OpenAI.Chat.ChatCompletionTool[] = [
           reason: { type: 'string', description: 'Motivo do cancelamento' },
         },
         required: ['appointment_id'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'reschedule_appointment',
+      description: 'Reagenda um atendimento: cancela o agendamento atual e cria um novo horário. Use quando o cliente quiser mudar a data ou hora de um agendamento existente. Sempre chame get_available_slots antes para confirmar que o novo horário está livre.',
+      parameters: {
+        type: 'object',
+        properties: {
+          appointment_id: { type: 'string', description: 'ID do agendamento atual a ser cancelado' },
+          patient_name:   { type: 'string', description: 'Nome do paciente/cliente' },
+          specialty:      { type: 'string', description: 'Serviço ou especialidade' },
+          new_date:       { type: 'string', description: 'Nova data no formato YYYY-MM-DD' },
+          new_time:       { type: 'string', description: 'Novo horário no formato HH:MM' },
+          notes:          { type: 'string', description: 'Observações' },
+        },
+        required: ['appointment_id', 'patient_name', 'specialty', 'new_date', 'new_time'],
       },
     },
   },
@@ -319,7 +338,7 @@ async function executeTool(
         .select('id')
         .single();
 
-      if (error) return 'Não foi possível registrar o agendamento no momento. Tente novamente.';
+      if (error) return 'Não foi possível registrar o agendamento. Tente novamente.';
 
       // Envia PDF do serviço correspondente (fire-and-forget)
       const specialty = String(args.specialty || '');
@@ -331,13 +350,28 @@ async function executeTool(
           org.evolution_instance,
           phone,
           svcEntry.pdf_url,
-          svcEntry.pdf_name || 'orientacoes-pre-consulta.pdf',
-          `📋 Orientações pré-consulta — ${svcEntry.name}`,
+          svcEntry.pdf_name || 'orientacoes.pdf',
+          `📋 Orientações — ${svcEntry.name}`,
           org.evolution_token,
         ).catch(() => { /* best-effort */ });
       }
 
-      return `Agendamento registrado com sucesso! ID: ${data.id}. Nossa equipe confirmará o horário em breve.`;
+      const dateStr = args.preferred_date
+        ? new Date(`${args.preferred_date}T${args.preferred_time || '00:00'}:00`)
+            .toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: '2-digit' })
+        : null;
+      const timeStr = args.preferred_time || null;
+
+      return JSON.stringify({
+        success: true,
+        appointment_id: data.id,
+        patient_name: args.patient_name,
+        specialty: args.specialty,
+        date: dateStr,
+        time: timeStr,
+        pdf_sent: !!svcEntry?.pdf_url,
+        action: 'scheduled',
+      });
     }
 
     case 'get_appointments': {
@@ -366,7 +400,64 @@ async function executeTool(
         .eq('org_id', orgId);
 
       if (error) return 'Não foi possível cancelar. Verifique o ID ou entre em contato.';
-      return 'Consulta cancelada com sucesso.';
+      return 'Agendamento cancelado com sucesso.';
+    }
+
+    case 'reschedule_appointment': {
+      // 1. Cancela o agendamento atual
+      const { error: cancelErr } = await supabase
+        .from('appointments')
+        .update({ status: 'cancelled' })
+        .eq('id', args.appointment_id)
+        .eq('org_id', orgId);
+
+      if (cancelErr) return 'Não foi possível cancelar o agendamento atual. Tente novamente.';
+
+      // 2. Cria o novo agendamento
+      const { data, error: insertErr } = await supabase
+        .from('appointments')
+        .insert({
+          org_id: orgId,
+          patient_name: args.patient_name,
+          patient_phone: phone,
+          specialty: args.specialty,
+          scheduled_at: `${args.new_date}T${args.new_time}:00`,
+          duration_minutes: settings.appointment_duration || 60,
+          notes: args.notes || null,
+          status: 'scheduled',
+        })
+        .select('id')
+        .single();
+
+      if (insertErr) return 'Agendamento anterior cancelado, mas não foi possível criar o novo. Entre em contato.';
+
+      // 3. Envia PDF se disponível
+      const specialty = String(args.specialty || '');
+      const svcEntry = settings.services?.find(s => s.name.toLowerCase() === specialty.toLowerCase());
+      if (svcEntry?.pdf_url) {
+        sendDocument(
+          org.evolution_instance,
+          phone,
+          svcEntry.pdf_url,
+          svcEntry.pdf_name || 'orientacoes.pdf',
+          `📋 Orientações — ${svcEntry.name}`,
+          org.evolution_token,
+        ).catch(() => { /* best-effort */ });
+      }
+
+      const dateStr = new Date(`${args.new_date}T${args.new_time}:00`)
+        .toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: '2-digit' });
+
+      return JSON.stringify({
+        success: true,
+        appointment_id: data.id,
+        patient_name: args.patient_name,
+        specialty: args.specialty,
+        date: dateStr,
+        time: args.new_time,
+        pdf_sent: !!svcEntry?.pdf_url,
+        action: 'rescheduled',
+      });
     }
 
     case 'escalate_to_human': {
@@ -434,24 +525,69 @@ export async function processMessage(
 
   // 3. Monta system prompt
   const tone = settings.tone === 'formal' ? 'formal e profissional' : 'amigável e acolhedor';
-  const servicesStr = settings.services?.length
-    ? `Serviços disponíveis:\n${settings.services.map(s => `- ${s.name}${s.price ? ` (R$ ${s.price})` : ''}${s.description ? `: ${s.description}` : ''}`).join('\n')}`
+
+  // Detecta o nicho automaticamente pelo nome dos serviços e instruções
+  const allText = [
+    ...(settings.services || []).map(s => s.name + ' ' + s.description),
+    settings.custom_instructions || '',
+  ].join(' ').toLowerCase();
+  const isMedical = /consulta|médico|médica|clínica|dentista|dentist|psicólog|fisio|nutri|cardio|ortopedi|dermatol|ginecol|pediatr|saúde|exame|plano de saúde|convenio|convênio/.test(allText);
+  const clientWord   = isMedical ? 'paciente'   : 'cliente';
+  const serviceWord  = isMedical ? 'consulta'   : 'atendimento';
+  const providerWord = isMedical ? 'profissional de saúde' : 'profissional responsável';
+
+  const servicesBlock = settings.services?.length
+    ? `SERVIÇOS DISPONÍVEIS:\n${settings.services.map(s =>
+        `• ${s.name}${s.price ? ` — R$ ${s.price}` : ''}${s.description ? `\n  ${s.description}` : ''}`
+      ).join('\n')}`
     : settings.specialties?.length
-      ? `Especialidades disponíveis: ${settings.specialties.join(', ')}.`
+      ? `Serviços: ${settings.specialties.join(', ')}.`
       : '';
+
   const memoriesStr = memories.length
-    ? `\n\nInformações que você sabe sobre este paciente:\n${memories.map(m => `- ${m}`).join('\n')}`
+    ? `\nO QUE VOCÊ JÁ SABE SOBRE ESTE ${clientWord.toUpperCase()}:\n${memories.map(m => `• ${m}`).join('\n')}`
     : '';
 
   const customInstructions = settings.custom_instructions?.trim()
-    ? `\n\nInstruções específicas da clínica:\n${settings.custom_instructions.trim()}`
+    ? `\nINSTRUÇÕES DO ESTABELECIMENTO:\n${settings.custom_instructions.trim()}`
     : '';
 
-  const systemPrompt = `Você é ${settings.agent_name}, assistente de atendimento da clínica.
-Seu tom é ${tone}. ${servicesStr}
-Você ajuda pacientes a: agendar consultas, consultar agendamentos, cancelar consultas e esclarecer dúvidas.
-Quando não conseguir resolver, escale para um atendente humano.
-Responda sempre em português brasileiro. Seja conciso — máximo 3 parágrafos curtos.${customInstructions}${memoriesStr}`;
+  const systemPrompt = `Você é ${settings.agent_name}, assistente virtual de atendimento. Seu tom é ${tone}.
+Você atua como uma secretária experiente: recebe contatos pelo WhatsApp, tira dúvidas e gerencia a agenda do ${providerWord}.
+
+${servicesBlock}
+
+SUAS RESPONSABILIDADES:
+1. Responder dúvidas sobre serviços, preços, horários, formas de pagamento, convênios e qualquer informação relevante
+2. Agendar ${serviceWord}s verificando disponibilidade real na agenda antes de confirmar
+3. Reagendar quando solicitado: cancele o atual e agende no novo horário disponível
+4. Cancelar ${serviceWord}s quando o ${clientWord} pedir
+5. Enviar confirmação detalhada após qualquer agendamento
+
+FLUXO DE AGENDAMENTO (siga esta ordem):
+Passo 1 — Pergunte o nome do ${clientWord} caso não saiba.
+Passo 2 — Confirme o serviço desejado.
+Passo 3 — Chame get_available_slots(week_offset:0) e informe os DIAS com disponibilidade nesta semana. Ex: "Esta semana tenho horários disponíveis na segunda, quarta e sexta. Qual dia fica melhor?"
+Passo 4 — Quando o ${clientWord} escolher o dia, chame get_available_slots(date:"YYYY-MM-DD") e informe os HORÁRIOS disponíveis naquele dia.
+Passo 5 — Quando o ${clientWord} escolher o horário, chame schedule_appointment e envie a confirmação.
+Passo 6 — Após schedule_appointment retornar sucesso, envie mensagem de confirmação com todos os detalhes.
+
+APÓS AGENDAR, envie uma mensagem de confirmação no formato:
+"✅ *${serviceWord.charAt(0).toUpperCase() + serviceWord.slice(1)} confirmado!*
+📋 Serviço: [serviço]
+👤 Nome: [nome]
+📅 Data: [dia da semana, dd/mm]
+⏰ Horário: [HH:MM]
+[Se PDF foi enviado: "📄 As instruções foram enviadas nesta conversa."]
+Qualquer dúvida é só chamar! 😊"
+
+REGRAS IMPORTANTES:
+• NUNCA confirme um horário sem antes chamar get_available_slots — o horário pode estar ocupado
+• Use vocabulário adaptado ao contexto: ${clientWord}, ${serviceWord}, ${providerWord}
+• Seja conciso: máximo 3 parágrafos por mensagem
+• Quando não conseguir resolver, chame escalate_to_human
+• Responda SEMPRE em português brasileiro
+• Use poucos emojis — apenas em confirmações e lembretes${customInstructions}${memoriesStr}`;
 
   // 4. Chama GPT com tool use
   const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
