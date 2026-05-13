@@ -422,11 +422,13 @@ export default function ClientAppointments() {
     if (!editForm.patient_name.trim() || !editForm.specialty.trim() || !editForm.date || !editForm.time) {
       setFormError('Preencha: nome, especialidade, data e horário.'); return
     }
+    const blockMsg = isBlockedTime(editForm.date, editForm.time)
+    if (blockMsg) { setFormError(blockMsg); return }
     setSaving(true); setFormError('')
     const { error } = await supabase.from('appointments').update({
       patient_name: editForm.patient_name.trim(), patient_phone: editForm.patient_phone.trim() || '',
       specialty: editForm.specialty.trim(), doctor_name: editForm.doctor_name.trim() || null,
-      scheduled_at: `${editForm.date}T${editForm.time}:00`, notes: editForm.notes.trim() || null, status: editForm.status,
+      scheduled_at: `${editForm.date}T${editForm.time}:00-03:00`, notes: editForm.notes.trim() || null, status: editForm.status,
     }).eq('id', detailAppt.id)
     setSaving(false)
     if (error) { setFormError(`Erro: ${error.message}`); return }
@@ -453,15 +455,27 @@ export default function ClientAppointments() {
     if (!form.patient_name.trim() || !form.specialty.trim() || !form.date || !form.time) {
       setFormError('Preencha: nome, especialidade, data e horário.'); return
     }
+    const blockMsg = isBlockedTime(form.date, form.time)
+    if (blockMsg) { setFormError(blockMsg); return }
     setSaving(true); setFormError('')
     const { error } = await supabase.from('appointments').insert({
       org_id: orgId, patient_name: form.patient_name.trim(), patient_phone: form.patient_phone.trim() || '',
       specialty: form.specialty.trim(), doctor_name: form.doctor_name.trim() || null,
-      scheduled_at: `${form.date}T${form.time}:00`, notes: form.notes.trim() || null, status: form.status,
+      scheduled_at: `${form.date}T${form.time}:00-03:00`, notes: form.notes.trim() || null, status: form.status,
     })
     setSaving(false)
     if (error) { setFormError(`Erro: ${error.message}`); return }
     closeModal(); fetchAppointments()
+  }
+
+  function isBlockedTime(date: string, time: string): string | null {
+    const dayBlocks = blockedSlots.filter(b => b.date === date)
+    for (const b of dayBlocks) {
+      if (b.all_day) return `Este dia está bloqueado na agenda${b.reason ? ` (${b.reason})` : ''}.`
+      if (b.start_time && b.end_time && time >= b.start_time && time < b.end_time)
+        return `Horário bloqueado das ${b.start_time} às ${b.end_time}${b.reason ? ` — ${b.reason}` : ''}.`
+    }
+    return null
   }
 
   function blockTop(time: string): number {
