@@ -570,7 +570,7 @@ export default function ClientAppointments() {
               <div className="w-5 h-5 border-[2.5px] border-brand-500 border-t-transparent rounded-full animate-spin" />
             </div>
           ) : (
-            <div className="overflow-y-auto" style={{ maxHeight: 'calc(100vh - 120px)' }}>
+            <div className="overflow-y-auto" style={{ maxHeight: 'calc(100vh - 84px)' }}>
               <div className="w-full">
                 <div className="sticky top-0 z-30 flex bg-white border-b border-slate-100 w-full">
                   <div style={{ width: TIME_COL_W, minWidth: TIME_COL_W }} className="shrink-0 border-r border-slate-100" />
@@ -622,11 +622,24 @@ export default function ClientAppointments() {
 
                         {dayBlocks.map(b => (
                           b.all_day ? (
-                            <div key={b.id} className="absolute inset-0 pointer-events-none"
-                              style={{ background: 'repeating-linear-gradient(-45deg,rgba(100,116,139,0.06) 0px,rgba(100,116,139,0.06) 4px,transparent 4px,transparent 12px)', borderLeft: '3px solid #94a3b8' }} />
+                            <div key={b.id} className="absolute inset-0 pointer-events-none" style={{ borderLeft: '3px solid #94a3b8' }}>
+                              <div className="absolute inset-0" style={{ background: 'repeating-linear-gradient(-45deg,rgba(100,116,139,0.06) 0px,rgba(100,116,139,0.06) 4px,transparent 4px,transparent 12px)' }} />
+                              {b.reason && (
+                                <p className="absolute left-3 top-2 right-1 text-[9px] font-semibold text-slate-500 tracking-wide leading-none truncate">
+                                  {b.reason}
+                                </p>
+                              )}
+                            </div>
                           ) : (b.start_time && b.end_time) ? (
-                            <div key={b.id} className="absolute left-0 right-0 pointer-events-none"
-                              style={{ top: blockTop(b.start_time), height: blockHeight(b.start_time, b.end_time), background: 'repeating-linear-gradient(-45deg,rgba(100,116,139,0.09) 0px,rgba(100,116,139,0.09) 4px,transparent 4px,transparent 12px)', borderLeft: '3px solid #94a3b8' }} />
+                            <div key={b.id} className="absolute left-0 right-0 pointer-events-none overflow-hidden"
+                              style={{ top: blockTop(b.start_time), height: blockHeight(b.start_time, b.end_time), borderLeft: '3px solid #94a3b8' }}>
+                              <div className="absolute inset-0" style={{ background: 'repeating-linear-gradient(-45deg,rgba(100,116,139,0.09) 0px,rgba(100,116,139,0.09) 4px,transparent 4px,transparent 12px)' }} />
+                              {b.reason && (
+                                <p className="absolute left-3 top-1.5 right-1 text-[9px] font-semibold text-slate-500 tracking-wide leading-none truncate">
+                                  {b.reason}
+                                </p>
+                              )}
+                            </div>
                           ) : null
                         ))}
 
