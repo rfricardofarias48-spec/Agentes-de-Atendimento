@@ -46,6 +46,7 @@ export default function App() {
               <AdminLayout><AdminClients /></AdminLayout>
             </ProtectedRoute>
           } />
+          <Route path="/admin/clients/new" element={<Navigate to="/admin/clients" replace />} />
           <Route path="/admin/clients/:id" element={
             <ProtectedRoute requiredRole="admin">
               <AdminLayout><AdminClientDetail /></AdminLayout>

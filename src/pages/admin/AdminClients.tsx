@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Plus, Search, Users } from 'lucide-react'
+import { Search, Users } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { type Organization } from '../../types'
 import { planLabel, statusLabel, formatDateShort, cn } from '../../lib/utils'
@@ -60,13 +60,6 @@ export default function AdminClients() {
           <h1 className="text-xl font-bold text-slate-800 leading-none">Usuários</h1>
           <p className="text-sm text-slate-500 mt-1">Gerencie os clientes da plataforma</p>
         </div>
-        <Link to="/admin/clients/new">
-          <button className="flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-semibold text-white transition-all hover:shadow-[0_4px_14px_rgba(44,130,181,0.35)] hover:-translate-y-[1px]"
-            style={{ background: 'linear-gradient(135deg, #2C82B5, #2570a0)' }}>
-            <Plus className="w-4 h-4" />
-            Novo Usuário
-          </button>
-        </Link>
       </div>
 
       {/* Filtros */}

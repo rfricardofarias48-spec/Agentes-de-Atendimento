@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft, Save, Trash2, Wifi, WifiOff, RefreshCw,
   CheckCircle2, XCircle, Loader2, Zap, KeyRound,
-  Bot, Settings2, Upload, Plus, X, FileText, ChevronDown, ArrowRight,
+  Bot, Settings2, Upload, Plus, X, FileText, ChevronDown,
 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { type Organization, type OrgPlan, type OrgStatus } from '../../types'
@@ -101,24 +101,19 @@ function ToggleGroup({ options, value, onChange }: {
 export default function AdminClientDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const isNew = id === 'new'
 
   const [activeTab, setActiveTab] = useState<'geral' | 'agente'>('geral')
 
   // Org state
   const [org, setOrg] = useState<Partial<Organization>>({
-    name: '', slug: '', plan: 'starter', status: 'active',
+    name: '', plan: 'starter', status: 'active',
     whatsapp_numbers: [], agent_tone: 'friendly',
     max_conversations_month: 600, conversations_used: 0,
   })
-  const [loading, setLoading] = useState(!isNew)
+  const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
-  // New user credentials
-  const [newEmail, setNewEmail] = useState('')
-  const [newPassword, setNewPassword] = useState('')
-
-  // Email do usuário vinculado (edição)
+  // Email do usuário vinculado
   const [linkedEmail, setLinkedEmail] = useState<string | null>(null)
 
   // Evolution connection
@@ -128,7 +123,6 @@ export default function AdminClientDetail() {
   // Setup
   const [setupResult, setSetupResult] = useState<SetupResult | null>(null)
   const [settingUp, setSettingUp] = useState(false)
-  const [createdOrgId, setCreatedOrgId] = useState<string | null>(null)
 
   // Password reset
   const [newPass, setNewPass] = useState('')
@@ -155,26 +149,25 @@ export default function AdminClientDetail() {
   const [uploadTarget, setUploadTarget] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!isNew && id) {
-      Promise.all([
-        supabase.from('organizations').select('*').eq('id', id).single(),
-        supabase.from('agent_settings').select('*').eq('org_id', id).single(),
-        fetch(`/api/admin/get-org-user?orgId=${id}`).then(r => r.json()),
-      ]).then(([{ data: orgData }, { data: settings }, userInfo]) => {
-        if (orgData) setOrg(orgData)
-        if (settings) {
-          setAgentId(settings.id)
-          setAgentName(settings.agent_name || 'Assistente')
-          setAgentGreeting(settings.greeting_message || '')
-          setAgentTone(settings.tone === 'formal' ? 'formal' : 'friendly')
-          setAgentInstructions(settings.custom_instructions || '')
-          setServices(settings.services || [])
-        }
-        setLinkedEmail((userInfo as { email?: string }).email ?? null)
-        setLoading(false)
-      })
-    }
-  }, [id, isNew])
+    if (!id) return
+    Promise.all([
+      supabase.from('organizations').select('*').eq('id', id).single(),
+      supabase.from('agent_settings').select('*').eq('org_id', id).single(),
+      fetch(`/api/admin/get-org-user?orgId=${id}`).then(r => r.json()),
+    ]).then(([{ data: orgData }, { data: settings }, userInfo]) => {
+      if (orgData) setOrg(orgData)
+      if (settings) {
+        setAgentId(settings.id)
+        setAgentName(settings.agent_name || 'Assistente')
+        setAgentGreeting(settings.greeting_message || '')
+        setAgentTone(settings.tone === 'formal' ? 'formal' : 'friendly')
+        setAgentInstructions(settings.custom_instructions || '')
+        setServices(settings.services || [])
+      }
+      setLinkedEmail((userInfo as { email?: string }).email ?? null)
+      setLoading(false)
+    })
+  }, [id])
 
   function handlePlanChange(plan: OrgPlan) {
     setOrg(o => ({ ...o, plan, max_conversations_month: maxConvByPlan[plan] }))
@@ -250,13 +243,12 @@ export default function AdminClientDetail() {
 
     const payload = {
       name: org.name,
-      slug: org.slug,
       plan: org.plan,
       status: org.status,
       whatsapp_numbers: org.whatsapp_numbers ?? [],
       agent_tone: agentTone,
       max_conversations_month: org.max_conversations_month,
-      conversations_used: isNew ? 0 : org.conversations_used,
+      conversations_used: org.conversations_used,
       evolution_instance: org.evolution_instance ?? null,
       evolution_token: org.evolution_token ?? null,
       chatwoot_account_id: org.chatwoot_account_id ?? null,
@@ -264,56 +256,10 @@ export default function AdminClientDetail() {
       chatwoot_inbox_id: org.chatwoot_inbox_id ?? null,
     }
 
-    if (isNew) {
-      // 1. Criar organização
-      const { data: newOrg, error } = await supabase
-        .from('organizations').insert(payload).select().single()
-      if (error) { alert('Erro ao criar usuário: ' + error.message); setSaving(false); return }
-
-      // 2. Criar usuário no Auth (server-side — requer service role)
-      if (newEmail && newPassword && newOrg) {
-        const { data: { session } } = await supabase.auth.getSession()
-        const userRes = await fetch('/api/admin/create-user', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
-          },
-          body: JSON.stringify({ orgId: newOrg.id, email: newEmail, password: newPassword }),
-        })
-        const userData = await userRes.json() as { ok?: boolean; error?: string }
-        if (!userData.ok) {
-          alert('Aviso: Organização criada, mas erro ao criar acesso: ' + (userData.error ?? 'desconhecido'))
-        }
-      }
-
-      // 3. Criar agent_settings com dados do formulário
-      await supabase.from('agent_settings').insert({
-        org_id: newOrg.id,
-        agent_name: agentName || 'Assistente',
-        greeting_message: agentGreeting || `Olá! Sou o assistente da ${newOrg.name}. Como posso ajudar?`,
-        tone: agentTone,
-        specialties: [],
-        services: [],
-        custom_instructions: '',
-      })
-
-      setSaving(false)
-      setCreatedOrgId(newOrg.id)
-
-      // 4. Rodar setup se Evolution configurada
-      if (newOrg.evolution_instance && newOrg.evolution_token) {
-        await runSetup(newOrg.id)
-      }
-
-    } else {
-      // Atualizar org existente
-      const { error } = await supabase.from('organizations').update(payload).eq('id', id!)
-      setSaving(false)
-      if (error) { alert('Erro ao salvar: ' + error.message); return }
-      // Rodar setup se Evolution configurada
-      if (org.evolution_instance && org.evolution_token) await runSetup(id!)
-    }
+    const { error } = await supabase.from('organizations').update(payload).eq('id', id!)
+    setSaving(false)
+    if (error) { alert('Erro ao salvar: ' + error.message); return }
+    if (org.evolution_instance && org.evolution_token) await runSetup(id!)
   }
 
   async function handleSaveAgent() {
@@ -426,73 +372,6 @@ export default function AdminClientDetail() {
       ? <Wifi className="w-4 h-4 text-amber-500" />
       : <WifiOff className="w-4 h-4 text-slate-400" />
 
-  // ── Resultado de criação bem-sucedida ──────────────────────────────────────
-  if (isNew && createdOrgId && !saving) {
-    return (
-      <div className="max-w-xl mx-auto space-y-6 py-12 animate-fade-up">
-        <div style={CARD_STYLE} className="p-8 text-center space-y-4 rounded-2xl">
-          <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto"
-            style={{ background: '#f0fdf4', border: '1px solid #b3d4ec' }}>
-            <CheckCircle2 className="w-7 h-7 text-brand-500" />
-          </div>
-          <div>
-            <h2 className="text-lg font-bold" style={{ color: '#101828' }}>Usuário criado com sucesso!</h2>
-            <p className="text-sm mt-1" style={{ color: '#98a2b3' }}>
-              {newEmail ? `Login: ${newEmail}` : 'O usuário foi criado na plataforma.'}
-            </p>
-          </div>
-
-          {/* Setup result */}
-          {(settingUp || setupResult) && (
-            <div className="text-left rounded-xl p-4 space-y-2" style={{ background: '#f9fafb', border: '1px solid #f2f4f7' }}>
-              <div className="flex items-center gap-2 mb-3">
-                <Zap className={`w-4 h-4 ${settingUp ? 'text-amber-500 animate-pulse' : 'text-brand-500'}`} />
-                <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#344054' }}>
-                  {settingUp ? 'Configurando automaticamente...' : 'Setup concluído'}
-                </p>
-              </div>
-              {settingUp && (
-                <div className="flex items-center gap-2 text-sm" style={{ color: '#98a2b3' }}>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Criando conta Chatwoot, configurando webhook e agente...
-                </div>
-              )}
-              {setupResult?.steps.map(step => (
-                <div key={step.id} className="flex items-start gap-2.5">
-                  {step.ok
-                    ? <CheckCircle2 className="w-3.5 h-3.5 text-brand-500 mt-0.5 shrink-0" />
-                    : <XCircle className="w-3.5 h-3.5 text-slate-400 mt-0.5 shrink-0" />}
-                  <div>
-                    <p className="text-xs font-semibold" style={{ color: step.ok ? '#344054' : '#98a2b3' }}>{step.label}</p>
-                    <p className="text-[11px]" style={{ color: '#98a2b3' }}>{step.detail}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          <div className="flex gap-3 pt-2">
-            <button
-              onClick={() => navigate(`/admin/clients/${createdOrgId}`)}
-              className="btn-primary flex-1 flex items-center justify-center gap-2 py-2.5 text-sm"
-            >
-              Gerenciar cliente <ArrowRight className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => navigate('/admin/clients/new')}
-              className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-colors"
-              style={{ border: '1px solid #e4e7ec', color: '#667085' }}
-              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#f9fafb' }}
-              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent' }}
-            >
-              <Plus className="w-4 h-4" /> Novo usuário
-            </button>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
   return (
     <div className="space-y-5 pb-8">
       <input ref={fileInputRef} type="file" accept=".pdf" className="hidden" onChange={handlePdfFileChange} />
@@ -506,46 +385,40 @@ export default function AdminClientDetail() {
           <ArrowLeft className="w-4 h-4" />
         </button>
         <div>
-          <h1 className="text-xl font-bold text-slate-800 leading-none">
-            {isNew ? 'Novo Usuário' : org.name}
-          </h1>
-          {!isNew && org.created_at && (
+          <h1 className="text-xl font-bold text-slate-800 leading-none">{org.name}</h1>
+          {org.created_at && (
             <p className="text-xs text-slate-400 mt-1">Criado em {formatDate(org.created_at)}</p>
           )}
         </div>
-        {!isNew && (
-          <div className="ml-auto flex items-center gap-1.5 text-xs font-medium text-slate-400">
-            {connIcon}
-            <span className="capitalize">{connectionStatus === 'unknown' ? 'Não verificado' : connectionStatus}</span>
-          </div>
-        )}
+        <div className="ml-auto flex items-center gap-1.5 text-xs font-medium text-slate-400">
+          {connIcon}
+          <span className="capitalize">{connectionStatus === 'unknown' ? 'Não verificado' : connectionStatus}</span>
+        </div>
       </div>
 
-      {/* Sub-abas (só edição) */}
-      {!isNew && (
-        <div className="flex items-center bg-white border border-slate-200 rounded-2xl p-1 w-fit shadow-[0_2px_10px_rgba(0,0,0,0.05)]">
-          {([
-            { key: 'geral', label: 'Geral', icon: Settings2 },
-            { key: 'agente', label: 'Agente', icon: Bot },
-          ] as const).map(tab => (
-            <button
-              key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
-              className="flex items-center gap-2 px-4 py-1.5 rounded-xl text-[13px] font-semibold transition-all duration-200"
-              style={activeTab === tab.key
-                ? { background: 'linear-gradient(135deg, #2C82B5, #2570a0)', color: '#fff', boxShadow: '0 2px 8px rgba(37,112,160,0.28)' }
-                : { color: '#94a3b8' }
-              }
-            >
-              <tab.icon className="w-3.5 h-3.5" />
-              {tab.label}
-            </button>
-          ))}
-        </div>
-      )}
+      {/* Sub-abas */}
+      <div className="flex items-center bg-white border border-slate-200 rounded-2xl p-1 w-fit shadow-[0_2px_10px_rgba(0,0,0,0.05)]">
+        {([
+          { key: 'geral', label: 'Geral', icon: Settings2 },
+          { key: 'agente', label: 'Agente', icon: Bot },
+        ] as const).map(tab => (
+          <button
+            key={tab.key}
+            onClick={() => setActiveTab(tab.key)}
+            className="flex items-center gap-2 px-4 py-1.5 rounded-xl text-[13px] font-semibold transition-all duration-200"
+            style={activeTab === tab.key
+              ? { background: 'linear-gradient(135deg, #2C82B5, #2570a0)', color: '#fff', boxShadow: '0 2px 8px rgba(37,112,160,0.28)' }
+              : { color: '#94a3b8' }
+            }
+          >
+            <tab.icon className="w-3.5 h-3.5" />
+            {tab.label}
+          </button>
+        ))}
+      </div>
 
-      {/* ══ NOVO USUÁRIO / ABA GERAL ══════════════════════════════════════════ */}
-      {(isNew || activeTab === 'geral') && (
+      {/* ══ ABA GERAL ═══════════════════════════════════════════════════════════ */}
+      {activeTab === 'geral' && (
         <>
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
 
@@ -553,38 +426,18 @@ export default function AdminClientDetail() {
             <div className="space-y-6">
 
               <Card title="Dados da Clínica">
-                {!isNew && (
-                  <Field label="E-mail de acesso">
-                    <div
-                      className="flex items-center gap-2 px-3.5 py-2.5 rounded-[0.625rem] text-sm"
-                      style={{ background: '#f9fafb', border: '1px solid #e4e7ec', color: linkedEmail ? '#344054' : '#98a2b3' }}
-                    >
-                      {linkedEmail ?? 'Nenhum usuário vinculado'}
-                    </div>
-                  </Field>
-                )}
-                {isNew && (
-                  <>
-                    <Field label="E-mail de acesso">
-                      <TextInput type="email" value={newEmail} onChange={setNewEmail} placeholder="dono@clinica.com" />
-                    </Field>
-                    <Field label="Senha inicial">
-                      <TextInput type="password" value={newPassword} onChange={setNewPassword} placeholder="Mínimo 6 caracteres" />
-                    </Field>
-                  </>
-                )}
-                <div className="grid grid-cols-2 gap-4">
-                  <Field label="Nome da Clínica">
-                    <TextInput value={org.name ?? ''} onChange={v => setOrg(o => ({ ...o, name: v }))} placeholder="Clínica São Lucas" />
-                  </Field>
-                  <Field label="Slug (URL)">
-                    <TextInput
-                      value={org.slug ?? ''}
-                      onChange={v => setOrg(o => ({ ...o, slug: v.toLowerCase().replace(/\s+/g, '-') }))}
-                      placeholder="clinica-sao-lucas"
-                    />
-                  </Field>
-                </div>
+                <Field label="E-mail de acesso">
+                  <div
+                    className="flex items-center gap-2 px-3.5 py-2.5 rounded-[0.625rem] text-sm"
+                    style={{ background: '#f9fafb', border: '1px solid #e4e7ec', color: linkedEmail ? '#344054' : '#98a2b3' }}
+                  >
+                    {linkedEmail ?? 'Nenhum usuário vinculado'}
+                  </div>
+                </Field>
+
+                <Field label="Nome da Clínica">
+                  <TextInput value={org.name ?? ''} onChange={v => setOrg(o => ({ ...o, name: v }))} placeholder="Clínica São Lucas" />
+                </Field>
 
                 <Field label="Plano">
                   <div className="flex gap-2 flex-wrap">
@@ -621,46 +474,43 @@ export default function AdminClientDetail() {
                 </Field>
               </Card>
 
-
-              {/* Redefinir senha (edição) */}
-              {!isNew && (
-                <div style={CARD_STYLE} className="p-6 space-y-4">
-                  <div className="flex items-center gap-2">
-                    <KeyRound className="w-4 h-4" style={{ color: '#98a2b3' }} />
-                    <p className="font-semibold text-sm uppercase tracking-wider" style={{ color: '#344054' }}>Redefinir Senha</p>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <input type="email" value={resetEmail}
-                      onChange={e => { setResetEmail(e.target.value); setResetMsg(null) }}
-                      placeholder="E-mail do usuário (se não vinculado)"
-                      className="input-dark px-3.5 py-2.5 text-sm w-full"
-                    />
-                    <input type="password" value={newPass}
-                      onChange={e => { setNewPass(e.target.value); setResetMsg(null) }}
-                      placeholder="Nova senha (mín. 6 caracteres)"
-                      className="input-dark px-3.5 py-2.5 text-sm w-full"
-                    />
-                  </div>
-                  <button onClick={handleResetPassword} disabled={resetting || newPass.length < 6}
-                    className="btn-primary flex items-center gap-2 px-4 py-2.5 text-sm disabled:opacity-60">
-                    {resetting ? <Loader2 className="w-4 h-4 animate-spin" /> : <KeyRound className="w-4 h-4" />}
-                    {resetting ? 'Salvando...' : 'Redefinir Senha'}
-                  </button>
-                  {resetMsg && (
-                    <div className={`flex items-center gap-2 text-xs font-medium px-3 py-2 rounded-lg ${resetMsg.ok ? 'bg-brand-50 text-brand-700' : 'bg-red-50 text-red-600'}`}>
-                      {resetMsg.ok ? <CheckCircle2 className="w-3.5 h-3.5 shrink-0" /> : <XCircle className="w-3.5 h-3.5 shrink-0" />}
-                      {resetMsg.text}
-                    </div>
-                  )}
+              {/* Redefinir senha */}
+              <div style={CARD_STYLE} className="p-6 space-y-4">
+                <div className="flex items-center gap-2">
+                  <KeyRound className="w-4 h-4" style={{ color: '#98a2b3' }} />
+                  <p className="font-semibold text-sm uppercase tracking-wider" style={{ color: '#344054' }}>Redefinir Senha</p>
                 </div>
-              )}
+                <div className="grid grid-cols-2 gap-3">
+                  <input type="email" value={resetEmail}
+                    onChange={e => { setResetEmail(e.target.value); setResetMsg(null) }}
+                    placeholder="E-mail do usuário (se não vinculado)"
+                    className="input-dark px-3.5 py-2.5 text-sm w-full"
+                  />
+                  <input type="password" value={newPass}
+                    onChange={e => { setNewPass(e.target.value); setResetMsg(null) }}
+                    placeholder="Nova senha (mín. 6 caracteres)"
+                    className="input-dark px-3.5 py-2.5 text-sm w-full"
+                  />
+                </div>
+                <button onClick={handleResetPassword} disabled={resetting || newPass.length < 6}
+                  className="btn-primary flex items-center gap-2 px-4 py-2.5 text-sm disabled:opacity-60">
+                  {resetting ? <Loader2 className="w-4 h-4 animate-spin" /> : <KeyRound className="w-4 h-4" />}
+                  {resetting ? 'Salvando...' : 'Redefinir Senha'}
+                </button>
+                {resetMsg && (
+                  <div className={`flex items-center gap-2 text-xs font-medium px-3 py-2 rounded-lg ${resetMsg.ok ? 'bg-brand-50 text-brand-700' : 'bg-red-50 text-red-600'}`}>
+                    {resetMsg.ok ? <CheckCircle2 className="w-3.5 h-3.5 shrink-0" /> : <XCircle className="w-3.5 h-3.5 shrink-0" />}
+                    {resetMsg.text}
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Coluna direita */}
             <div className="space-y-6">
               <Card
                 title="Evolution API"
-                extra={!isNew && org.evolution_instance ? (
+                extra={org.evolution_instance ? (
                   <button onClick={checkEvolutionConnection} disabled={checkingConn}
                     className="flex items-center gap-1.5 text-xs font-medium transition-colors disabled:opacity-50"
                     style={{ color: '#98a2b3' }}
@@ -680,87 +530,75 @@ export default function AdminClientDetail() {
                     <TextInput value={org.evolution_token ?? ''} onChange={v => setOrg(o => ({ ...o, evolution_token: v }))} placeholder="415C2136-..." type="password" />
                   </Field>
                 </div>
-                {isNew && (
-                  <div className="flex items-start gap-2 p-3 rounded-xl" style={{ background: '#f0fdf4', border: '1px solid #b3d4ec' }}>
-                    <CheckCircle2 className="w-3.5 h-3.5 text-brand-500 mt-0.5 shrink-0" />
-                    <p className="text-xs" style={{ color: '#164a6a' }}>
-                      Ao preencher e salvar, o sistema configura o webhook e cria a conta Chatwoot automaticamente.
-                    </p>
-                  </div>
-                )}
               </Card>
 
               {/* Asaas — preenchido automaticamente pelo webhook */}
-              {!isNew && (
-                <Card title="Asaas">
-                  <div className="grid grid-cols-2 gap-4">
-                    <Field label="Customer ID">
-                      <div className="flex items-center px-3.5 py-2.5 rounded-[0.625rem] text-sm font-mono truncate"
-                        style={{ background: '#f9fafb', border: '1px solid #e4e7ec', color: org.asaas_customer_id ? '#344054' : '#d0d5dd' }}>
-                        {org.asaas_customer_id || 'Aguardando pagamento'}
-                      </div>
-                    </Field>
-                    <Field label="Status">
-                      <div className="flex items-center gap-2 px-3.5 py-2.5 rounded-[0.625rem] text-sm"
-                        style={{
-                          background: '#f9fafb', border: '1px solid #e4e7ec',
-                          color: org.asaas_status === 'active' ? '#16a34a' : org.asaas_status === 'overdue' ? '#dc2626' : '#d0d5dd',
-                        }}>
-                        {org.asaas_status === 'active' ? '● Ativo' : org.asaas_status === 'overdue' ? '● Inadimplente' : (org.asaas_status || '—')}
-                      </div>
-                    </Field>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <Field label="Período">
-                      <div className="flex items-center px-3.5 py-2.5 rounded-[0.625rem] text-sm"
-                        style={{ background: '#f9fafb', border: '1px solid #e4e7ec', color: org.billing ? '#344054' : '#d0d5dd' }}>
-                        {org.billing === 'anual' ? 'Anual' : org.billing === 'mensal' ? 'Mensal' : '—'}
-                      </div>
-                    </Field>
-                    <Field label="Próximo Vencimento">
-                      <div className="flex items-center px-3.5 py-2.5 rounded-[0.625rem] text-sm"
-                        style={{ background: '#f9fafb', border: '1px solid #e4e7ec', color: org.subscription_period_end ? '#344054' : '#d0d5dd' }}>
-                        {org.subscription_period_end
-                          ? new Date(org.subscription_period_end).toLocaleDateString('pt-BR', { timeZone: TZ })
-                          : '—'}
-                      </div>
-                    </Field>
-                  </div>
-                  <p className="text-[10px]" style={{ color: '#98a2b3' }}>
-                    Preenchido automaticamente via webhook após pagamento.
-                  </p>
-                </Card>
-              )}
+              <Card title="Asaas">
+                <div className="grid grid-cols-2 gap-4">
+                  <Field label="Customer ID">
+                    <div className="flex items-center px-3.5 py-2.5 rounded-[0.625rem] text-sm font-mono truncate"
+                      style={{ background: '#f9fafb', border: '1px solid #e4e7ec', color: org.asaas_customer_id ? '#344054' : '#d0d5dd' }}>
+                      {org.asaas_customer_id || 'Aguardando pagamento'}
+                    </div>
+                  </Field>
+                  <Field label="Status">
+                    <div className="flex items-center gap-2 px-3.5 py-2.5 rounded-[0.625rem] text-sm"
+                      style={{
+                        background: '#f9fafb', border: '1px solid #e4e7ec',
+                        color: org.asaas_status === 'active' ? '#16a34a' : org.asaas_status === 'overdue' ? '#dc2626' : '#d0d5dd',
+                      }}>
+                      {org.asaas_status === 'active' ? '● Ativo' : org.asaas_status === 'overdue' ? '● Inadimplente' : (org.asaas_status || '—')}
+                    </div>
+                  </Field>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <Field label="Período">
+                    <div className="flex items-center px-3.5 py-2.5 rounded-[0.625rem] text-sm"
+                      style={{ background: '#f9fafb', border: '1px solid #e4e7ec', color: org.billing ? '#344054' : '#d0d5dd' }}>
+                      {org.billing === 'anual' ? 'Anual' : org.billing === 'mensal' ? 'Mensal' : '—'}
+                    </div>
+                  </Field>
+                  <Field label="Próximo Vencimento">
+                    <div className="flex items-center px-3.5 py-2.5 rounded-[0.625rem] text-sm"
+                      style={{ background: '#f9fafb', border: '1px solid #e4e7ec', color: org.subscription_period_end ? '#344054' : '#d0d5dd' }}>
+                      {org.subscription_period_end
+                        ? new Date(org.subscription_period_end).toLocaleDateString('pt-BR', { timeZone: TZ })
+                        : '—'}
+                    </div>
+                  </Field>
+                </div>
+                <p className="text-[10px]" style={{ color: '#98a2b3' }}>
+                  Preenchido automaticamente via webhook após pagamento.
+                </p>
+              </Card>
 
               {/* Chatwoot */}
-              {(
-                <Card title="Chatwoot">
-                  <div className="grid grid-cols-2 gap-4">
-                    <Field label="Account ID">
-                      <TextInput
-                        value={org.chatwoot_account_id != null ? String(org.chatwoot_account_id) : ''}
-                        onChange={v => setOrg(o => ({ ...o, chatwoot_account_id: v ? Number(v) : undefined }))}
-                        placeholder="1"
-                      />
-                    </Field>
-                    <Field label="Inbox ID">
-                      <TextInput
-                        value={org.chatwoot_inbox_id != null ? String(org.chatwoot_inbox_id) : ''}
-                        onChange={v => setOrg(o => ({ ...o, chatwoot_inbox_id: v ? Number(v) : undefined }))}
-                        placeholder="3"
-                      />
-                    </Field>
-                  </div>
-                  <Field label="Token do Agente">
-                    <TextInput value={org.chatwoot_token ?? ''} onChange={v => setOrg(o => ({ ...o, chatwoot_token: v }))} placeholder="token do inbox" type="password" />
+              <Card title="Chatwoot">
+                <div className="grid grid-cols-2 gap-4">
+                  <Field label="Account ID">
+                    <TextInput
+                      value={org.chatwoot_account_id != null ? String(org.chatwoot_account_id) : ''}
+                      onChange={v => setOrg(o => ({ ...o, chatwoot_account_id: v ? Number(v) : undefined }))}
+                      placeholder="1"
+                    />
                   </Field>
-                </Card>
-              )}
+                  <Field label="Inbox ID">
+                    <TextInput
+                      value={org.chatwoot_inbox_id != null ? String(org.chatwoot_inbox_id) : ''}
+                      onChange={v => setOrg(o => ({ ...o, chatwoot_inbox_id: v ? Number(v) : undefined }))}
+                      placeholder="3"
+                    />
+                  </Field>
+                </div>
+                <Field label="Token do Agente">
+                  <TextInput value={org.chatwoot_token ?? ''} onChange={v => setOrg(o => ({ ...o, chatwoot_token: v }))} placeholder="token do inbox" type="password" />
+                </Field>
+              </Card>
             </div>
           </div>
 
-          {/* Setup result (edição) */}
-          {!isNew && (settingUp || setupResult) && (
+          {/* Setup result */}
+          {(settingUp || setupResult) && (
             <div style={CARD_STYLE} className="p-6 space-y-4">
               <div className="flex items-center gap-2">
                 <Zap className={`w-4 h-4 ${settingUp ? 'text-amber-500 animate-pulse' : 'text-brand-500'}`} />
@@ -809,10 +647,10 @@ export default function AdminClientDetail() {
             <button onClick={handleSave} disabled={saving || settingUp}
               className="btn-primary flex items-center gap-2 px-5 py-2.5 text-sm disabled:opacity-60">
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-              {saving ? 'Criando...' : settingUp ? 'Configurando...' : isNew ? 'Criar Usuário' : 'Salvar'}
+              {saving ? 'Salvando...' : settingUp ? 'Configurando...' : 'Salvar'}
             </button>
 
-            {!isNew && org.evolution_instance && !setupResult && (
+            {org.evolution_instance && !setupResult && (
               <button onClick={() => runSetup(id!)} disabled={settingUp}
                 className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors disabled:opacity-50"
                 style={{ border: '1px solid #e4e7ec', color: '#667085' }}
@@ -824,38 +662,36 @@ export default function AdminClientDetail() {
               </button>
             )}
 
-            {!isNew && (
-              <button
-                className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors ml-auto"
-                style={{ border: '1px solid #fecaca', color: '#dc2626' }}
-                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#fef2f2' }}
-                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent' }}
-                onClick={async () => {
-                  if (!confirm(`Remover "${org.name}"?\n\nTodos os dados serão deletados permanentemente: conversas, agendamentos, arquivos e o acesso do usuário. Esta ação é irreversível.`)) return
-                  const { data: { session } } = await supabase.auth.getSession()
-                  const res = await fetch('/api/admin/delete-org', {
-                    method: 'DELETE',
-                    headers: {
-                      'Content-Type': 'application/json',
-                      ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
-                    },
-                    body: JSON.stringify({ orgId: id }),
-                  })
-                  const result = await res.json() as { ok?: boolean; errors?: string[] }
-                  if (!result.ok) { alert('Erro ao remover: ' + (result.errors?.join(', ') ?? 'desconhecido')); return }
-                  navigate('/admin/clients')
-                }}
-              >
-                <Trash2 className="w-4 h-4" />
-                Remover
-              </button>
-            )}
+            <button
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors ml-auto"
+              style={{ border: '1px solid #fecaca', color: '#dc2626' }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#fef2f2' }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent' }}
+              onClick={async () => {
+                if (!confirm(`Remover "${org.name}"?\n\nTodos os dados serão deletados permanentemente: conversas, agendamentos, arquivos e o acesso do usuário. Esta ação é irreversível.`)) return
+                const { data: { session } } = await supabase.auth.getSession()
+                const res = await fetch('/api/admin/delete-org', {
+                  method: 'DELETE',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+                  },
+                  body: JSON.stringify({ orgId: id }),
+                })
+                const result = await res.json() as { ok?: boolean; errors?: string[] }
+                if (!result.ok) { alert('Erro ao remover: ' + (result.errors?.join(', ') ?? 'desconhecido')); return }
+                navigate('/admin/clients')
+              }}
+            >
+              <Trash2 className="w-4 h-4" />
+              Remover
+            </button>
           </div>
         </>
       )}
 
       {/* ══ ABA AGENTE ═════════════════════════════════════════════════════════ */}
-      {!isNew && activeTab === 'agente' && (
+      {activeTab === 'agente' && (
         <div className="space-y-6">
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
 

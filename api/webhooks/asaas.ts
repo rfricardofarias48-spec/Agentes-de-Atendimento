@@ -3,7 +3,7 @@
  * Processa eventos de pagamento do Asaas.
  *
  * Eventos tratados:
- *  - PAYMENT_CONFIRMED / PAYMENT_RECEIVED → cria org + usuário (se não existir), ativa assinatura
+ *  - PAYMENT_CONFIRMED / PAYMENT_RECEIVED → cria org + convida usuário via e-mail
  *  - PAYMENT_OVERDUE  → suspende org
  *  - PAYMENT_RESTORED → reativa org
  */
@@ -11,6 +11,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { supabaseAdmin } from '../lib/supabaseAdmin.js';
 import { validateWebhookToken } from '../services/asaasService.js';
+
+const APP_URL = process.env.VITE_APP_URL || 'https://agentes-de-atendimento.vercel.app';
 
 const maxConvByPlan: Record<string, number> = {
   starter: 600,
@@ -56,7 +58,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).json({ ok: true, note: 'Sem dados relevantes' });
   }
 
-  // Busca a venda pelo saleId (externalReference)
   const saleId = payment.externalReference ?? null;
 
   // ── PAYMENT_OVERDUE: suspender org ──────────────────────────────────────
@@ -113,14 +114,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const periodEnd = calcPeriodEnd(billing, payment.dueDate);
   const asaasData = {
-    asaas_customer_id:      payment.customer ?? null,
-    asaas_subscription_id:  payment.subscription ?? null,
-    asaas_status:           'active',
+    asaas_customer_id:       payment.customer ?? null,
+    asaas_subscription_id:   payment.subscription ?? null,
+    asaas_status:            'active',
     subscription_period_end: periodEnd,
     billing,
   };
 
-  // Verifica se org já existe para este email
+  // ── Org já existe? (renovação de assinatura) ───────────────────────────
   const { data: existingOrg } = await supabaseAdmin
     .from('organizations')
     .select('id, status')
@@ -128,29 +129,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     .maybeSingle();
 
   if (existingOrg) {
-    // Org existe — atualiza dados de assinatura
     await supabaseAdmin
       .from('organizations')
       .update({ status: 'active', plan, ...asaasData })
       .eq('id', existingOrg.id);
 
     console.log(`[Asaas] Org ${existingOrg.id} renovada — plano ${plan}`);
+
   } else {
-    // Org nova — criar organização + usuário
-    const slug = clientName
+    // ── Org nova: criar organização ────────────────────────────────────
+    const slugBase = clientName
       .toLowerCase()
       .normalize('NFD').replace(/[̀-ͯ]/g, '')
       .replace(/\s+/g, '-')
       .replace(/[^a-z0-9-]/g, '')
       .slice(0, 40);
 
-    const tempPassword = Math.random().toString(36).slice(-10) + 'A1!';
-
     const { data: newOrg, error: orgErr } = await supabaseAdmin
       .from('organizations')
       .insert({
         name: clientName,
-        slug: `${slug}-${Date.now().toString(36)}`,
+        slug: `${slugBase}-${Date.now().toString(36)}`,
         billing_email: clientEmail,
         plan,
         status: 'active',
@@ -167,25 +166,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(500).json({ error: 'Erro ao criar organização' });
     }
 
-    // Cria usuário no Supabase Auth
-    const { data: authUser, error: authErr } = await supabaseAdmin.auth.admin.createUser({
-      email: clientEmail,
-      password: tempPassword,
-      email_confirm: true,
-      user_metadata: { org_id: newOrg.id, role: 'client', name: clientName },
-    });
+    // ── Criar usuário via convite (envia e-mail para o cliente definir senha) ──
+    const { data: inviteData, error: inviteErr } = await supabaseAdmin.auth.admin.inviteUserByEmail(
+      clientEmail,
+      {
+        data: { name: clientName },
+        redirectTo: `${APP_URL}/reset-password`,
+      },
+    );
 
-    if (authErr) {
-      console.error('[Asaas] Erro ao criar usuário:', authErr);
-    } else if (authUser.user) {
-      await supabaseAdmin.from('org_users').insert({
+    if (inviteErr) {
+      console.error('[Asaas] Erro ao convidar usuário:', inviteErr);
+    } else if (inviteData?.user) {
+      // Vincular usuário à organização em user_profiles
+      const { error: profileErr } = await supabaseAdmin.from('user_profiles').insert({
+        user_id: inviteData.user.id,
         org_id: newOrg.id,
-        user_id: authUser.user.id,
-        role: 'owner',
+        role: 'client',
       });
+      if (profileErr) {
+        console.error('[Asaas] Erro ao criar user_profile:', profileErr);
+      }
     }
 
-    // Cria agent_settings padrão
+    // ── Criar agent_settings padrão ────────────────────────────────────
     await supabaseAdmin.from('agent_settings').insert({
       org_id: newOrg.id,
       agent_name: 'Assistente',
@@ -196,16 +200,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       custom_instructions: '',
     });
 
-    console.log(`[Asaas] Org criada: ${newOrg.id} para ${clientEmail} — plano ${plan}`);
+    console.log(`[Asaas] Conta criada: ${newOrg.id} para ${clientEmail} — plano ${plan}`);
   }
 
-  // Atualiza registro da venda
-  if (saleId) {
-    await supabaseAdmin
-      .from('sales')
-      .update({ status: 'paid', asaas_payment_id: payment.id, paid_at: new Date().toISOString() })
-      .eq('id', saleId);
-  }
+  // Marcar venda como paga
+  await supabaseAdmin
+    .from('sales')
+    .update({ status: 'paid', asaas_payment_id: payment.id, paid_at: new Date().toISOString() })
+    .eq('id', saleId);
 
   return res.status(200).json({ ok: true });
 }

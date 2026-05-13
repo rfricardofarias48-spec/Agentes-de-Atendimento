@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Users, ArrowRight, Plus, TrendingUp, MessageSquare, BarChart3 } from 'lucide-react'
+import { Users, ArrowRight, TrendingUp, MessageSquare, BarChart3 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { type Organization } from '../../types'
 import { TZ } from '../../lib/date'
@@ -76,13 +76,6 @@ export default function AdminDashboard() {
             {new Date().toLocaleDateString('pt-BR', { timeZone: TZ, weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
           </p>
         </div>
-        <Link to="/admin/clients/new">
-          <button className="flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-semibold text-white transition-all hover:shadow-[0_4px_14px_rgba(44,130,181,0.35)] hover:-translate-y-[1px]"
-            style={{ background: 'linear-gradient(135deg, #2C82B5, #2570a0)' }}>
-            <Plus className="w-4 h-4" />
-            Novo Usuário
-          </button>
-        </Link>
       </div>
 
       {/* KPIs */}
