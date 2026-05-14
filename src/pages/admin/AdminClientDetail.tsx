@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft, Save, Trash2, Wifi, WifiOff, RefreshCw,
@@ -12,6 +12,7 @@ import { TZ } from '../../lib/date'
 
 interface SetupStep { id: string; label: string; ok: boolean; detail: string }
 interface SetupResult { steps: SetupStep[]; webhookUrl?: string }
+interface AutoSetupResult { steps: SetupStep[]; qrCode: string | null; evolutionInstance: string }
 interface Service {
   id: string
   name: string
@@ -124,6 +125,14 @@ export default function AdminClientDetail() {
   const [setupResult, setSetupResult] = useState<SetupResult | null>(null)
   const [settingUp, setSettingUp] = useState(false)
 
+  // Auto-setup modal
+  const [showAutoSetup, setShowAutoSetup] = useState(false)
+  const [autoSteps, setAutoSteps] = useState<SetupStep[]>([])
+  const [autoQR, setAutoQR] = useState<string | null>(null)
+  const [autoRunning, setAutoRunning] = useState(false)
+  const [autoConnected, setAutoConnected] = useState(false)
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
   // Password reset
   const [newPass, setNewPass] = useState('')
   const [resetEmail, setResetEmail] = useState('')
@@ -185,6 +194,76 @@ export default function AdminClientDetail() {
     } finally {
       setCheckingConn(false)
     }
+  }
+
+  const stopPoll = useCallback(() => {
+    if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null }
+  }, [])
+
+  const startPoll = useCallback(() => {
+    stopPoll()
+    pollRef.current = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/admin/qr-status?orgId=${id}`)
+        const data = await res.json() as { state: string; connected: boolean; qrCode: string | null }
+        if (data.connected) {
+          setAutoConnected(true)
+          setAutoQR(null)
+          stopPoll()
+          // Recarrega org para pegar os dados atualizados
+          const { data: fresh } = await supabase.from('organizations').select('*').eq('id', id!).single()
+          if (fresh) setOrg(fresh)
+        } else if (data.qrCode) {
+          setAutoQR(data.qrCode)
+        }
+      } catch { /* ignore poll errors */ }
+    }, 4000)
+  }, [id, stopPoll])
+
+  useEffect(() => () => stopPoll(), [stopPoll])
+
+  async function openAutoSetup() {
+    setShowAutoSetup(true)
+    setAutoSteps([])
+    setAutoQR(null)
+    setAutoConnected(false)
+    setAutoRunning(true)
+    stopPoll()
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const res = await fetch('/api/admin/auto-setup', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+        },
+        body: JSON.stringify({ orgId: id }),
+      })
+      const data = await res.json() as AutoSetupResult
+      setAutoSteps(data.steps)
+      if (data.qrCode) setAutoQR(data.qrCode)
+      // Recarrega org (credenciais foram persistidas no backend)
+      const { data: fresh } = await supabase.from('organizations').select('*').eq('id', id!).single()
+      if (fresh) setOrg(fresh)
+      startPoll()
+    } catch (e) {
+      setAutoSteps([{ id: 'error', label: 'Erro', ok: false, detail: String(e) }])
+    } finally {
+      setAutoRunning(false)
+    }
+  }
+
+  function closeAutoSetup() {
+    stopPoll()
+    setShowAutoSetup(false)
+  }
+
+  async function refreshQR() {
+    try {
+      const res = await fetch(`/api/admin/qr-status?orgId=${id}`)
+      const data = await res.json() as { qrCode: string | null }
+      if (data.qrCode) setAutoQR(data.qrCode)
+    } catch { /* ignore */ }
   }
 
   async function handleResetPassword() {
@@ -389,6 +468,137 @@ export default function AdminClientDetail() {
     <div className="space-y-5 pb-8">
       <input ref={fileInputRef} type="file" accept=".pdf" className="hidden" onChange={handlePdfFileChange} />
 
+      {/* ── Modal Auto-Setup ─────────────────────────────────────────────── */}
+      {showAutoSetup && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: 'rgba(15,23,42,0.6)', backdropFilter: 'blur(4px)' }}
+          onClick={e => { if (e.target === e.currentTarget) closeAutoSetup() }}
+        >
+          <div
+            className="w-full max-w-lg rounded-2xl overflow-hidden"
+            style={{ background: '#fff', boxShadow: '0 24px 80px rgba(0,0,0,0.18)' }}
+          >
+            {/* Cabeçalho */}
+            <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: '1px solid #f1f5f9' }}>
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #2C82B5, #1e5f88)' }}>
+                  <Zap className="w-4 h-4 text-white" />
+                </div>
+                <div>
+                  <p className="font-bold text-[13px] text-slate-800">Configuração Automática</p>
+                  <p className="text-[11px] text-slate-400">Evolution API + Chatwoot</p>
+                </div>
+              </div>
+              <button onClick={closeAutoSetup} className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors text-slate-400">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-5 max-h-[80vh] overflow-y-auto">
+              {/* Checklist de etapas */}
+              {(autoRunning || autoSteps.length > 0) && (
+                <div className="space-y-2">
+                  {autoRunning && autoSteps.length === 0 && (
+                    <div className="flex items-center gap-3 p-3 rounded-xl" style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                      <Loader2 className="w-4 h-4 text-brand-500 animate-spin shrink-0" />
+                      <p className="text-sm text-slate-500">Iniciando configuração...</p>
+                    </div>
+                  )}
+                  {autoSteps.map((step, i) => (
+                    <div
+                      key={step.id}
+                      className="flex items-start gap-3 p-3 rounded-xl transition-all"
+                      style={{
+                        background: step.ok ? '#f0fdf4' : '#fef2f2',
+                        border: `1px solid ${step.ok ? '#bbf7d0' : '#fecaca'}`,
+                        animationDelay: `${i * 80}ms`,
+                      }}
+                    >
+                      {step.ok
+                        ? <CheckCircle2 className="w-4 h-4 text-emerald-500 mt-0.5 shrink-0" />
+                        : <XCircle className="w-4 h-4 text-red-400 mt-0.5 shrink-0" />}
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold" style={{ color: step.ok ? '#166534' : '#991b1b' }}>{step.label}</p>
+                        <p className="text-[11px] mt-0.5 text-slate-500">{step.detail}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* QR Code */}
+              {!autoConnected && autoQR && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-bold uppercase tracking-[0.1em] text-slate-400">Escanear com WhatsApp</p>
+                    <button
+                      onClick={refreshQR}
+                      className="flex items-center gap-1 text-[11px] font-medium text-slate-400 hover:text-slate-600 transition-colors"
+                    >
+                      <RefreshCw className="w-3 h-3" />
+                      Atualizar QR
+                    </button>
+                  </div>
+                  <div className="flex justify-center p-4 rounded-2xl" style={{ background: '#f8fafc', border: '2px dashed #e2e8f0' }}>
+                    <img
+                      src={autoQR.startsWith('data:') ? autoQR : `data:image/png;base64,${autoQR}`}
+                      alt="QR Code WhatsApp"
+                      className="w-56 h-56 rounded-xl"
+                      style={{ imageRendering: 'pixelated' }}
+                    />
+                  </div>
+                  <div className="flex items-center gap-2 px-3 py-2 rounded-xl" style={{ background: '#fffbeb', border: '1px solid #fde68a' }}>
+                    <Wifi className="w-3.5 h-3.5 text-amber-500 animate-pulse shrink-0" />
+                    <p className="text-[11px] text-amber-700">Aguardando escaneamento... verificando a cada 4 segundos</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Sucesso: conectado */}
+              {autoConnected && (
+                <div className="text-center py-4 space-y-3">
+                  <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto" style={{ background: '#f0fdf4', border: '2px solid #bbf7d0' }}>
+                    <CheckCircle2 className="w-8 h-8 text-emerald-500" />
+                  </div>
+                  <div>
+                    <p className="font-bold text-slate-800">WhatsApp Conectado!</p>
+                    <p className="text-sm text-slate-400 mt-1">A instância está ativa e pronta para atender.</p>
+                  </div>
+                </div>
+              )}
+
+              {/* QR ainda não disponível, mas setup ok */}
+              {!autoRunning && !autoConnected && !autoQR && autoSteps.length > 0 && autoSteps.some(s => s.ok) && (
+                <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl" style={{ background: '#f0f9ff', border: '1px solid #bae6fd' }}>
+                  <Loader2 className="w-3.5 h-3.5 text-sky-500 animate-spin shrink-0" />
+                  <p className="text-[11px] text-sky-700">QR code sendo gerado — aguarde ou clique em Atualizar</p>
+                  <button onClick={refreshQR} className="ml-auto text-[11px] font-semibold text-sky-600 hover:text-sky-800 transition-colors shrink-0">
+                    Atualizar
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 py-4 flex justify-end gap-3" style={{ borderTop: '1px solid #f1f5f9' }}>
+              {autoConnected ? (
+                <button onClick={closeAutoSetup} className="btn-primary px-5 py-2.5 text-sm">
+                  Concluído
+                </button>
+              ) : (
+                <button onClick={closeAutoSetup}
+                  className="px-5 py-2.5 rounded-xl text-sm font-semibold transition-colors"
+                  style={{ border: '1px solid #e2e8f0', color: '#64748b' }}
+                >
+                  Fechar
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center gap-3">
         <button
@@ -533,17 +743,28 @@ export default function AdminClientDetail() {
             <div className="space-y-6">
               <Card
                 title="Evolution API"
-                extra={org.evolution_instance ? (
-                  <button onClick={checkEvolutionConnection} disabled={checkingConn}
-                    className="flex items-center gap-1.5 text-xs font-medium transition-colors disabled:opacity-50"
-                    style={{ color: '#98a2b3' }}
-                    onMouseEnter={e => (e.currentTarget.style.color = '#344054')}
-                    onMouseLeave={e => (e.currentTarget.style.color = '#98a2b3')}
-                  >
-                    <RefreshCw className={`w-3.5 h-3.5 ${checkingConn ? 'animate-spin' : ''}`} />
-                    Verificar
-                  </button>
-                ) : undefined}
+                extra={
+                  org.evolution_instance ? (
+                    <button onClick={checkEvolutionConnection} disabled={checkingConn}
+                      className="flex items-center gap-1.5 text-xs font-medium transition-colors disabled:opacity-50"
+                      style={{ color: '#98a2b3' }}
+                      onMouseEnter={e => (e.currentTarget.style.color = '#344054')}
+                      onMouseLeave={e => (e.currentTarget.style.color = '#98a2b3')}
+                    >
+                      <RefreshCw className={`w-3.5 h-3.5 ${checkingConn ? 'animate-spin' : ''}`} />
+                      Verificar
+                    </button>
+                  ) : (
+                    <button
+                      onClick={openAutoSetup}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-white transition-all"
+                      style={{ background: 'linear-gradient(135deg, #2C82B5, #2570a0)', boxShadow: '0 2px 8px rgba(44,130,181,0.3)' }}
+                    >
+                      <Zap className="w-3.5 h-3.5" />
+                      Configurar Automaticamente
+                    </button>
+                  )
+                }
               >
                 <div className="grid grid-cols-2 gap-4">
                   <Field label="Nome da Instância">

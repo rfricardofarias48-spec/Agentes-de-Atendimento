@@ -224,6 +224,34 @@ export async function getFirstInboxId(
 }
 
 /**
+ * Cria webhook na conta Chatwoot para receber eventos de conversa.
+ * URL: nosso endpoint /api/webhooks/chatwoot
+ * Eventos: conversation_status_changed, message_created
+ */
+export async function createChatwootWebhook(
+  accountId: number,
+  token: string,
+  webhookUrl: string,
+): Promise<boolean> {
+  const result = await chatwootRequest(
+    'POST',
+    `/api/v1/accounts/${accountId}/integrations/webhooks`,
+    token,
+    {
+      url: webhookUrl,
+      subscriptions: ['conversation_status_changed', 'message_created'],
+    },
+  ) as { id?: number } | null;
+
+  if (result?.id) {
+    console.log(`[Chatwoot] Webhook criado para account #${accountId}: ${webhookUrl}`);
+    return true;
+  }
+  console.error(`[Chatwoot] Falha ao criar webhook para account #${accountId}`);
+  return false;
+}
+
+/**
  * Cria uma nova conta Chatwoot para uma organização (via admin token).
  * Retorna { accountId, token } ou null.
  */

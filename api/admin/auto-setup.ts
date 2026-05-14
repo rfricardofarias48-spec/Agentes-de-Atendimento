@@ -23,10 +23,12 @@ import {
 import {
   createChatwootAccount,
   configureChatwootOnEvolution,
+  createChatwootWebhook,
   getFirstInboxId,
 } from '../services/chatwootService.js';
 
 const WEBHOOK_URL = 'https://gestor.elevva.net.br/api/webhook/evolution';
+const CHATWOOT_WEBHOOK_URL = 'https://gestor.elevva.net.br/api/webhooks/chatwoot';
 
 interface Step {
   id: string;
@@ -93,6 +95,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   } else {
     steps.push({ id: 'chatwoot_create', label: 'Conta Chatwoot', ok: true, detail: `Já existente: Account #${chatwootAccountId}` });
+  }
+
+  // ── 2b. Criar webhook no Chatwoot (conversation_status_changed + message_created) ─
+  if (chatwootAccountId && chatwootToken) {
+    const cwWebhookOk = await createChatwootWebhook(chatwootAccountId, chatwootToken, CHATWOOT_WEBHOOK_URL);
+    steps.push({
+      id: 'chatwoot_webhook',
+      label: 'Webhook Chatwoot configurado',
+      ok: cwWebhookOk,
+      detail: cwWebhookOk
+        ? `URL: ${CHATWOOT_WEBHOOK_URL} · conversation_status_changed, message_created`
+        : 'Falha ao criar webhook — verifique credenciais Chatwoot',
+    });
   }
 
   // ── Persistir credenciais antes de configurar ────────────────────────────
