@@ -4,10 +4,15 @@
  * Config por org vem da tabela organizations (chatwoot_account_id, chatwoot_token, chatwoot_inbox_id).
  */
 
+import { Agent } from 'undici';
+
 const cleanEnv = (key: string) => (process.env[key] || '').replace(/^﻿+/, '').trim();
 
 const CHATWOOT_URL = cleanEnv('CHATWOOT_URL').replace(/\/$/, '');
 const CHATWOOT_ADMIN_TOKEN = cleanEnv('CHATWOOT_ADMIN_TOKEN');
+
+// Aceita certificados autoassinados em instâncias self-hosted (sslip.io, etc.)
+const tlsDispatcher = new Agent({ connect: { rejectUnauthorized: false } });
 
 interface ChatwootContact {
   id: number;
@@ -35,6 +40,8 @@ async function chatwootRequest(
       method,
       headers: { 'Content-Type': 'application/json', 'api_access_token': token },
       body: body ? JSON.stringify(body) : undefined,
+      // @ts-ignore — dispatcher é aceito pelo fetch do Node 22 (undici)
+      dispatcher: tlsDispatcher,
     });
     if (!res.ok) {
       const text = await res.text();
@@ -216,6 +223,8 @@ export async function getFirstInboxId(
   try {
     const res = await fetch(`${CHATWOOT_URL}/api/v1/accounts/${accountId}/inboxes`, {
       headers: { 'api_access_token': token },
+      // @ts-ignore — dispatcher é aceito pelo fetch do Node 22 (undici)
+      dispatcher: tlsDispatcher,
     });
     if (!res.ok) return null;
     const data = await res.json() as { payload?: { id: number }[] };
@@ -278,6 +287,8 @@ export async function createChatwootAccount(orgName: string): Promise<{ accountI
     const res = await fetch(signUpUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      // @ts-ignore — dispatcher é aceito pelo fetch do Node 22 (undici)
+      dispatcher: tlsDispatcher,
       body: JSON.stringify({
         account_name: orgName,
         email: `org-${Date.now()}@elevva.internal`,
