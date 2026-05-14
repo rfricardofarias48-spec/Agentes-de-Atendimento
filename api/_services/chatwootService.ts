@@ -291,7 +291,7 @@ export async function createChatwootAccount(orgName: string): Promise<{ accountI
       dispatcher: tlsDispatcher,
       body: JSON.stringify({
         account_name: orgName,
-        email: `org-${Date.now()}@elevva.internal`,
+        email: `org-${Date.now()}@gestor.elevva.net.br`,
         password: `Ac${Math.random().toString(36).slice(2, 10)}!1`,
         user_full_name: orgName,
       }),
@@ -299,8 +299,7 @@ export async function createChatwootAccount(orgName: string): Promise<{ accountI
 
     const text = await res.text();
     if (!res.ok) {
-      console.error(`[Chatwoot] POST ${signUpUrl} → HTTP ${res.status}: ${text.substring(0, 300)}`);
-      console.error(`[Chatwoot] Verifique: 1) CHATWOOT_URL sem sufixo /app  2) ENABLE_ACCOUNT_SIGNUP=true no Chatwoot`);
+      console.error(`[Chatwoot] signup FAILED — HTTP ${res.status} at ${signUpUrl} — resposta: ${text.substring(0, 400)}`);
       return null;
     }
 
