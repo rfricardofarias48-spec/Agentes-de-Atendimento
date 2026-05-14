@@ -4,8 +4,10 @@
  * Config por org vem da tabela organizations (chatwoot_account_id, chatwoot_token, chatwoot_inbox_id).
  */
 
-const CHATWOOT_URL = (process.env.CHATWOOT_URL || '').replace(/\/$/, '');
-const CHATWOOT_ADMIN_TOKEN = process.env.CHATWOOT_ADMIN_TOKEN || '';
+const cleanEnv = (key: string) => (process.env[key] || '').replace(/^﻿+/, '').trim();
+
+const CHATWOOT_URL = cleanEnv('CHATWOOT_URL').replace(/\/$/, '');
+const CHATWOOT_ADMIN_TOKEN = cleanEnv('CHATWOOT_ADMIN_TOKEN');
 
 interface ChatwootContact {
   id: number;

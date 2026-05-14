@@ -6,8 +6,13 @@
 
 import crypto from 'crypto';
 
-const BASE_URL = (process.env.EVOLUTION_API_URL || '').replace(/\/$/, '');
-const GLOBAL_API_KEY = process.env.EVOLUTION_API_KEY || '';
+/** Remove BOM e espaços que entram ao colar valores no Vercel */
+function env(key: string): string {
+  return (process.env[key] || '').replace(/^﻿+/, '').trim();
+}
+
+const BASE_URL = env('EVOLUTION_API_URL').replace(/\/$/, '');
+const GLOBAL_API_KEY = env('EVOLUTION_API_KEY');
 
 export function cleanPhone(rawJid: string): string {
   return rawJid.replace(/@.*$/, '').replace(/^\+/, '');

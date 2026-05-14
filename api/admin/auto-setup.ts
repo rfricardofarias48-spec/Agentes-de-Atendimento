@@ -29,7 +29,7 @@ import {
 
 const WEBHOOK_URL = 'https://gestor.elevva.net.br/api/webhook/evolution';
 const CHATWOOT_WEBHOOK_URL = 'https://gestor.elevva.net.br/api/webhooks/chatwoot';
-const CHATWOOT_BASE_URL = (process.env.CHATWOOT_URL || '').replace(/\/$/, '');
+const CHATWOOT_BASE_URL = (process.env.CHATWOOT_URL || '').replace(/^﻿+/, '').trim().replace(/\/$/, '');
 
 interface Step {
   id: string;
