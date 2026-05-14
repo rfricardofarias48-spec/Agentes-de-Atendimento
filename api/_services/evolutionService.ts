@@ -98,9 +98,14 @@ export async function createInstance(instanceName: string): Promise<{ token: str
         integration: 'WHATSAPP-BAILEYS',
       }),
     });
-    const data = await res.json() as { instance?: { instanceName: string }; hash?: { apikey: string } };
-    if (res.ok && data.hash?.apikey) {
-      return { token: data.hash.apikey };
+    // Evolution v2 pode retornar hash como string ou como { apikey: string }
+    const data = await res.json() as {
+      instance?: { instanceName: string };
+      hash?: string | { apikey: string };
+    };
+    if (res.ok && data.hash) {
+      const token = typeof data.hash === 'string' ? data.hash : data.hash.apikey;
+      if (token) return { token };
     }
     console.error('[Evolution] createInstance failed:', data);
     return null;
