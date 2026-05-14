@@ -125,6 +125,9 @@ export default function AdminClientDetail() {
   const [setupResult, setSetupResult] = useState<SetupResult | null>(null)
   const [settingUp, setSettingUp] = useState(false)
 
+  // Guia de setup
+  const [showSetupGuide, setShowSetupGuide] = useState(false)
+
   // Auto-setup modal
   const [showAutoSetup, setShowAutoSetup] = useState(false)
   const [autoSteps, setAutoSteps] = useState<SetupStep[]>([])
@@ -480,6 +483,184 @@ export default function AdminClientDetail() {
     <div className="space-y-5 pb-8">
       <input ref={fileInputRef} type="file" accept=".pdf" className="hidden" onChange={handlePdfFileChange} />
 
+      {/* ── Modal Guia de Setup ──────────────────────────────────────────── */}
+      {showSetupGuide && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: 'rgba(15,23,42,0.65)', backdropFilter: 'blur(6px)' }}
+          onClick={e => { if (e.target === e.currentTarget) setShowSetupGuide(false) }}
+        >
+          <div
+            className="w-full max-w-lg rounded-2xl overflow-hidden flex flex-col"
+            style={{ background: '#fff', boxShadow: '0 32px 96px rgba(0,0,0,0.22)', maxHeight: '90vh' }}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 shrink-0" style={{ borderBottom: '1px solid #f1f5f9' }}>
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'linear-gradient(135deg, #2C82B5, #1e5f88)' }}>
+                  <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="10" /><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" /><path d="M12 17h.01" />
+                  </svg>
+                </div>
+                <div>
+                  <p className="font-bold text-[13px] text-slate-800">Como funciona o Setup Automático</p>
+                  <p className="text-[11px] text-slate-400">Guia completo — Evolution API + Chatwoot</p>
+                </div>
+              </div>
+              <button onClick={() => setShowSetupGuide(false)} className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors text-slate-400">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="overflow-y-auto flex-1 px-6 py-5 space-y-6">
+
+              {/* Pré-requisitos */}
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400 mb-3">Pré-requisitos</p>
+                <div className="space-y-2">
+                  {[
+                    { icon: '🖥️', text: 'Servidor Evolution API rodando e acessível', sub: 'Variáveis: EVOLUTION_API_URL e EVOLUTION_API_KEY' },
+                    { icon: '💬', text: 'Servidor Chatwoot configurado', sub: 'Variáveis: CHATWOOT_URL e CHATWOOT_ADMIN_TOKEN' },
+                    { icon: '📋', text: 'Nome da clínica preenchido no cadastro', sub: 'Usado para nomear a instância e o inbox' },
+                    { icon: '📱', text: 'WhatsApp do cliente em mãos', sub: 'Necessário apenas para escanear o QR code no final' },
+                  ].map((item, i) => (
+                    <div key={i} className="flex items-start gap-3 px-3 py-2.5 rounded-xl" style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                      <span className="text-base shrink-0 mt-0.5">{item.icon}</span>
+                      <div>
+                        <p className="text-[12px] font-semibold text-slate-700">{item.text}</p>
+                        <p className="text-[11px] text-slate-400 mt-0.5">{item.sub}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Passos automáticos */}
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400 mb-3">O que acontece automaticamente</p>
+                <div className="relative">
+                  {/* Linha vertical conectando os passos */}
+                  <div className="absolute left-[19px] top-6 bottom-6 w-px" style={{ background: '#e2e8f0' }} />
+                  <div className="space-y-1">
+                    {[
+                      {
+                        n: '1', color: '#2C82B5', bg: '#eff6ff',
+                        title: 'Cria instância no Evolution',
+                        desc: 'Nome gerado automaticamente: elevva-{clínica}-{id único}. Cada cliente tem sua própria instância isolada.',
+                      },
+                      {
+                        n: '2', color: '#7c3aed', bg: '#f5f3ff',
+                        title: 'Cria conta no Chatwoot',
+                        desc: 'Conta dedicada para a clínica com usuário admin e token de acesso. Não compartilha dados com outras clínicas.',
+                      },
+                      {
+                        n: '3', color: '#7c3aed', bg: '#f5f3ff',
+                        title: 'Configura webhook do Chatwoot',
+                        desc: 'Registra o endpoint do sistema para receber notificações quando conversas forem resolvidas.',
+                      },
+                      {
+                        n: '4', color: '#0284c7', bg: '#f0f9ff',
+                        title: 'Aplica configurações da instância',
+                        desc: 'Rejeitar chamadas de voz · Ignorar grupos · Always Online desligado · Leitura de mensagens desligada.',
+                      },
+                      {
+                        n: '5', color: '#0284c7', bg: '#f0f9ff',
+                        title: 'Configura webhook do Evolution',
+                        desc: 'Aponta para o sistema para receber mensagens dos pacientes. Ativa Base64 para suporte a PDFs.',
+                      },
+                      {
+                        n: '6', color: '#059669', bg: '#f0fdf4',
+                        title: 'Integra Evolution ↔ Chatwoot',
+                        desc: 'Cria o inbox "WhatsApp - {Clínica}" no Chatwoot vinculado à instância Evolution. Conversas aparecem em tempo real.',
+                      },
+                      {
+                        n: '7', color: '#059669', bg: '#f0fdf4',
+                        title: 'Localiza o Inbox ID',
+                        desc: 'Busca o ID do inbox criado e salva no banco de dados para roteamento das mensagens.',
+                      },
+                      {
+                        n: '8', color: '#d97706', bg: '#fffbeb',
+                        title: 'Gera o QR code',
+                        desc: 'Solicita o QR code da instância recém-criada para o pareamento com o WhatsApp do cliente.',
+                      },
+                    ].map(step => (
+                      <div key={step.n} className="flex items-start gap-3 pl-1 pr-3 py-2.5 rounded-xl relative">
+                        <div
+                          className="w-9 h-9 rounded-full flex items-center justify-center text-[12px] font-bold shrink-0 z-10"
+                          style={{ background: step.bg, color: step.color, border: `2px solid ${step.color}22` }}
+                        >
+                          {step.n}
+                        </div>
+                        <div className="pt-1">
+                          <p className="text-[12px] font-semibold text-slate-700">{step.title}</p>
+                          <p className="text-[11px] text-slate-400 mt-0.5 leading-relaxed">{step.desc}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Ação do admin */}
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400 mb-3">O que você faz (apenas 1 passo)</p>
+                <div className="rounded-2xl p-4 space-y-3" style={{ background: 'linear-gradient(135deg, #f0fdf4, #dcfce7)', border: '1px solid #bbf7d0' }}>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xl">📱</span>
+                    <p className="font-bold text-sm text-emerald-800">Escanear o QR code com o WhatsApp do cliente</p>
+                  </div>
+                  <ol className="space-y-1.5 pl-1">
+                    {[
+                      'Abra o WhatsApp no celular do cliente',
+                      'Toque nos três pontos (⋮) no canto superior direito',
+                      'Selecione "Aparelhos conectados"',
+                      'Toque em "Conectar um aparelho"',
+                      'Aponte a câmera para o QR code na tela',
+                    ].map((step, i) => (
+                      <li key={i} className="flex items-start gap-2">
+                        <span className="text-[11px] font-bold text-emerald-600 shrink-0 mt-0.5">{i + 1}.</span>
+                        <span className="text-[12px] text-emerald-700">{step}</span>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              </div>
+
+              {/* Após conectar */}
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400 mb-3">Após a conexão</p>
+                <div className="space-y-2">
+                  {[
+                    { icon: '✅', text: 'Agente AI começa a responder mensagens automaticamente' },
+                    { icon: '💬', text: 'Todas as conversas aparecem no Chatwoot em tempo real' },
+                    { icon: '🔔', text: 'Quando escalado para humano, o profissional recebe alerta no WhatsApp' },
+                    { icon: '📄', text: 'PDFs de procedimentos são enviados automaticamente na confirmação de consulta' },
+                  ].map((item, i) => (
+                    <div key={i} className="flex items-center gap-2.5 px-3 py-2 rounded-xl" style={{ background: '#f8fafc' }}>
+                      <span className="text-sm shrink-0">{item.icon}</span>
+                      <p className="text-[12px] text-slate-600">{item.text}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 py-4 shrink-0 flex items-center justify-between" style={{ borderTop: '1px solid #f1f5f9' }}>
+              <p className="text-[11px] text-slate-400">Duração total: ~15 segundos + leitura do QR</p>
+              <button
+                onClick={() => { setShowSetupGuide(false); openAutoSetup() }}
+                className="btn-primary flex items-center gap-1.5 px-4 py-2 text-sm"
+              >
+                <Zap className="w-3.5 h-3.5" />
+                Iniciar agora
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Modal Auto-Setup ─────────────────────────────────────────────── */}
       {showAutoSetup && (
         <>
@@ -822,14 +1003,25 @@ export default function AdminClientDetail() {
                       Verificar
                     </button>
                   ) : (
-                    <button
-                      onClick={openAutoSetup}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-white transition-all"
-                      style={{ background: 'linear-gradient(135deg, #2C82B5, #2570a0)', boxShadow: '0 2px 8px rgba(44,130,181,0.3)' }}
-                    >
-                      <Zap className="w-3.5 h-3.5" />
-                      Configurar Automaticamente
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setShowSetupGuide(true)}
+                        className="p-1.5 rounded-lg transition-colors text-slate-300 hover:text-slate-500 hover:bg-slate-100"
+                        title="Como funciona?"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                          <circle cx="12" cy="12" r="10" /><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" /><path d="M12 17h.01" />
+                        </svg>
+                      </button>
+                      <button
+                        onClick={openAutoSetup}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-white transition-all"
+                        style={{ background: 'linear-gradient(135deg, #2C82B5, #2570a0)', boxShadow: '0 2px 8px rgba(44,130,181,0.3)' }}
+                      >
+                        <Zap className="w-3.5 h-3.5" />
+                        Configurar Automaticamente
+                      </button>
+                    </div>
                   )
                 }
               >
