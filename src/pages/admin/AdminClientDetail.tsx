@@ -11,8 +11,7 @@ import { planLabel, statusLabel, formatDate } from '../../lib/utils'
 import { TZ } from '../../lib/date'
 
 interface SetupStep { id: string; label: string; ok: boolean; detail: string }
-interface SetupResult { steps: SetupStep[]; webhookUrl?: string }
-interface AutoSetupResult { steps: SetupStep[]; qrCode: string | null; evolutionInstance: string }
+type SkillPhase = 'infra' | 'qr' | 'finalize' | 'done'
 interface Service {
   id: string
   name: string
@@ -121,22 +120,20 @@ export default function AdminClientDetail() {
   const [connectionStatus, setConnectionStatus] = useState<'unknown' | 'open' | 'connecting' | 'close'>('unknown')
   const [checkingConn, setCheckingConn] = useState(false)
 
-  // Setup
-  const [setupResult, setSetupResult] = useState<SetupResult | null>(null)
-  const [settingUp, setSettingUp] = useState(false)
-
-  // Guia de setup
-  const [showSetupGuide, setShowSetupGuide] = useState(false)
-
-  // Auto-setup modal
-  const [showAutoSetup, setShowAutoSetup] = useState(false)
-  const [autoSteps, setAutoSteps] = useState<SetupStep[]>([])
-  const [autoQR, setAutoQR] = useState<string | null>(null)
-  const [autoRunning, setAutoRunning] = useState(false)
-  const [autoConnected, setAutoConnected] = useState(false)
-  const [showQR, setShowQR] = useState(false)
+  // Skill — Setup Completo (3 fases sequenciais)
+  const [showSkill, setShowSkill] = useState(false)
+  const [skillPhase, setSkillPhase] = useState<SkillPhase>('infra')
+  const [infraSteps, setInfraSteps] = useState<SetupStep[]>([])
+  const [infraRunning, setInfraRunning] = useState(false)
+  const infraDoneRef = useRef(false)
+  const [skillQR, setSkillQR] = useState<string | null>(null)
+  const [skillQRVisible, setSkillQRVisible] = useState(false)
+  const [skillConnected, setSkillConnected] = useState(false)
+  const [finalSteps, setFinalSteps] = useState<SetupStep[]>([])
+  const [finalRunning, setFinalRunning] = useState(false)
+  const finalizeDoneRef = useRef(false)
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
-  const showQRTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const qrTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Password reset
   const [newPass, setNewPass] = useState('')
@@ -201,47 +198,49 @@ export default function AdminClientDetail() {
     }
   }
 
+  // ─── Skill: Setup Completo ──────────────────────────────────────────────
   const stopPoll = useCallback(() => {
     if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null }
   }, [])
 
-  const startPoll = useCallback(() => {
+  useEffect(() => () => {
+    stopPoll()
+    if (qrTimerRef.current) clearTimeout(qrTimerRef.current)
+  }, [stopPoll])
+
+  const startQRPoll = useCallback(() => {
     stopPoll()
     pollRef.current = setInterval(async () => {
       try {
-        const res = await fetch(`/api/admin/qr-status?orgId=${id}`)
-        const data = await res.json() as { state: string; connected: boolean; qrCode: string | null }
-        if (data.connected) {
-          setAutoConnected(true)
-          setAutoQR(null)
+        const r = await fetch(`/api/admin/qr-status?orgId=${id}`)
+        const d = await r.json() as { connected: boolean; qrCode: string | null }
+        if (d.connected) {
+          setSkillConnected(true)
           stopPoll()
-          // Recarrega org para pegar os dados atualizados
-          const { data: fresh } = await supabase.from('organizations').select('*').eq('id', id!).single()
-          if (fresh) setOrg(fresh)
-        } else if (data.qrCode) {
-          setAutoQR(data.qrCode)
+          setTimeout(() => setSkillPhase('finalize'), 1200)
+        } else if (d.qrCode) {
+          setSkillQR(d.qrCode)
         }
-      } catch { /* ignore poll errors */ }
+      } catch { /* ignore */ }
     }, 4000)
   }, [id, stopPoll])
 
-  useEffect(() => () => {
-    stopPoll()
-    if (showQRTimerRef.current) clearTimeout(showQRTimerRef.current)
-  }, [stopPoll])
+  async function refreshSkillQR() {
+    try {
+      const r = await fetch(`/api/admin/qr-status?orgId=${id}`)
+      const d = await r.json() as { qrCode: string | null }
+      if (d.qrCode) setSkillQR(d.qrCode)
+    } catch { /* ignore */ }
+  }
 
-  async function openAutoSetup() {
-    setShowAutoSetup(true)
-    setAutoSteps([])
-    setAutoQR(null)
-    setAutoConnected(false)
-    setShowQR(false)
-    setAutoRunning(true)
-    stopPoll()
-    if (showQRTimerRef.current) clearTimeout(showQRTimerRef.current)
+  async function runInfra() {
+    if (infraDoneRef.current) return
+    infraDoneRef.current = true
+    setInfraRunning(true)
+    setInfraSteps([])
     try {
       const { data: { session } } = await supabase.auth.getSession()
-      const res = await fetch('/api/admin/auto-setup', {
+      const r = await fetch('/api/admin/auto-setup', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -249,37 +248,74 @@ export default function AdminClientDetail() {
         },
         body: JSON.stringify({ orgId: id }),
       })
-      const data = await res.json() as AutoSetupResult
-      setAutoSteps(data.steps)
-      if (data.qrCode) {
-        setAutoQR(data.qrCode)
-        // Mostra QR só depois que todos os steps tiverem tempo de animar
-        const delay = data.steps.length * 120 + 600
-        showQRTimerRef.current = setTimeout(() => setShowQR(true), delay)
+      const d = await r.json() as { steps: SetupStep[]; qrCode: string | null }
+      setInfraSteps(d.steps)
+      if (d.qrCode) {
+        setSkillQR(d.qrCode)
+        qrTimerRef.current = setTimeout(() => {
+          setSkillQRVisible(true)
+          setSkillPhase('qr')
+          startQRPoll()
+        }, d.steps.length * 100 + 700)
       }
       const { data: fresh } = await supabase.from('organizations').select('*').eq('id', id!).single()
       if (fresh) setOrg(fresh)
-      startPoll()
     } catch (e) {
-      setAutoSteps([{ id: 'error', label: 'Erro', ok: false, detail: String(e) }])
+      setInfraSteps([{ id: 'err', label: 'Erro inesperado', ok: false, detail: String(e) }])
     } finally {
-      setAutoRunning(false)
+      setInfraRunning(false)
     }
   }
 
-  function closeAutoSetup() {
-    stopPoll()
-    if (showQRTimerRef.current) clearTimeout(showQRTimerRef.current)
-    setShowAutoSetup(false)
+  async function runFinalizeSkill() {
+    if (finalizeDoneRef.current) return
+    finalizeDoneRef.current = true
+    setFinalRunning(true)
+    setFinalSteps([])
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const r = await fetch('/api/admin/finalize-setup', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+        },
+        body: JSON.stringify({ orgId: id }),
+      })
+      const d = await r.json() as { steps: SetupStep[] }
+      setFinalSteps(d.steps)
+      if (d.steps.every(s => s.ok)) setTimeout(() => setSkillPhase('done'), 900)
+    } catch (e) {
+      setFinalSteps([{ id: 'err', label: 'Erro inesperado', ok: false, detail: String(e) }])
+    } finally {
+      setFinalRunning(false)
+    }
   }
 
-  async function refreshQR() {
-    try {
-      const res = await fetch(`/api/admin/qr-status?orgId=${id}`)
-      const data = await res.json() as { qrCode: string | null }
-      if (data.qrCode) setAutoQR(data.qrCode)
-    } catch { /* ignore */ }
+  function openSkill() {
+    infraDoneRef.current = false
+    finalizeDoneRef.current = false
+    setShowSkill(true)
+    setSkillPhase('infra')
+    setInfraSteps([])
+    setSkillQR(null)
+    setSkillQRVisible(false)
+    setSkillConnected(false)
+    setFinalSteps([])
+    stopPoll()
+    if (qrTimerRef.current) clearTimeout(qrTimerRef.current)
+    runInfra()
   }
+
+  function closeSkill() {
+    stopPoll()
+    if (qrTimerRef.current) clearTimeout(qrTimerRef.current)
+    setShowSkill(false)
+  }
+
+  useEffect(() => {
+    if (skillPhase === 'finalize') runFinalizeSkill()
+  }, [skillPhase]) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleResetPassword() {
     if (!newPass) return
@@ -309,31 +345,8 @@ export default function AdminClientDetail() {
     }
   }
 
-  async function runSetup(orgId: string) {
-    setSettingUp(true)
-    setSetupResult(null)
-    try {
-      const { data: { session } } = await supabase.auth.getSession()
-      const res = await fetch('/api/admin/setup-org', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
-        },
-        body: JSON.stringify({ orgId }),
-      })
-      const data = await res.json() as SetupResult
-      setSetupResult(data)
-    } catch (e) {
-      setSetupResult({ steps: [{ id: 'error', label: 'Erro', ok: false, detail: String(e) }] })
-    } finally {
-      setSettingUp(false)
-    }
-  }
-
   async function handleSave() {
     setSaving(true)
-    setSetupResult(null)
 
     // Normaliza o telefone: garante prefixo 55 se preenchido
     const rawPhone = (org.phone ?? '').replace(/\D/g, '')
@@ -366,7 +379,6 @@ export default function AdminClientDetail() {
         .eq('org_id', id!)
     }
 
-    if (org.evolution_instance && org.evolution_token) await runSetup(id!)
   }
 
   async function handleSaveAgent() {
@@ -483,366 +495,197 @@ export default function AdminClientDetail() {
     <div className="space-y-5 pb-8">
       <input ref={fileInputRef} type="file" accept=".pdf" className="hidden" onChange={handlePdfFileChange} />
 
-      {/* ── Modal Guia de Setup ──────────────────────────────────────────── */}
-      {showSetupGuide && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ background: 'rgba(15,23,42,0.65)', backdropFilter: 'blur(6px)' }}
-          onClick={e => { if (e.target === e.currentTarget) setShowSetupGuide(false) }}
-        >
-          <div
-            className="w-full max-w-lg rounded-2xl overflow-hidden flex flex-col"
-            style={{ background: '#fff', boxShadow: '0 32px 96px rgba(0,0,0,0.22)', maxHeight: '90vh' }}
-          >
-            {/* Header */}
-            <div className="flex items-center justify-between px-6 py-4 shrink-0" style={{ borderBottom: '1px solid #f1f5f9' }}>
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'linear-gradient(135deg, #2C82B5, #1e5f88)' }}>
-                  <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-                    <circle cx="12" cy="12" r="10" /><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" /><path d="M12 17h.01" />
-                  </svg>
-                </div>
-                <div>
-                  <p className="font-bold text-[13px] text-slate-800">Como funciona o Setup Automático</p>
-                  <p className="text-[11px] text-slate-400">Guia completo — Evolution API + Chatwoot</p>
-                </div>
-              </div>
-              <button onClick={() => setShowSetupGuide(false)} className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors text-slate-400">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <div className="overflow-y-auto flex-1 px-6 py-5 space-y-6">
-
-              {/* Pré-requisitos */}
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400 mb-3">Pré-requisitos</p>
-                <div className="space-y-2">
-                  {[
-                    { icon: '🖥️', text: 'Servidor Evolution API rodando e acessível', sub: 'Variáveis: EVOLUTION_API_URL e EVOLUTION_API_KEY' },
-                    { icon: '💬', text: 'Servidor Chatwoot configurado', sub: 'Variáveis: CHATWOOT_URL e CHATWOOT_ADMIN_TOKEN' },
-                    { icon: '📋', text: 'Nome da clínica preenchido no cadastro', sub: 'Usado para nomear a instância e o inbox' },
-                    { icon: '📱', text: 'WhatsApp do cliente em mãos', sub: 'Necessário apenas para escanear o QR code no final' },
-                  ].map((item, i) => (
-                    <div key={i} className="flex items-start gap-3 px-3 py-2.5 rounded-xl" style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}>
-                      <span className="text-base shrink-0 mt-0.5">{item.icon}</span>
-                      <div>
-                        <p className="text-[12px] font-semibold text-slate-700">{item.text}</p>
-                        <p className="text-[11px] text-slate-400 mt-0.5">{item.sub}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Passos automáticos */}
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400 mb-3">O que acontece automaticamente</p>
-                <div className="relative">
-                  {/* Linha vertical conectando os passos */}
-                  <div className="absolute left-[19px] top-6 bottom-6 w-px" style={{ background: '#e2e8f0' }} />
-                  <div className="space-y-1">
-                    {[
-                      {
-                        n: '1', color: '#2C82B5', bg: '#eff6ff',
-                        title: 'Cria instância no Evolution',
-                        desc: 'Nome gerado automaticamente: elevva-{clínica}-{id único}. Cada cliente tem sua própria instância isolada.',
-                      },
-                      {
-                        n: '2', color: '#7c3aed', bg: '#f5f3ff',
-                        title: 'Cria conta no Chatwoot',
-                        desc: 'Conta dedicada para a clínica com usuário admin e token de acesso. Não compartilha dados com outras clínicas.',
-                      },
-                      {
-                        n: '3', color: '#7c3aed', bg: '#f5f3ff',
-                        title: 'Configura webhook do Chatwoot',
-                        desc: 'Registra o endpoint do sistema para receber notificações quando conversas forem resolvidas.',
-                      },
-                      {
-                        n: '4', color: '#0284c7', bg: '#f0f9ff',
-                        title: 'Aplica configurações da instância',
-                        desc: 'Rejeitar chamadas de voz · Ignorar grupos · Always Online desligado · Leitura de mensagens desligada.',
-                      },
-                      {
-                        n: '5', color: '#0284c7', bg: '#f0f9ff',
-                        title: 'Configura webhook do Evolution',
-                        desc: 'Aponta para o sistema para receber mensagens dos pacientes. Ativa Base64 para suporte a PDFs.',
-                      },
-                      {
-                        n: '6', color: '#059669', bg: '#f0fdf4',
-                        title: 'Integra Evolution ↔ Chatwoot',
-                        desc: 'Cria o inbox "WhatsApp - {Clínica}" no Chatwoot vinculado à instância Evolution. Conversas aparecem em tempo real.',
-                      },
-                      {
-                        n: '7', color: '#059669', bg: '#f0fdf4',
-                        title: 'Localiza o Inbox ID',
-                        desc: 'Busca o ID do inbox criado e salva no banco de dados para roteamento das mensagens.',
-                      },
-                      {
-                        n: '8', color: '#d97706', bg: '#fffbeb',
-                        title: 'Gera o QR code',
-                        desc: 'Solicita o QR code da instância recém-criada para o pareamento com o WhatsApp do cliente.',
-                      },
-                    ].map(step => (
-                      <div key={step.n} className="flex items-start gap-3 pl-1 pr-3 py-2.5 rounded-xl relative">
-                        <div
-                          className="w-9 h-9 rounded-full flex items-center justify-center text-[12px] font-bold shrink-0 z-10"
-                          style={{ background: step.bg, color: step.color, border: `2px solid ${step.color}22` }}
-                        >
-                          {step.n}
-                        </div>
-                        <div className="pt-1">
-                          <p className="text-[12px] font-semibold text-slate-700">{step.title}</p>
-                          <p className="text-[11px] text-slate-400 mt-0.5 leading-relaxed">{step.desc}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* Ação do admin */}
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400 mb-3">O que você faz (apenas 1 passo)</p>
-                <div className="rounded-2xl p-4 space-y-3" style={{ background: 'linear-gradient(135deg, #f0fdf4, #dcfce7)', border: '1px solid #bbf7d0' }}>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xl">📱</span>
-                    <p className="font-bold text-sm text-emerald-800">Escanear o QR code com o WhatsApp do cliente</p>
-                  </div>
-                  <ol className="space-y-1.5 pl-1">
-                    {[
-                      'Abra o WhatsApp no celular do cliente',
-                      'Toque nos três pontos (⋮) no canto superior direito',
-                      'Selecione "Aparelhos conectados"',
-                      'Toque em "Conectar um aparelho"',
-                      'Aponte a câmera para o QR code na tela',
-                    ].map((step, i) => (
-                      <li key={i} className="flex items-start gap-2">
-                        <span className="text-[11px] font-bold text-emerald-600 shrink-0 mt-0.5">{i + 1}.</span>
-                        <span className="text-[12px] text-emerald-700">{step}</span>
-                      </li>
-                    ))}
-                  </ol>
-                </div>
-              </div>
-
-              {/* Após conectar */}
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400 mb-3">Após a conexão</p>
-                <div className="space-y-2">
-                  {[
-                    { icon: '✅', text: 'Agente AI começa a responder mensagens automaticamente' },
-                    { icon: '💬', text: 'Todas as conversas aparecem no Chatwoot em tempo real' },
-                    { icon: '🔔', text: 'Quando escalado para humano, o profissional recebe alerta no WhatsApp' },
-                    { icon: '📄', text: 'PDFs de procedimentos são enviados automaticamente na confirmação de consulta' },
-                  ].map((item, i) => (
-                    <div key={i} className="flex items-center gap-2.5 px-3 py-2 rounded-xl" style={{ background: '#f8fafc' }}>
-                      <span className="text-sm shrink-0">{item.icon}</span>
-                      <p className="text-[12px] text-slate-600">{item.text}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-            </div>
-
-            {/* Footer */}
-            <div className="px-6 py-4 shrink-0 flex items-center justify-between" style={{ borderTop: '1px solid #f1f5f9' }}>
-              <p className="text-[11px] text-slate-400">Duração total: ~15 segundos + leitura do QR</p>
-              <button
-                onClick={() => { setShowSetupGuide(false); openAutoSetup() }}
-                className="btn-primary flex items-center gap-1.5 px-4 py-2 text-sm"
-              >
-                <Zap className="w-3.5 h-3.5" />
-                Iniciar agora
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── Modal Auto-Setup ─────────────────────────────────────────────── */}
-      {showAutoSetup && (
+      {/* ── Skill: Setup Completo ────────────────────────────────────────── */}
+      {showSkill && (
         <>
           <style>{`
-            @keyframes asStepIn {
-              from { opacity: 0; transform: translateY(6px); }
+            @keyframes skillStepIn {
+              from { opacity: 0; transform: translateY(5px); }
               to   { opacity: 1; transform: translateY(0); }
             }
-            @keyframes asQRIn {
-              from { opacity: 0; transform: scale(0.96); }
-              to   { opacity: 1; transform: scale(1); }
-            }
-            .as-step { animation: asStepIn 0.28s ease both; }
-            .as-qr   { animation: asQRIn 0.4s cubic-bezier(0.16,1,0.3,1) both; }
+            .skill-step { animation: skillStepIn 0.25s ease both; }
           `}</style>
-
           <div
             className="fixed inset-0 z-50 flex items-center justify-center p-4"
             style={{ background: 'rgba(15,23,42,0.65)', backdropFilter: 'blur(6px)' }}
-            onClick={e => { if (e.target === e.currentTarget && !autoRunning) closeAutoSetup() }}
+            onClick={e => { if (e.target === e.currentTarget && !infraRunning && !finalRunning) closeSkill() }}
           >
-            <div
-              className="w-full max-w-md rounded-2xl overflow-hidden flex flex-col"
-              style={{ background: '#fff', boxShadow: '0 32px 96px rgba(0,0,0,0.22)', maxHeight: '90vh' }}
-            >
-              {/* Cabeçalho */}
-              <div className="flex items-center justify-between px-6 py-4 shrink-0" style={{ borderBottom: '1px solid #f1f5f9' }}>
+          <div
+            className="w-full max-w-md rounded-2xl overflow-hidden flex flex-col"
+            style={{ background: '#fff', boxShadow: '0 32px 96px rgba(0,0,0,0.22)', maxHeight: '90vh' }}
+          >
+            {/* Cabeçalho com progresso */}
+            <div className="px-6 py-4 shrink-0" style={{ borderBottom: '1px solid #f1f5f9' }}>
+              <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'linear-gradient(135deg, #2C82B5, #1e5f88)' }}>
-                    {autoRunning
-                      ? <Loader2 className="w-4 h-4 text-white animate-spin" />
-                      : autoConnected
-                        ? <CheckCircle2 className="w-4 h-4 text-white" />
-                        : <Zap className="w-4 h-4 text-white" />
-                    }
+                  <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0"
+                    style={{ background: 'linear-gradient(135deg, #2C82B5, #1e5f88)' }}>
+                    {skillPhase === 'done'
+                      ? <CheckCircle2 className="w-4 h-4 text-white" />
+                      : infraRunning || finalRunning
+                        ? <Loader2 className="w-4 h-4 text-white animate-spin" />
+                        : <Zap className="w-4 h-4 text-white" />}
                   </div>
                   <div>
                     <p className="font-bold text-[13px] text-slate-800">
-                      {autoRunning ? 'Configurando...' : autoConnected ? 'Tudo pronto!' : 'Configuração Automática'}
+                      {skillPhase === 'done' ? 'Setup Concluído!' : 'Skill — Setup Completo'}
                     </p>
-                    <p className="text-[11px] text-slate-400">Evolution API + Chatwoot</p>
+                    <p className="text-[11px] text-slate-400">
+                      {skillPhase === 'infra' ? 'Etapa 1 de 3 — Infraestrutura' :
+                       skillPhase === 'qr'    ? 'Etapa 2 de 3 — Conectar WhatsApp' :
+                       skillPhase === 'finalize' ? 'Etapa 3 de 3 — Finalização' :
+                       'Todas as etapas concluídas'}
+                    </p>
                   </div>
                 </div>
-                {!autoRunning && (
-                  <button onClick={closeAutoSetup} className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors text-slate-400">
+                {skillPhase !== 'infra' && !(infraRunning || finalRunning) && (
+                  <button onClick={closeSkill} className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors text-slate-400">
                     <X className="w-4 h-4" />
                   </button>
                 )}
               </div>
-
-              <div className="overflow-y-auto flex-1">
-
-                {/* ── FASE 1: Checklist de etapas ── */}
-                <div className="px-6 pt-5 pb-2">
-                  {autoRunning && autoSteps.length === 0 ? (
-                    <div className="flex items-center gap-3 py-6 justify-center">
-                      <Loader2 className="w-5 h-5 text-brand-400 animate-spin" />
-                      <p className="text-sm text-slate-400">Criando instâncias e configurando integrações...</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      {autoSteps.map((step, i) => (
-                        <div
-                          key={step.id}
-                          className="as-step flex items-start gap-3 px-3 py-2.5 rounded-xl"
-                          style={{
-                            animationDelay: `${i * 110}ms`,
-                            background: step.ok ? '#f0fdf4' : '#fef2f2',
-                            border: `1px solid ${step.ok ? '#bbf7d0' : '#fecaca'}`,
-                          }}
-                        >
-                          {step.ok
-                            ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 mt-0.5 shrink-0" />
-                            : <XCircle className="w-3.5 h-3.5 text-red-400 mt-0.5 shrink-0" />}
-                          <div className="min-w-0">
-                            <p className="text-[12px] font-semibold leading-tight" style={{ color: step.ok ? '#166534' : '#991b1b' }}>
-                              {step.label}
-                            </p>
-                            <p className="text-[11px] mt-0.5 text-slate-400 leading-tight">{step.detail}</p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* ── FASE 2: QR Code (aparece após steps animarem) ── */}
-                {!autoConnected && showQR && autoQR && (
-                  <div className="as-qr px-6 pb-6 pt-4">
-                    {/* Separador com label */}
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="flex-1 h-px" style={{ background: '#e2e8f0' }} />
-                      <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400 shrink-0">
-                        Etapa final
-                      </span>
-                      <div className="flex-1 h-px" style={{ background: '#e2e8f0' }} />
-                    </div>
-
-                    {/* Instrução */}
-                    <div className="text-center mb-4">
-                      <p className="font-bold text-slate-800 text-sm">Escaneie com o WhatsApp do cliente</p>
-                      <p className="text-[12px] text-slate-400 mt-0.5">Abra o WhatsApp → três pontos → Aparelhos conectados → Conectar</p>
-                    </div>
-
-                    {/* QR Code */}
-                    <div
-                      className="flex justify-center items-center rounded-2xl mx-auto"
-                      style={{ background: '#fff', border: '2px solid #e2e8f0', padding: '16px', width: 'fit-content' }}
-                    >
-                      <img
-                        src={autoQR.startsWith('data:') ? autoQR : `data:image/png;base64,${autoQR}`}
-                        alt="QR Code WhatsApp"
-                        width={220}
-                        height={220}
-                        style={{ display: 'block', imageRendering: 'pixelated' }}
-                      />
-                    </div>
-
-                    {/* Status de polling */}
-                    <div className="flex items-center justify-between mt-3">
-                      <div className="flex items-center gap-1.5">
-                        <div className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
-                        <p className="text-[11px] text-slate-400">Verificando a cada 4 segundos...</p>
-                      </div>
-                      <button
-                        onClick={refreshQR}
-                        className="flex items-center gap-1 text-[11px] font-semibold text-slate-400 hover:text-brand-600 transition-colors"
-                      >
-                        <RefreshCw className="w-3 h-3" />
-                        Atualizar QR
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {/* QR ainda sendo gerado após setup ok */}
-                {!autoRunning && !autoConnected && !autoQR && autoSteps.length > 0 && (
-                  <div className="px-6 pb-5 pt-3">
-                    <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl" style={{ background: '#f0f9ff', border: '1px solid #bae6fd' }}>
-                      <Loader2 className="w-3.5 h-3.5 text-sky-500 animate-spin shrink-0" />
-                      <p className="text-[11px] text-sky-700">QR code sendo gerado pela Evolution...</p>
-                      <button onClick={refreshQR} className="ml-auto text-[11px] font-bold text-sky-600 hover:text-sky-800 transition-colors shrink-0">
-                        Tentar agora
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {/* ── FASE 3: Conectado! ── */}
-                {autoConnected && (
-                  <div className="px-6 pb-6 pt-4">
-                    <div className="flex items-center gap-3 p-4 rounded-2xl" style={{ background: '#f0fdf4', border: '1px solid #bbf7d0' }}>
-                      <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: '#dcfce7' }}>
-                        <CheckCircle2 className="w-5 h-5 text-emerald-600" />
-                      </div>
-                      <div>
-                        <p className="font-bold text-emerald-800 text-sm">WhatsApp Conectado!</p>
-                        <p className="text-[12px] text-emerald-600 mt-0.5">A instância está ativa e pronta para atender pacientes.</p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Footer */}
-              <div className="px-6 py-4 shrink-0 flex justify-end gap-3" style={{ borderTop: '1px solid #f1f5f9' }}>
-                {autoConnected ? (
-                  <button onClick={closeAutoSetup} className="btn-primary px-5 py-2.5 text-sm">
-                    Concluído
-                  </button>
-                ) : (
-                  <button
-                    onClick={closeAutoSetup}
-                    disabled={autoRunning}
-                    className="px-5 py-2.5 rounded-xl text-sm font-semibold transition-colors disabled:opacity-40"
-                    style={{ border: '1px solid #e2e8f0', color: '#64748b' }}
-                  >
-                    {autoRunning ? 'Aguarde...' : 'Fechar'}
-                  </button>
-                )}
+              {/* Barra de progresso */}
+              <div className="flex gap-1.5">
+                {(['infra','qr','finalize'] as SkillPhase[]).map((p, i) => {
+                  const done = skillPhase === 'done' || (['infra','qr','finalize'] as SkillPhase[]).indexOf(skillPhase) > i
+                  const active = skillPhase === p
+                  return (
+                    <div key={p} className="flex-1 h-1 rounded-full transition-all duration-500"
+                      style={{ background: done ? '#16a34a' : active ? '#2C82B5' : '#e2e8f0' }} />
+                  )
+                })}
               </div>
             </div>
+
+            {/* Corpo */}
+            <div className="overflow-y-auto flex-1 px-5 py-4 space-y-3">
+
+              {/* Etapa 1 — Infraestrutura */}
+              {infraSteps.length === 0 && infraRunning && (
+                <div className="flex items-center gap-3 py-5 justify-center">
+                  <Loader2 className="w-5 h-5 text-brand-400 animate-spin" />
+                  <p className="text-sm text-slate-400">Criando infraestrutura...</p>
+                </div>
+              )}
+              {infraSteps.map((s, i) => (
+                <div key={s.id} className="skill-step flex items-start gap-3 px-3 py-2.5 rounded-xl"
+                  style={{ animationDelay: `${i * 100}ms`, background: s.ok ? '#f0fdf4' : '#fef2f2', border: `1px solid ${s.ok ? '#bbf7d0' : '#fecaca'}` }}>
+                  {s.ok ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 mt-0.5 shrink-0" /> : <XCircle className="w-3.5 h-3.5 text-red-400 mt-0.5 shrink-0" />}
+                  <div className="min-w-0">
+                    <p className="text-[12px] font-semibold" style={{ color: s.ok ? '#166534' : '#991b1b' }}>{s.label}</p>
+                    <p className="text-[11px] mt-0.5 text-slate-400 leading-tight">{s.detail}</p>
+                  </div>
+                </div>
+              ))}
+
+              {/* Etapa 2 — QR Code */}
+              {skillQRVisible && !skillConnected && (
+                <>
+                  <div className="flex items-center gap-2 my-1">
+                    <div className="flex-1 h-px bg-slate-100" />
+                    <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-300">Conectar WhatsApp</span>
+                    <div className="flex-1 h-px bg-slate-100" />
+                  </div>
+                  {skillQR ? (
+                    <>
+                      <p className="text-center text-[12px] text-slate-500">
+                        WhatsApp → ⋮ → <b>Aparelhos conectados</b> → Conectar um aparelho
+                      </p>
+                      <div className="flex justify-center">
+                        <div className="p-3 rounded-2xl" style={{ border: '2px solid #e2e8f0' }}>
+                          <img src={skillQR.startsWith('data:') ? skillQR : `data:image/png;base64,${skillQR}`}
+                            alt="QR Code" width={210} height={210} style={{ display: 'block', imageRendering: 'pixelated' }} />
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5">
+                          <div className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                          <p className="text-[11px] text-slate-400">Verificando a cada 4 s...</p>
+                        </div>
+                        <button onClick={refreshSkillQR}
+                          className="flex items-center gap-1 text-[11px] font-semibold text-slate-400 hover:text-brand-600 transition-colors">
+                          <RefreshCw className="w-3 h-3" /> Atualizar QR
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl" style={{ background: '#f0f9ff', border: '1px solid #bae6fd' }}>
+                      <Loader2 className="w-3.5 h-3.5 text-sky-500 animate-spin shrink-0" />
+                      <p className="text-[11px] text-sky-700">Aguardando QR code...</p>
+                      <button onClick={refreshSkillQR} className="ml-auto text-[11px] font-bold text-sky-600 shrink-0">Tentar agora</button>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {/* Etapa 2 — Conectado */}
+              {skillConnected && (
+                <div className="flex items-center gap-3 px-3 py-3 rounded-xl" style={{ background: '#f0fdf4', border: '1px solid #bbf7d0' }}>
+                  <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                  <p className="text-[12px] font-semibold text-emerald-700">WhatsApp conectado — finalizando setup...</p>
+                </div>
+              )}
+
+              {/* Etapa 3 — Finalização */}
+              {(finalSteps.length > 0 || finalRunning) && (
+                <>
+                  <div className="flex items-center gap-2 my-1">
+                    <div className="flex-1 h-px bg-slate-100" />
+                    <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-300">Finalização</span>
+                    <div className="flex-1 h-px bg-slate-100" />
+                  </div>
+                  {finalRunning && finalSteps.length === 0 && (
+                    <div className="flex items-center gap-3 py-3 justify-center">
+                      <Loader2 className="w-4 h-4 text-brand-400 animate-spin" />
+                      <p className="text-sm text-slate-400">Enviando boas-vindas...</p>
+                    </div>
+                  )}
+                  {finalSteps.map((s, i) => (
+                    <div key={s.id} className="skill-step flex items-start gap-3 px-3 py-2.5 rounded-xl"
+                      style={{ animationDelay: `${i * 100}ms`, background: s.ok ? '#f0fdf4' : '#fef2f2', border: `1px solid ${s.ok ? '#bbf7d0' : '#fecaca'}` }}>
+                      {s.ok ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 mt-0.5 shrink-0" /> : <XCircle className="w-3.5 h-3.5 text-red-400 mt-0.5 shrink-0" />}
+                      <div className="min-w-0">
+                        <p className="text-[12px] font-semibold" style={{ color: s.ok ? '#166534' : '#991b1b' }}>{s.label}</p>
+                        <p className="text-[11px] mt-0.5 text-slate-400 leading-tight">{s.detail}</p>
+                      </div>
+                    </div>
+                  ))}
+                  {!finalRunning && finalSteps.some(s => !s.ok) && (
+                    <button onClick={() => { finalizeDoneRef.current = false; runFinalizeSkill() }}
+                      className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-400 hover:text-slate-700 transition-colors mt-1">
+                      <RefreshCw className="w-3 h-3" /> Tentar finalização novamente
+                    </button>
+                  )}
+                </>
+              )}
+
+              {/* Concluído */}
+              {skillPhase === 'done' && (
+                <div className="flex items-center gap-3 p-4 rounded-2xl" style={{ background: 'linear-gradient(135deg,#f0fdf4,#dcfce7)', border: '1px solid #bbf7d0' }}>
+                  <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: '#16a34a' }}>
+                    <CheckCircle2 className="w-4 h-4 text-white" />
+                  </div>
+                  <div>
+                    <p className="font-bold text-emerald-800 text-sm">Tudo pronto!</p>
+                    <p className="text-[12px] text-emerald-600 mt-0.5">WhatsApp ativo · Chatwoot configurado · Cliente notificado</p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="px-5 py-3 shrink-0 flex justify-end" style={{ borderTop: '1px solid #f1f5f9' }}>
+              {skillPhase === 'done' ? (
+                <button onClick={closeSkill} className="btn-primary px-5 py-2.5 text-sm">Concluído</button>
+              ) : (
+                <button onClick={closeSkill} disabled={infraRunning || finalRunning}
+                  className="px-5 py-2.5 rounded-xl text-sm font-semibold disabled:opacity-40 transition-colors"
+                  style={{ border: '1px solid #e2e8f0', color: '#64748b' }}>
+                  {infraRunning || finalRunning ? 'Aguarde...' : 'Fechar'}
+                </button>
+              )}
+            </div>
+          </div>
           </div>
         </>
       )}
@@ -1003,25 +846,14 @@ export default function AdminClientDetail() {
                       Verificar
                     </button>
                   ) : (
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => setShowSetupGuide(true)}
-                        className="p-1.5 rounded-lg transition-colors text-slate-300 hover:text-slate-500 hover:bg-slate-100"
-                        title="Como funciona?"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                          <circle cx="12" cy="12" r="10" /><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" /><path d="M12 17h.01" />
-                        </svg>
-                      </button>
-                      <button
-                        onClick={openAutoSetup}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-white transition-all"
-                        style={{ background: 'linear-gradient(135deg, #2C82B5, #2570a0)', boxShadow: '0 2px 8px rgba(44,130,181,0.3)' }}
-                      >
-                        <Zap className="w-3.5 h-3.5" />
-                        Configurar Automaticamente
-                      </button>
-                    </div>
+                    <button
+                      onClick={openSkill}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-white transition-all"
+                      style={{ background: 'linear-gradient(135deg, #2C82B5, #2570a0)', boxShadow: '0 2px 8px rgba(44,130,181,0.3)' }}
+                    >
+                      <Zap className="w-3.5 h-3.5" />
+                      Configurar
+                    </button>
                   )
                 }
               >
@@ -1100,70 +932,13 @@ export default function AdminClientDetail() {
             </div>
           </div>
 
-          {/* Setup result */}
-          {(settingUp || setupResult) && (
-            <div style={CARD_STYLE} className="p-6 space-y-4">
-              <div className="flex items-center gap-2">
-                <Zap className={`w-4 h-4 ${settingUp ? 'text-amber-500 animate-pulse' : 'text-brand-500'}`} />
-                <p className="font-semibold text-sm uppercase tracking-wider" style={{ color: '#344054' }}>
-                  {settingUp ? 'Configurando automaticamente...' : 'Resultado do Setup'}
-                </p>
-              </div>
-              {settingUp && (
-                <div className="flex items-center gap-3 text-sm" style={{ color: '#98a2b3' }}>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Criando conta Chatwoot, webhook e agente...
-                </div>
-              )}
-              {setupResult && (
-                <div className="space-y-2">
-                  {setupResult.steps.map(step => (
-                    <div key={step.id} className="flex items-start gap-3 p-3 rounded-xl" style={{ background: '#f9fafb', border: '1px solid #f2f4f7' }}>
-                      {step.ok
-                        ? <CheckCircle2 className="w-4 h-4 text-brand-500 mt-0.5 shrink-0" />
-                        : <XCircle className="w-4 h-4 text-slate-400 mt-0.5 shrink-0" />}
-                      <div className="min-w-0">
-                        <p className="text-xs font-semibold" style={{ color: step.ok ? '#344054' : '#98a2b3' }}>{step.label}</p>
-                        <p className="text-[11px] mt-0.5" style={{ color: '#98a2b3' }}>{step.detail}</p>
-                      </div>
-                    </div>
-                  ))}
-                  {setupResult.webhookUrl && (
-                    <p className="text-[11px] pt-1 font-mono break-all" style={{ color: '#98a2b3' }}>Webhook: {setupResult.webhookUrl}</p>
-                  )}
-                  <button onClick={() => runSetup(id!)} disabled={settingUp}
-                    className="flex items-center gap-1.5 text-xs font-medium mt-2 transition-colors disabled:opacity-50"
-                    style={{ color: '#98a2b3' }}
-                    onMouseEnter={e => (e.currentTarget.style.color = '#344054')}
-                    onMouseLeave={e => (e.currentTarget.style.color = '#98a2b3')}
-                  >
-                    <RefreshCw className="w-3.5 h-3.5" />
-                    Rodar novamente
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-
           {/* Ações */}
           <div className="flex items-center gap-3">
-            <button onClick={handleSave} disabled={saving || settingUp}
+            <button onClick={handleSave} disabled={saving}
               className="btn-primary flex items-center gap-2 px-5 py-2.5 text-sm disabled:opacity-60">
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-              {saving ? 'Salvando...' : settingUp ? 'Configurando...' : 'Salvar'}
+              {saving ? 'Salvando...' : 'Salvar'}
             </button>
-
-            {org.evolution_instance && !setupResult && (
-              <button onClick={() => runSetup(id!)} disabled={settingUp}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors disabled:opacity-50"
-                style={{ border: '1px solid #e4e7ec', color: '#667085' }}
-                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#f9fafb' }}
-                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent' }}
-              >
-                <Zap className="w-4 h-4 text-amber-500" />
-                Setup automático
-              </button>
-            )}
 
             <button
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors ml-auto"
