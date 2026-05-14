@@ -307,6 +307,20 @@ export default function AdminClientDetail() {
     runInfra()
   }
 
+  function retryInfra() {
+    infraDoneRef.current = false
+    finalizeDoneRef.current = false
+    setSkillPhase('infra')
+    setInfraSteps([])
+    setSkillQR(null)
+    setSkillQRVisible(false)
+    setSkillConnected(false)
+    setFinalSteps([])
+    stopPoll()
+    if (qrTimerRef.current) clearTimeout(qrTimerRef.current)
+    runInfra()
+  }
+
   function closeSkill() {
     stopPoll()
     if (qrTimerRef.current) clearTimeout(qrTimerRef.current)
@@ -674,7 +688,19 @@ export default function AdminClientDetail() {
             </div>
 
             {/* Footer */}
-            <div className="px-5 py-3 shrink-0 flex justify-end" style={{ borderTop: '1px solid #f1f5f9' }}>
+            <div className="px-5 py-3 shrink-0 flex items-center justify-between gap-3" style={{ borderTop: '1px solid #f1f5f9' }}>
+              {/* Botão Tentar novamente — aparece quando infra tem falhas e não está rodando */}
+              {skillPhase === 'infra' && !infraRunning && infraSteps.some(s => !s.ok) ? (
+                <button
+                  onClick={retryInfra}
+                  className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-semibold text-white transition-all"
+                  style={{ background: 'linear-gradient(135deg, #2C82B5, #2570a0)' }}
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  Tentar novamente
+                </button>
+              ) : <div />}
+
               {skillPhase === 'done' ? (
                 <button onClick={closeSkill} className="btn-primary px-5 py-2.5 text-sm">Concluído</button>
               ) : (
@@ -835,7 +861,8 @@ export default function AdminClientDetail() {
               <Card
                 title="Evolution API"
                 extra={
-                  org.evolution_instance ? (
+                  org.evolution_instance && org.chatwoot_account_id ? (
+                    // Setup completo — apenas verificar conexão
                     <button onClick={checkEvolutionConnection} disabled={checkingConn}
                       className="flex items-center gap-1.5 text-xs font-medium transition-colors disabled:opacity-50"
                       style={{ color: '#98a2b3' }}
@@ -845,7 +872,18 @@ export default function AdminClientDetail() {
                       <RefreshCw className={`w-3.5 h-3.5 ${checkingConn ? 'animate-spin' : ''}`} />
                       Verificar
                     </button>
+                  ) : org.evolution_instance && !org.chatwoot_account_id ? (
+                    // Evolution OK, Chatwoot pendente — reabrir skill para continuar
+                    <button
+                      onClick={openSkill}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all"
+                      style={{ background: '#fff7ed', border: '1px solid #fed7aa', color: '#c2410c' }}
+                    >
+                      <RefreshCw className="w-3.5 h-3.5" />
+                      Chatwoot pendente
+                    </button>
                   ) : (
+                    // Sem instância — iniciar setup do zero
                     <button
                       onClick={openSkill}
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-white transition-all"
