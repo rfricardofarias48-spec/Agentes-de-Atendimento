@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Search, Users, CheckCircle2, Zap } from 'lucide-react'
+import { Search, Users, CheckCircle2, Zap, Plus, X, Loader2 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
-import { type Organization } from '../../types'
+import { type Organization, type OrgPlan } from '../../types'
 import { planLabel, statusLabel, formatDateShort, cn } from '../../lib/utils'
 
 const planBadge: Record<string, string> = {
@@ -24,16 +24,257 @@ const PLAN_LABELS: Record<PlanFilter, string> = {
   todos: 'Todos', starter: 'Essencial', pro: 'Pro', clinic: 'Max',
 }
 
-export default function AdminClients() {
-  const [orgs, setOrgs]       = useState<Organization[]>([])
-  const [search, setSearch]   = useState('')
-  const [planTab, setPlanTab] = useState<PlanFilter>('todos')
-  const [loading, setLoading] = useState(true)
+const MAX_CONV: Record<OrgPlan, number> = { starter: 600, pro: 2000, clinic: 999999 }
 
-  useEffect(() => {
+// ── Modal: Novo Cliente ──────────────────────────────────────────────────────
+interface NewClientForm {
+  name: string
+  email: string
+  password: string
+  phone: string
+  plan: OrgPlan
+}
+
+function NewClientModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
+  const [form, setForm] = useState<NewClientForm>({
+    name: '', email: '', password: '', phone: '', plan: 'starter',
+  })
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const set = (k: keyof NewClientForm) => (v: string) =>
+    setForm(f => ({ ...f, [k]: v }))
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!form.name.trim() || !form.email.trim() || form.password.length < 6) return
+    setLoading(true)
+    setError(null)
+
+    try {
+      // 1. Criar organização
+      const rawPhone = form.phone.replace(/\D/g, '')
+      const normalizedPhone = rawPhone ? (rawPhone.startsWith('55') ? rawPhone : `55${rawPhone}`) : null
+
+      const { data: org, error: orgErr } = await supabase
+        .from('organizations')
+        .insert({
+          name: form.name.trim(),
+          plan: form.plan,
+          status: 'trial',
+          phone: normalizedPhone,
+          max_conversations_month: MAX_CONV[form.plan],
+          conversations_used: 0,
+          agent_tone: 'friendly',
+          whatsapp_numbers: [],
+        })
+        .select('id')
+        .single()
+
+      if (orgErr || !org) {
+        setError('Erro ao criar organização: ' + (orgErr?.message ?? 'desconhecido'))
+        return
+      }
+
+      // 2. Criar usuário e vincular à org
+      const { data: { session } } = await supabase.auth.getSession()
+      const res = await fetch('/api/admin/create-user', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+        },
+        body: JSON.stringify({ orgId: org.id, email: form.email.trim(), password: form.password }),
+      })
+      const data = await res.json() as { ok?: boolean; error?: string }
+
+      if (!data.ok) {
+        // Rollback: remover org criada
+        await supabase.from('organizations').delete().eq('id', org.id)
+        setError(data.error ?? 'Erro ao criar usuário')
+        return
+      }
+
+      // 3. Criar agent_settings padrão
+      await supabase.from('agent_settings').insert({
+        org_id: org.id,
+        agent_name: 'Assistente',
+        greeting_message: '',
+        tone: 'friendly',
+        specialties: [],
+        services: [],
+        notification_phone: normalizedPhone,
+      })
+
+      onCreated()
+    } catch (e) {
+      setError(String(e))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const plans: OrgPlan[] = ['starter', 'pro', 'clinic']
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: 'rgba(15,23,42,0.55)', backdropFilter: 'blur(4px)' }}
+      onClick={e => { if (e.target === e.currentTarget && !loading) onClose() }}>
+      <div className="w-full max-w-md rounded-2xl overflow-hidden"
+        style={{ background: '#fff', boxShadow: '0 32px 80px rgba(0,0,0,0.18)' }}>
+
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: '1px solid #f1f5f9' }}>
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl flex items-center justify-center"
+              style={{ background: 'linear-gradient(135deg, #2C82B5, #1e5f88)' }}>
+              <Plus className="w-4 h-4 text-white" />
+            </div>
+            <div>
+              <p className="font-bold text-[13px] text-slate-800">Novo Cliente</p>
+              <p className="text-[11px] text-slate-400">Cria organização + acesso ao app</p>
+            </div>
+          </div>
+          {!loading && (
+            <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 transition-colors">
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
+
+          <div>
+            <label className="block text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400 mb-1.5">
+              Nome da Clínica *
+            </label>
+            <input
+              type="text"
+              value={form.name}
+              onChange={e => set('name')(e.target.value)}
+              placeholder="Clínica São Lucas"
+              required
+              autoFocus
+              className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent transition-all"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400 mb-1.5">
+                E-mail *
+              </label>
+              <input
+                type="email"
+                value={form.email}
+                onChange={e => set('email')(e.target.value)}
+                placeholder="clinica@email.com"
+                required
+                className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent transition-all"
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400 mb-1.5">
+                Senha * <span className="normal-case font-normal text-slate-300">(mín. 6)</span>
+              </label>
+              <input
+                type="password"
+                value={form.password}
+                onChange={e => set('password')(e.target.value)}
+                placeholder="••••••••"
+                required
+                minLength={6}
+                className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent transition-all"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400 mb-1.5">
+              Telefone / WhatsApp
+            </label>
+            <input
+              type="tel"
+              value={form.phone}
+              onChange={e => set('phone')(e.target.value)}
+              placeholder="5551999990000"
+              className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent transition-all"
+            />
+          </div>
+
+          <div>
+            <label className="block text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400 mb-2">
+              Plano
+            </label>
+            <div className="flex gap-2">
+              {plans.map(p => (
+                <button
+                  key={p}
+                  type="button"
+                  onClick={() => set('plan')(p)}
+                  className="flex-1 py-2 rounded-xl text-xs font-semibold border-2 transition-all"
+                  style={form.plan === p ? {
+                    borderColor: '#4d9aca', color: '#2570a0',
+                    background: '#fff', boxShadow: '0 1px 3px rgba(16,24,40,0.08)',
+                  } : { borderColor: '#e4e7ec', color: '#98a2b3' }}
+                >
+                  {planLabel(p)}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {error && (
+            <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl text-xs text-red-600"
+              style={{ background: '#fef2f2', border: '1px solid #fecaca' }}>
+              <X className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+              {error}
+            </div>
+          )}
+
+          {/* Footer */}
+          <div className="flex items-center gap-2 pt-1">
+            <button
+              type="submit"
+              disabled={loading || !form.name.trim() || !form.email.trim() || form.password.length < 6}
+              className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold text-white transition-all disabled:opacity-50"
+              style={{ background: 'linear-gradient(135deg, #2C82B5, #2570a0)' }}
+            >
+              {loading
+                ? <><Loader2 className="w-4 h-4 animate-spin" /> Criando...</>
+                : <><Plus className="w-4 h-4" /> Criar Cliente</>
+              }
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={loading}
+              className="px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-400 border border-slate-200 hover:bg-slate-50 transition-all disabled:opacity-40"
+            >
+              Cancelar
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+// ── Página principal ─────────────────────────────────────────────────────────
+export default function AdminClients() {
+  const [orgs, setOrgs]         = useState<Organization[]>([])
+  const [search, setSearch]     = useState('')
+  const [planTab, setPlanTab]   = useState<PlanFilter>('todos')
+  const [loading, setLoading]   = useState(true)
+  const [showNew, setShowNew]   = useState(false)
+
+  function loadOrgs() {
     supabase.from('organizations').select('*').order('created_at', { ascending: false })
       .then(({ data }) => { setOrgs(data ?? []); setLoading(false) })
-  }, [])
+  }
+
+  useEffect(() => { loadOrgs() }, [])
 
   const filtered = orgs.filter(o => {
     const q = search.toLowerCase()
@@ -54,12 +295,27 @@ export default function AdminClients() {
   return (
     <div className="space-y-5 pb-8">
 
+      {showNew && (
+        <NewClientModal
+          onClose={() => setShowNew(false)}
+          onCreated={() => { setShowNew(false); loadOrgs() }}
+        />
+      )}
+
       {/* Header */}
       <div className="flex items-end justify-between">
         <div>
           <h1 className="text-xl font-bold text-slate-800 leading-none">Usuários</h1>
           <p className="text-sm text-slate-500 mt-1">Gerencie os clientes da plataforma</p>
         </div>
+        <button
+          onClick={() => setShowNew(true)}
+          className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:shadow-[0_4px_14px_rgba(44,130,181,0.4)] hover:-translate-y-[1px]"
+          style={{ background: 'linear-gradient(135deg, #2C82B5, #2570a0)' }}
+        >
+          <Plus className="w-4 h-4" />
+          Novo Cliente
+        </button>
       </div>
 
       {/* Filtros */}
@@ -110,6 +366,12 @@ export default function AdminClients() {
               <Users className="w-5 h-5 text-slate-300" />
             </div>
             <p className="text-sm font-medium text-slate-400">Nenhum usuário encontrado</p>
+            {search === '' && planTab === 'todos' && (
+              <button onClick={() => setShowNew(true)}
+                className="mt-3 text-xs font-semibold text-brand-500 hover:text-brand-700 transition-colors">
+                + Criar primeiro cliente
+              </button>
+            )}
           </div>
         ) : (
           <div className="overflow-x-auto">
