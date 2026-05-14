@@ -26,6 +26,16 @@ const PLAN_LABELS: Record<PlanFilter, string> = {
 
 const MAX_CONV: Record<OrgPlan, number> = { starter: 600, pro: 2000, clinic: 999999 }
 
+function slugify(name: string): string {
+  return name
+    .toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/[^a-z0-9-]/g, '')
+    .slice(0, 24)
+    + '-' + Math.random().toString(36).slice(2, 7)
+}
+
 // ── Modal: Novo Cliente ──────────────────────────────────────────────────────
 interface NewClientForm {
   name: string
@@ -60,6 +70,7 @@ function NewClientModal({ onClose, onCreated }: { onClose: () => void; onCreated
         .from('organizations')
         .insert({
           name: form.name.trim(),
+          slug: slugify(form.name.trim()),
           plan: form.plan,
           status: 'trial',
           phone: normalizedPhone,
