@@ -262,24 +262,45 @@ export async function createChatwootAccount(orgName: string): Promise<{ accountI
     console.warn('[Chatwoot] CHATWOOT_ADMIN_TOKEN não configurado');
     return null;
   }
-
-  const account = await chatwootRequest(
-    'POST',
-    '/auth/sign_up',
-    CHATWOOT_ADMIN_TOKEN,
-    {
-      account_name: orgName,
-      email: `org-${Date.now()}@agenteclin.internal`,
-      password: `Ac${Math.random().toString(36).slice(2, 10)}!`,
-      user_full_name: orgName,
-    },
-  ) as { data?: { access_token?: string; account_id?: number } } | null;
-
-  if (account?.data?.account_id && account?.data?.access_token) {
-    return {
-      accountId: account.data.account_id,
-      token: account.data.access_token,
-    };
+  if (!CHATWOOT_URL) {
+    console.warn('[Chatwoot] CHATWOOT_URL não configurado');
+    return null;
   }
-  return null;
+  // Alerta se a URL contiver /app — isso causaria 404 em todos os endpoints
+  if (CHATWOOT_URL.includes('/app')) {
+    console.error(`[Chatwoot] CHATWOOT_URL parece ter sufixo /app: "${CHATWOOT_URL}" — remova o /app, use apenas a URL base (ex: https://chat.exemplo.com)`);
+  }
+
+  const signUpUrl = `${CHATWOOT_URL}/auth/sign_up`;
+  console.log(`[Chatwoot] Tentando criar conta em: ${signUpUrl}`);
+
+  try {
+    const res = await fetch(signUpUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        account_name: orgName,
+        email: `org-${Date.now()}@elevva.internal`,
+        password: `Ac${Math.random().toString(36).slice(2, 10)}!1`,
+        user_full_name: orgName,
+      }),
+    });
+
+    const text = await res.text();
+    if (!res.ok) {
+      console.error(`[Chatwoot] POST ${signUpUrl} → HTTP ${res.status}: ${text.substring(0, 300)}`);
+      console.error(`[Chatwoot] Verifique: 1) CHATWOOT_URL sem sufixo /app  2) ENABLE_ACCOUNT_SIGNUP=true no Chatwoot`);
+      return null;
+    }
+
+    const data = JSON.parse(text) as { data?: { access_token?: string; account_id?: number } };
+    if (data?.data?.account_id && data?.data?.access_token) {
+      return { accountId: data.data.account_id, token: data.data.access_token };
+    }
+    console.error('[Chatwoot] Resposta inesperada em sign_up:', text.substring(0, 200));
+    return null;
+  } catch (err) {
+    console.error(`[Chatwoot] createChatwootAccount erro de rede em ${signUpUrl}:`, err);
+    return null;
+  }
 }

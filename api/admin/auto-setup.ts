@@ -94,7 +94,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       chatwootFreshlyCreated = true;
       steps.push({ id: 'chatwoot_create', label: 'Conta Chatwoot criada', ok: true, detail: `Account #${chatwootAccountId}` });
     } else {
-      steps.push({ id: 'chatwoot_create', label: 'Criar conta Chatwoot', ok: false, detail: 'Falha ao criar — verifique CHATWOOT_URL e CHATWOOT_ADMIN_TOKEN' });
+      const cwUrlHint = CHATWOOT_BASE_URL
+        ? (CHATWOOT_BASE_URL.includes('/app') ? `URL tem sufixo /app — remova: use "${CHATWOOT_BASE_URL.replace(/\/app.*$/, '')}"` : `URL: ${CHATWOOT_BASE_URL}`)
+        : 'CHATWOOT_URL não configurado';
+      steps.push({ id: 'chatwoot_create', label: 'Criar conta Chatwoot', ok: false, detail: `Falha ao criar — ${cwUrlHint}. Verifique também ENABLE_ACCOUNT_SIGNUP=true no Chatwoot` });
     }
   } else {
     steps.push({ id: 'chatwoot_create', label: 'Conta Chatwoot', ok: true, detail: `Já existente: Account #${chatwootAccountId}` });
