@@ -681,7 +681,7 @@ export default function AdminClientDetail() {
                   </div>
                   <div>
                     <p className="font-bold text-emerald-800 text-sm">Tudo pronto!</p>
-                    <p className="text-[12px] text-emerald-600 mt-0.5">WhatsApp ativo · Chatwoot configurado · Cliente notificado</p>
+                    <p className="text-[12px] text-emerald-600 mt-0.5">WhatsApp ativo · Setup concluído</p>
                   </div>
                 </div>
               )}
@@ -873,15 +873,11 @@ export default function AdminClientDetail() {
                       Verificar
                     </button>
                   ) : org.evolution_instance && !org.chatwoot_account_id ? (
-                    // Evolution OK, Chatwoot pendente — reabrir skill para continuar
-                    <button
-                      onClick={openSkill}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all"
-                      style={{ background: '#fff7ed', border: '1px solid #fed7aa', color: '#c2410c' }}
-                    >
-                      <RefreshCw className="w-3.5 h-3.5" />
-                      Chatwoot pendente
-                    </button>
+                    // Evolution OK, Chatwoot pendente — preencher credenciais manualmente
+                    <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold"
+                      style={{ background: '#fff7ed', border: '1px solid #fed7aa', color: '#c2410c' }}>
+                      Chatwoot pendente ↓
+                    </span>
                   ) : (
                     // Sem instância — iniciar setup do zero
                     <button
@@ -946,7 +942,32 @@ export default function AdminClientDetail() {
               </Card>
 
               {/* Chatwoot */}
-              <Card title="Chatwoot">
+              <Card
+                title="Chatwoot"
+                extra={
+                  org.chatwoot_account_id && org.chatwoot_token && org.evolution_instance ? (
+                    <button
+                      onClick={openSkill}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-white transition-all"
+                      style={{ background: 'linear-gradient(135deg, #2C82B5, #2570a0)', boxShadow: '0 2px 8px rgba(44,130,181,0.3)' }}
+                    >
+                      <Zap className="w-3.5 h-3.5" />
+                      Vincular ao Evolution
+                    </button>
+                  ) : undefined
+                }
+              >
+                {!org.chatwoot_account_id && (
+                  <div className="flex items-start gap-2.5 px-3 py-2.5 rounded-xl" style={{ background: '#fff7ed', border: '1px solid #fed7aa' }}>
+                    <div className="w-1.5 h-1.5 rounded-full bg-amber-400 mt-1.5 shrink-0" />
+                    <div className="text-[11px] text-amber-700 leading-relaxed space-y-1">
+                      <p className="font-semibold">Configuração manual necessária</p>
+                      <p>1. Acesse o Chatwoot e crie uma conta (ou use uma existente)</p>
+                      <p>2. Vá em <b>Configurações → Integrações → API</b> e copie o <b>Access Token</b></p>
+                      <p>3. Preencha o Account ID e o Token abaixo, salve, e clique em <b>Vincular ao Evolution</b></p>
+                    </div>
+                  </div>
+                )}
                 <div className="grid grid-cols-2 gap-4">
                   <Field label="Account ID">
                     <TextInput
@@ -963,8 +984,8 @@ export default function AdminClientDetail() {
                     />
                   </Field>
                 </div>
-                <Field label="Token do Agente">
-                  <TextInput value={org.chatwoot_token ?? ''} onChange={v => setOrg(o => ({ ...o, chatwoot_token: v }))} placeholder="token do inbox" type="password" />
+                <Field label="Access Token">
+                  <TextInput value={org.chatwoot_token ?? ''} onChange={v => setOrg(o => ({ ...o, chatwoot_token: v }))} placeholder="Token de acesso da conta" type="password" />
                 </Field>
               </Card>
             </div>

@@ -21,7 +21,6 @@ import {
   configureInstanceSettings,
 } from '../_services/evolutionService.js';
 import {
-  createChatwootAccount,
   configureChatwootOnEvolution,
   createChatwootWebhook,
   getFirstInboxId,
@@ -84,38 +83,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     steps.push({ id: 'evolution_create', label: 'Instância Evolution', ok: true, detail: `Já existente: ${evolutionInstance}` });
   }
 
-  // ── 2. Criar conta Chatwoot ───────────────────────────────────────────────
-  let chatwootFreshlyCreated = false;
-  if (!chatwootAccountId) {
-    const chatwoot = await createChatwootAccount(org.name);
-    if (chatwoot) {
-      chatwootAccountId = chatwoot.accountId;
-      chatwootToken     = chatwoot.token;
-      chatwootFreshlyCreated = true;
-      steps.push({ id: 'chatwoot_create', label: 'Conta Chatwoot criada', ok: true, detail: `Account #${chatwootAccountId}` });
-    } else {
-      const cwUrlHint = CHATWOOT_BASE_URL
-        ? (CHATWOOT_BASE_URL.includes('/app') ? `URL tem sufixo /app — remova: use "${CHATWOOT_BASE_URL.replace(/\/app.*$/, '')}"` : `URL: ${CHATWOOT_BASE_URL}`)
-        : 'CHATWOOT_URL não configurado';
-      steps.push({ id: 'chatwoot_create', label: 'Criar conta Chatwoot', ok: false, detail: `Falha ao criar — ${cwUrlHint}. Verifique também ENABLE_ACCOUNT_SIGNUP=true no Chatwoot` });
-    }
+  // ── 2. Chatwoot — credenciais manuais ────────────────────────────────────
+  if (!chatwootAccountId || !chatwootToken) {
+    steps.push({
+      id: 'chatwoot_create',
+      label: 'Chatwoot — configuração manual necessária',
+      ok: false,
+      detail: 'Acesse o Chatwoot, crie ou use uma conta existente, copie o Account ID e o Access Token, salve no painel admin e rode o setup novamente para vincular ao Evolution.',
+    });
   } else {
-    steps.push({ id: 'chatwoot_create', label: 'Conta Chatwoot', ok: true, detail: `Já existente: Account #${chatwootAccountId}` });
-  }
+    steps.push({
+      id: 'chatwoot_create',
+      label: 'Chatwoot',
+      ok: true,
+      detail: `Account #${chatwootAccountId} — credenciais configuradas`,
+    });
 
-  // ── 2b. Criar webhook no Chatwoot — apenas para contas novas (evita duplicatas) ──
-  if (chatwootFreshlyCreated && chatwootAccountId && chatwootToken) {
     const cwWebhookOk = await createChatwootWebhook(chatwootAccountId, chatwootToken, CHATWOOT_WEBHOOK_URL);
     steps.push({
       id: 'chatwoot_webhook',
-      label: 'Webhook Chatwoot configurado',
+      label: 'Webhook Chatwoot',
       ok: cwWebhookOk,
       detail: cwWebhookOk
         ? `URL: ${CHATWOOT_WEBHOOK_URL} · conversation_status_changed, message_created`
         : 'Falha ao criar webhook — verifique credenciais Chatwoot',
     });
-  } else if (!chatwootFreshlyCreated && chatwootAccountId) {
-    steps.push({ id: 'chatwoot_webhook', label: 'Webhook Chatwoot', ok: true, detail: 'Já configurado (conta existente)' });
   }
 
   // ── Persistir credenciais antes de configurar ────────────────────────────
