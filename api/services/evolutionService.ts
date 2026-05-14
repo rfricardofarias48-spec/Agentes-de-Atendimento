@@ -155,7 +155,7 @@ export async function sendDocument(
   return ok;
 }
 
-/** Configura webhook da instância para apontar para o AgenteClin */
+/** Configura webhook da instância */
 export async function configureWebhook(
   instance: string,
   webhookUrl: string,
@@ -167,9 +167,35 @@ export async function configureWebhook(
       enabled: true,
       url: webhookUrl,
       webhookByEvents: false,
-      webhookBase64: false,
-      events: ['MESSAGES_UPSERT', 'CONNECTION_UPDATE'],
+      webhookBase64: true,           // necessário para receber/enviar PDFs
+      events: [
+        'MESSAGES_UPSERT',           // mensagens recebidas dos pacientes
+        'CONNECTION_UPDATE',         // status de conexão / QR code
+        'QRCODE_UPDATED',            // QR code expirou e foi renovado
+        'SEND_MESSAGE',              // confirmação de envio (PDFs)
+      ],
     },
+  }, apiKey);
+  return ok;
+}
+
+/**
+ * Configura as opções gerais da instância (aba Settings do painel Evolution).
+ * Deve ser chamado logo após criar a instância.
+ */
+export async function configureInstanceSettings(
+  instance: string,
+  instanceToken?: string | null,
+): Promise<boolean> {
+  const apiKey = getApiKey(instanceToken);
+  const { ok } = await post(`/settings/set/${instance}`, {
+    rejectCall: true,
+    msgCall: 'No momento não atendemos chamadas por aqui. Por favor, envie uma mensagem de texto.',
+    groupsIgnore: true,
+    alwaysOnline: false,
+    readMessages: false,
+    syncFullHistory: false,
+    readStatus: false,
   }, apiKey);
   return ok;
 }

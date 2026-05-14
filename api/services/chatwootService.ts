@@ -146,8 +146,8 @@ export async function mirrorMessage(
 }
 
 /**
- * Configura a integração Chatwoot na instância Evolution.
- * Deve ser chamado ao salvar as configurações da organização.
+ * Configura a integração Chatwoot na instância Evolution (aba Integrations → Chatwoot).
+ * Preenche todos os campos conforme especificado na skill de setup.
  */
 export async function configureChatwootOnEvolution(
   instance: string,
@@ -155,7 +155,7 @@ export async function configureChatwootOnEvolution(
   chatwootAccountId: number,
   chatwootToken: string,
   chatwootInboxId?: number,
-  inboxName?: string,
+  orgName?: string,
 ): Promise<boolean> {
   const evolutionUrl = (process.env.EVOLUTION_API_URL || '').replace(/\/$/, '');
   if (!evolutionUrl || !CHATWOOT_URL) {
@@ -164,22 +164,25 @@ export async function configureChatwootOnEvolution(
   }
 
   const cleanToken = chatwootToken.trim().replace(/[\r\n\t"']/g, '');
+  const inboxName  = orgName ? `WhatsApp - ${orgName}` : 'WhatsApp';
+
   const body: Record<string, unknown> = {
     enabled: true,
     accountId: String(chatwootAccountId),
     token: cleanToken,
     url: CHATWOOT_URL,
-    signMsg: false,
-    reopenConversation: true,
-    conversationPending: false,
+    nameInbox: inboxName,
+    organization: orgName ?? '',
+    signMsg: false,                    // não assinar com nome do agente
+    reopenConversation: true,          // reabre conversa ao receber nova mensagem
+    conversationPending: false,        // conversa começa aberta (não pendente)
     mergeBrazilContacts: true,
-    importContacts: false,
-    importMessages: false,
+    importContacts: false,             // não importar agenda
+    importMessages: false,             // não importar histórico
     daysLimitImportMessages: 0,
     autoCreate: chatwootInboxId ? false : true,
   };
   if (chatwootInboxId) body.inboxId = String(chatwootInboxId);
-  if (inboxName) body.nameInbox = inboxName;
 
   try {
     const res = await fetch(`${evolutionUrl}/chatwoot/set/${instance}`, {
@@ -197,6 +200,26 @@ export async function configureChatwootOnEvolution(
   } catch (err) {
     console.error('[Chatwoot] configureChatwootOnEvolution error:', err);
     return false;
+  }
+}
+
+/**
+ * Busca o ID do primeiro inbox da conta Chatwoot (criado via autoCreate do Evolution).
+ */
+export async function getFirstInboxId(
+  accountId: number,
+  token: string,
+): Promise<number | null> {
+  if (!CHATWOOT_URL) return null;
+  try {
+    const res = await fetch(`${CHATWOOT_URL}/api/v1/accounts/${accountId}/inboxes`, {
+      headers: { 'api_access_token': token },
+    });
+    if (!res.ok) return null;
+    const data = await res.json() as { payload?: { id: number }[] };
+    return data?.payload?.[0]?.id ?? null;
+  } catch {
+    return null;
   }
 }
 
