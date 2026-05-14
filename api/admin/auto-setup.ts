@@ -29,6 +29,7 @@ import {
 
 const WEBHOOK_URL = 'https://gestor.elevva.net.br/api/webhook/evolution';
 const CHATWOOT_WEBHOOK_URL = 'https://gestor.elevva.net.br/api/webhooks/chatwoot';
+const CHATWOOT_BASE_URL = (process.env.CHATWOOT_URL || '').replace(/\/$/, '');
 
 interface Step {
   id: string;
@@ -54,7 +55,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const { data: org } = await supabaseAdmin
     .from('organizations')
-    .select('id, name, evolution_instance, evolution_token, chatwoot_account_id, chatwoot_token, chatwoot_inbox_id')
+    .select('id, name, evolution_instance, evolution_token, chatwoot_account_id, chatwoot_token, chatwoot_inbox_id, chatwoot_url')
     .eq('id', orgId)
     .single();
 
@@ -84,11 +85,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   // ── 2. Criar conta Chatwoot ───────────────────────────────────────────────
+  let chatwootFreshlyCreated = false;
   if (!chatwootAccountId) {
     const chatwoot = await createChatwootAccount(org.name);
     if (chatwoot) {
       chatwootAccountId = chatwoot.accountId;
       chatwootToken     = chatwoot.token;
+      chatwootFreshlyCreated = true;
       steps.push({ id: 'chatwoot_create', label: 'Conta Chatwoot criada', ok: true, detail: `Account #${chatwootAccountId}` });
     } else {
       steps.push({ id: 'chatwoot_create', label: 'Criar conta Chatwoot', ok: false, detail: 'Falha ao criar — verifique CHATWOOT_URL e CHATWOOT_ADMIN_TOKEN' });
@@ -97,8 +100,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     steps.push({ id: 'chatwoot_create', label: 'Conta Chatwoot', ok: true, detail: `Já existente: Account #${chatwootAccountId}` });
   }
 
-  // ── 2b. Criar webhook no Chatwoot (conversation_status_changed + message_created) ─
-  if (chatwootAccountId && chatwootToken) {
+  // ── 2b. Criar webhook no Chatwoot — apenas para contas novas (evita duplicatas) ──
+  if (chatwootFreshlyCreated && chatwootAccountId && chatwootToken) {
     const cwWebhookOk = await createChatwootWebhook(chatwootAccountId, chatwootToken, CHATWOOT_WEBHOOK_URL);
     steps.push({
       id: 'chatwoot_webhook',
@@ -108,6 +111,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         ? `URL: ${CHATWOOT_WEBHOOK_URL} · conversation_status_changed, message_created`
         : 'Falha ao criar webhook — verifique credenciais Chatwoot',
     });
+  } else if (!chatwootFreshlyCreated && chatwootAccountId) {
+    steps.push({ id: 'chatwoot_webhook', label: 'Webhook Chatwoot', ok: true, detail: 'Já configurado (conta existente)' });
   }
 
   // ── Persistir credenciais antes de configurar ────────────────────────────
@@ -116,6 +121,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     evolution_token:     evolutionToken,
     chatwoot_account_id: chatwootAccountId,
     chatwoot_token:      chatwootToken,
+    chatwoot_url:        CHATWOOT_BASE_URL || null,
   }).eq('id', orgId);
 
   // ── 3. Configurar Settings (aba Settings do painel Evolution) ────────────
