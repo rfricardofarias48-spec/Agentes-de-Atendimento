@@ -280,7 +280,9 @@ export async function createChatwootAccount(orgName: string): Promise<{ accountI
     console.error(`[Chatwoot] CHATWOOT_URL parece ter sufixo /app: "${CHATWOOT_URL}" — remova o /app, use apenas a URL base (ex: https://chat.exemplo.com)`);
   }
 
-  const signUpUrl = `${CHATWOOT_URL}/auth/sign_up`;
+  // Chatwoot v4+ usa devise_token_auth: o endpoint de criação é POST /auth (não /auth/sign_up)
+  const signUpUrl = `${CHATWOOT_URL}/auth`;
+  const password = `Ac${Math.random().toString(36).slice(2, 10)}!1`;
   console.log(`[Chatwoot] Tentando criar conta em: ${signUpUrl}`);
 
   try {
@@ -292,8 +294,10 @@ export async function createChatwootAccount(orgName: string): Promise<{ accountI
       body: JSON.stringify({
         account_name: orgName,
         email: `org-${Date.now()}@gestor.elevva.net.br`,
-        password: `Ac${Math.random().toString(36).slice(2, 10)}!1`,
+        password,
+        password_confirmation: password,
         user_full_name: orgName,
+        name: orgName,
       }),
     });
 
@@ -307,7 +311,7 @@ export async function createChatwootAccount(orgName: string): Promise<{ accountI
     if (data?.data?.account_id && data?.data?.access_token) {
       return { accountId: data.data.account_id, token: data.data.access_token };
     }
-    console.error('[Chatwoot] Resposta inesperada em sign_up:', text.substring(0, 200));
+    console.error('[Chatwoot] Resposta inesperada em /auth:', text.substring(0, 200));
     return null;
   } catch (err) {
     console.error(`[Chatwoot] createChatwootAccount erro de rede em ${signUpUrl}:`, err);
