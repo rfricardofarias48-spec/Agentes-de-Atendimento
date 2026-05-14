@@ -298,6 +298,7 @@ export async function createChatwootAccount(orgName: string): Promise<{ accountI
         password_confirmation: password,
         user_full_name: orgName,
         name: orgName,
+        confirm_success_url: `${CHATWOOT_URL}/auth/sign_in`,
       }),
     });
 
