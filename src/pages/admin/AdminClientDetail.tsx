@@ -131,7 +131,9 @@ export default function AdminClientDetail() {
   const [autoQR, setAutoQR] = useState<string | null>(null)
   const [autoRunning, setAutoRunning] = useState(false)
   const [autoConnected, setAutoConnected] = useState(false)
+  const [showQR, setShowQR] = useState(false)
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const showQRTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Password reset
   const [newPass, setNewPass] = useState('')
@@ -220,15 +222,20 @@ export default function AdminClientDetail() {
     }, 4000)
   }, [id, stopPoll])
 
-  useEffect(() => () => stopPoll(), [stopPoll])
+  useEffect(() => () => {
+    stopPoll()
+    if (showQRTimerRef.current) clearTimeout(showQRTimerRef.current)
+  }, [stopPoll])
 
   async function openAutoSetup() {
     setShowAutoSetup(true)
     setAutoSteps([])
     setAutoQR(null)
     setAutoConnected(false)
+    setShowQR(false)
     setAutoRunning(true)
     stopPoll()
+    if (showQRTimerRef.current) clearTimeout(showQRTimerRef.current)
     try {
       const { data: { session } } = await supabase.auth.getSession()
       const res = await fetch('/api/admin/auto-setup', {
@@ -241,8 +248,12 @@ export default function AdminClientDetail() {
       })
       const data = await res.json() as AutoSetupResult
       setAutoSteps(data.steps)
-      if (data.qrCode) setAutoQR(data.qrCode)
-      // Recarrega org (credenciais foram persistidas no backend)
+      if (data.qrCode) {
+        setAutoQR(data.qrCode)
+        // Mostra QR só depois que todos os steps tiverem tempo de animar
+        const delay = data.steps.length * 120 + 600
+        showQRTimerRef.current = setTimeout(() => setShowQR(true), delay)
+      }
       const { data: fresh } = await supabase.from('organizations').select('*').eq('id', id!).single()
       if (fresh) setOrg(fresh)
       startPoll()
@@ -255,6 +266,7 @@ export default function AdminClientDetail() {
 
   function closeAutoSetup() {
     stopPoll()
+    if (showQRTimerRef.current) clearTimeout(showQRTimerRef.current)
     setShowAutoSetup(false)
   }
 
@@ -470,133 +482,188 @@ export default function AdminClientDetail() {
 
       {/* ── Modal Auto-Setup ─────────────────────────────────────────────── */}
       {showAutoSetup && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ background: 'rgba(15,23,42,0.6)', backdropFilter: 'blur(4px)' }}
-          onClick={e => { if (e.target === e.currentTarget) closeAutoSetup() }}
-        >
+        <>
+          <style>{`
+            @keyframes asStepIn {
+              from { opacity: 0; transform: translateY(6px); }
+              to   { opacity: 1; transform: translateY(0); }
+            }
+            @keyframes asQRIn {
+              from { opacity: 0; transform: scale(0.96); }
+              to   { opacity: 1; transform: scale(1); }
+            }
+            .as-step { animation: asStepIn 0.28s ease both; }
+            .as-qr   { animation: asQRIn 0.4s cubic-bezier(0.16,1,0.3,1) both; }
+          `}</style>
+
           <div
-            className="w-full max-w-lg rounded-2xl overflow-hidden"
-            style={{ background: '#fff', boxShadow: '0 24px 80px rgba(0,0,0,0.18)' }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            style={{ background: 'rgba(15,23,42,0.65)', backdropFilter: 'blur(6px)' }}
+            onClick={e => { if (e.target === e.currentTarget && !autoRunning) closeAutoSetup() }}
           >
-            {/* Cabeçalho */}
-            <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: '1px solid #f1f5f9' }}>
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #2C82B5, #1e5f88)' }}>
-                  <Zap className="w-4 h-4 text-white" />
-                </div>
-                <div>
-                  <p className="font-bold text-[13px] text-slate-800">Configuração Automática</p>
-                  <p className="text-[11px] text-slate-400">Evolution API + Chatwoot</p>
-                </div>
-              </div>
-              <button onClick={closeAutoSetup} className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors text-slate-400">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <div className="p-6 space-y-5 max-h-[80vh] overflow-y-auto">
-              {/* Checklist de etapas */}
-              {(autoRunning || autoSteps.length > 0) && (
-                <div className="space-y-2">
-                  {autoRunning && autoSteps.length === 0 && (
-                    <div className="flex items-center gap-3 p-3 rounded-xl" style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}>
-                      <Loader2 className="w-4 h-4 text-brand-500 animate-spin shrink-0" />
-                      <p className="text-sm text-slate-500">Iniciando configuração...</p>
-                    </div>
-                  )}
-                  {autoSteps.map((step, i) => (
-                    <div
-                      key={step.id}
-                      className="flex items-start gap-3 p-3 rounded-xl transition-all"
-                      style={{
-                        background: step.ok ? '#f0fdf4' : '#fef2f2',
-                        border: `1px solid ${step.ok ? '#bbf7d0' : '#fecaca'}`,
-                        animationDelay: `${i * 80}ms`,
-                      }}
-                    >
-                      {step.ok
-                        ? <CheckCircle2 className="w-4 h-4 text-emerald-500 mt-0.5 shrink-0" />
-                        : <XCircle className="w-4 h-4 text-red-400 mt-0.5 shrink-0" />}
-                      <div className="min-w-0">
-                        <p className="text-xs font-semibold" style={{ color: step.ok ? '#166534' : '#991b1b' }}>{step.label}</p>
-                        <p className="text-[11px] mt-0.5 text-slate-500">{step.detail}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* QR Code */}
-              {!autoConnected && autoQR && (
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <p className="text-xs font-bold uppercase tracking-[0.1em] text-slate-400">Escanear com WhatsApp</p>
-                    <button
-                      onClick={refreshQR}
-                      className="flex items-center gap-1 text-[11px] font-medium text-slate-400 hover:text-slate-600 transition-colors"
-                    >
-                      <RefreshCw className="w-3 h-3" />
-                      Atualizar QR
-                    </button>
-                  </div>
-                  <div className="flex justify-center p-4 rounded-2xl" style={{ background: '#f8fafc', border: '2px dashed #e2e8f0' }}>
-                    <img
-                      src={autoQR.startsWith('data:') ? autoQR : `data:image/png;base64,${autoQR}`}
-                      alt="QR Code WhatsApp"
-                      className="w-56 h-56 rounded-xl"
-                      style={{ imageRendering: 'pixelated' }}
-                    />
-                  </div>
-                  <div className="flex items-center gap-2 px-3 py-2 rounded-xl" style={{ background: '#fffbeb', border: '1px solid #fde68a' }}>
-                    <Wifi className="w-3.5 h-3.5 text-amber-500 animate-pulse shrink-0" />
-                    <p className="text-[11px] text-amber-700">Aguardando escaneamento... verificando a cada 4 segundos</p>
-                  </div>
-                </div>
-              )}
-
-              {/* Sucesso: conectado */}
-              {autoConnected && (
-                <div className="text-center py-4 space-y-3">
-                  <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto" style={{ background: '#f0fdf4', border: '2px solid #bbf7d0' }}>
-                    <CheckCircle2 className="w-8 h-8 text-emerald-500" />
+            <div
+              className="w-full max-w-md rounded-2xl overflow-hidden flex flex-col"
+              style={{ background: '#fff', boxShadow: '0 32px 96px rgba(0,0,0,0.22)', maxHeight: '90vh' }}
+            >
+              {/* Cabeçalho */}
+              <div className="flex items-center justify-between px-6 py-4 shrink-0" style={{ borderBottom: '1px solid #f1f5f9' }}>
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'linear-gradient(135deg, #2C82B5, #1e5f88)' }}>
+                    {autoRunning
+                      ? <Loader2 className="w-4 h-4 text-white animate-spin" />
+                      : autoConnected
+                        ? <CheckCircle2 className="w-4 h-4 text-white" />
+                        : <Zap className="w-4 h-4 text-white" />
+                    }
                   </div>
                   <div>
-                    <p className="font-bold text-slate-800">WhatsApp Conectado!</p>
-                    <p className="text-sm text-slate-400 mt-1">A instância está ativa e pronta para atender.</p>
+                    <p className="font-bold text-[13px] text-slate-800">
+                      {autoRunning ? 'Configurando...' : autoConnected ? 'Tudo pronto!' : 'Configuração Automática'}
+                    </p>
+                    <p className="text-[11px] text-slate-400">Evolution API + Chatwoot</p>
                   </div>
                 </div>
-              )}
-
-              {/* QR ainda não disponível, mas setup ok */}
-              {!autoRunning && !autoConnected && !autoQR && autoSteps.length > 0 && autoSteps.some(s => s.ok) && (
-                <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl" style={{ background: '#f0f9ff', border: '1px solid #bae6fd' }}>
-                  <Loader2 className="w-3.5 h-3.5 text-sky-500 animate-spin shrink-0" />
-                  <p className="text-[11px] text-sky-700">QR code sendo gerado — aguarde ou clique em Atualizar</p>
-                  <button onClick={refreshQR} className="ml-auto text-[11px] font-semibold text-sky-600 hover:text-sky-800 transition-colors shrink-0">
-                    Atualizar
+                {!autoRunning && (
+                  <button onClick={closeAutoSetup} className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors text-slate-400">
+                    <X className="w-4 h-4" />
                   </button>
-                </div>
-              )}
-            </div>
+                )}
+              </div>
 
-            {/* Footer */}
-            <div className="px-6 py-4 flex justify-end gap-3" style={{ borderTop: '1px solid #f1f5f9' }}>
-              {autoConnected ? (
-                <button onClick={closeAutoSetup} className="btn-primary px-5 py-2.5 text-sm">
-                  Concluído
-                </button>
-              ) : (
-                <button onClick={closeAutoSetup}
-                  className="px-5 py-2.5 rounded-xl text-sm font-semibold transition-colors"
-                  style={{ border: '1px solid #e2e8f0', color: '#64748b' }}
-                >
-                  Fechar
-                </button>
-              )}
+              <div className="overflow-y-auto flex-1">
+
+                {/* ── FASE 1: Checklist de etapas ── */}
+                <div className="px-6 pt-5 pb-2">
+                  {autoRunning && autoSteps.length === 0 ? (
+                    <div className="flex items-center gap-3 py-6 justify-center">
+                      <Loader2 className="w-5 h-5 text-brand-400 animate-spin" />
+                      <p className="text-sm text-slate-400">Criando instâncias e configurando integrações...</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {autoSteps.map((step, i) => (
+                        <div
+                          key={step.id}
+                          className="as-step flex items-start gap-3 px-3 py-2.5 rounded-xl"
+                          style={{
+                            animationDelay: `${i * 110}ms`,
+                            background: step.ok ? '#f0fdf4' : '#fef2f2',
+                            border: `1px solid ${step.ok ? '#bbf7d0' : '#fecaca'}`,
+                          }}
+                        >
+                          {step.ok
+                            ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 mt-0.5 shrink-0" />
+                            : <XCircle className="w-3.5 h-3.5 text-red-400 mt-0.5 shrink-0" />}
+                          <div className="min-w-0">
+                            <p className="text-[12px] font-semibold leading-tight" style={{ color: step.ok ? '#166534' : '#991b1b' }}>
+                              {step.label}
+                            </p>
+                            <p className="text-[11px] mt-0.5 text-slate-400 leading-tight">{step.detail}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* ── FASE 2: QR Code (aparece após steps animarem) ── */}
+                {!autoConnected && showQR && autoQR && (
+                  <div className="as-qr px-6 pb-6 pt-4">
+                    {/* Separador com label */}
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="flex-1 h-px" style={{ background: '#e2e8f0' }} />
+                      <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400 shrink-0">
+                        Etapa final
+                      </span>
+                      <div className="flex-1 h-px" style={{ background: '#e2e8f0' }} />
+                    </div>
+
+                    {/* Instrução */}
+                    <div className="text-center mb-4">
+                      <p className="font-bold text-slate-800 text-sm">Escaneie com o WhatsApp do cliente</p>
+                      <p className="text-[12px] text-slate-400 mt-0.5">Abra o WhatsApp → três pontos → Aparelhos conectados → Conectar</p>
+                    </div>
+
+                    {/* QR Code */}
+                    <div
+                      className="flex justify-center items-center rounded-2xl mx-auto"
+                      style={{ background: '#fff', border: '2px solid #e2e8f0', padding: '16px', width: 'fit-content' }}
+                    >
+                      <img
+                        src={autoQR.startsWith('data:') ? autoQR : `data:image/png;base64,${autoQR}`}
+                        alt="QR Code WhatsApp"
+                        width={220}
+                        height={220}
+                        style={{ display: 'block', imageRendering: 'pixelated' }}
+                      />
+                    </div>
+
+                    {/* Status de polling */}
+                    <div className="flex items-center justify-between mt-3">
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                        <p className="text-[11px] text-slate-400">Verificando a cada 4 segundos...</p>
+                      </div>
+                      <button
+                        onClick={refreshQR}
+                        className="flex items-center gap-1 text-[11px] font-semibold text-slate-400 hover:text-brand-600 transition-colors"
+                      >
+                        <RefreshCw className="w-3 h-3" />
+                        Atualizar QR
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* QR ainda sendo gerado após setup ok */}
+                {!autoRunning && !autoConnected && !autoQR && autoSteps.length > 0 && (
+                  <div className="px-6 pb-5 pt-3">
+                    <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl" style={{ background: '#f0f9ff', border: '1px solid #bae6fd' }}>
+                      <Loader2 className="w-3.5 h-3.5 text-sky-500 animate-spin shrink-0" />
+                      <p className="text-[11px] text-sky-700">QR code sendo gerado pela Evolution...</p>
+                      <button onClick={refreshQR} className="ml-auto text-[11px] font-bold text-sky-600 hover:text-sky-800 transition-colors shrink-0">
+                        Tentar agora
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* ── FASE 3: Conectado! ── */}
+                {autoConnected && (
+                  <div className="px-6 pb-6 pt-4">
+                    <div className="flex items-center gap-3 p-4 rounded-2xl" style={{ background: '#f0fdf4', border: '1px solid #bbf7d0' }}>
+                      <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: '#dcfce7' }}>
+                        <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                      </div>
+                      <div>
+                        <p className="font-bold text-emerald-800 text-sm">WhatsApp Conectado!</p>
+                        <p className="text-[12px] text-emerald-600 mt-0.5">A instância está ativa e pronta para atender pacientes.</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Footer */}
+              <div className="px-6 py-4 shrink-0 flex justify-end gap-3" style={{ borderTop: '1px solid #f1f5f9' }}>
+                {autoConnected ? (
+                  <button onClick={closeAutoSetup} className="btn-primary px-5 py-2.5 text-sm">
+                    Concluído
+                  </button>
+                ) : (
+                  <button
+                    onClick={closeAutoSetup}
+                    disabled={autoRunning}
+                    className="px-5 py-2.5 rounded-xl text-sm font-semibold transition-colors disabled:opacity-40"
+                    style={{ border: '1px solid #e2e8f0', color: '#64748b' }}
+                  >
+                    {autoRunning ? 'Aguarde...' : 'Fechar'}
+                  </button>
+                )}
+              </div>
             </div>
           </div>
-        </div>
+        </>
       )}
 
       {/* Header */}
