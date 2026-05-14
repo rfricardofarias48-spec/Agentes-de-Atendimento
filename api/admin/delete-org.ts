@@ -8,7 +8,7 @@
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { supabaseAdmin } from '../lib/supabaseAdmin.js';
+import { supabaseAdmin } from '../_lib/supabaseAdmin.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'DELETE' && req.method !== 'POST') {

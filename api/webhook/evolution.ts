@@ -7,8 +7,8 @@
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { cleanPhone } from '../services/evolutionService.js';
-import { getOrgByInstance, processMessage, processProMessage } from '../services/agentService.js';
+import { cleanPhone } from '../_services/evolutionService.js';
+import { getOrgByInstance, processMessage, processProMessage } from '../_services/agentService.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {

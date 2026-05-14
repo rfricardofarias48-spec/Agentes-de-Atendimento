@@ -13,19 +13,19 @@
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { supabaseAdmin } from '../lib/supabaseAdmin.js';
+import { supabaseAdmin } from '../_lib/supabaseAdmin.js';
 import {
   createInstance,
   getQRCode,
   configureWebhook,
   configureInstanceSettings,
-} from '../services/evolutionService.js';
+} from '../_services/evolutionService.js';
 import {
   createChatwootAccount,
   configureChatwootOnEvolution,
   createChatwootWebhook,
   getFirstInboxId,
-} from '../services/chatwootService.js';
+} from '../_services/chatwootService.js';
 
 const WEBHOOK_URL = 'https://gestor.elevva.net.br/api/webhook/evolution';
 const CHATWOOT_WEBHOOK_URL = 'https://gestor.elevva.net.br/api/webhooks/chatwoot';

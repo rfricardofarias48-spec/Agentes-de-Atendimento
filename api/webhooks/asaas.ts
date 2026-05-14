@@ -9,8 +9,8 @@
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { supabaseAdmin } from '../lib/supabaseAdmin.js';
-import { validateWebhookToken } from '../services/asaasService.js';
+import { supabaseAdmin } from '../_lib/supabaseAdmin.js';
+import { validateWebhookToken } from '../_services/asaasService.js';
 
 const APP_URL = process.env.VITE_APP_URL || 'https://gestor.elevva.net.br';
 

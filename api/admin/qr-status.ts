@@ -5,8 +5,8 @@
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { supabaseAdmin } from '../lib/supabaseAdmin.js';
-import { getConnectionStatus, getQRCode } from '../services/evolutionService.js';
+import { supabaseAdmin } from '../_lib/supabaseAdmin.js';
+import { getConnectionStatus, getQRCode } from '../_services/evolutionService.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });

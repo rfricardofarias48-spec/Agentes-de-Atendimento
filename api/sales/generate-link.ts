@@ -5,8 +5,8 @@
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { generatePaymentLink, PLAN_PRICES, PLAN_LABELS } from '../services/asaasService.js';
-import { supabaseAdmin } from '../lib/supabaseAdmin.js';
+import { generatePaymentLink, PLAN_PRICES, PLAN_LABELS } from '../_services/asaasService.js';
+import { supabaseAdmin } from '../_lib/supabaseAdmin.js';
 import { randomUUID } from 'crypto';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {

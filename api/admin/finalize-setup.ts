@@ -7,8 +7,8 @@
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { supabaseAdmin } from '../lib/supabaseAdmin.js';
-import { getConnectionStatus, sendText } from '../services/evolutionService.js';
+import { supabaseAdmin } from '../_lib/supabaseAdmin.js';
+import { getConnectionStatus, sendText } from '../_services/evolutionService.js';
 
 const CHATWOOT_URL = (process.env.CHATWOOT_URL || '').replace(/\/$/, '');
 const APP_URL = process.env.VITE_APP_URL || 'https://gestor.elevva.net.br';

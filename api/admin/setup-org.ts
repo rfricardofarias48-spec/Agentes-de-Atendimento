@@ -8,9 +8,9 @@
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { supabaseAdmin } from '../lib/supabaseAdmin.js';
-import { configureWebhook, getConnectionStatus } from '../services/evolutionService.js';
-import { configureChatwootOnEvolution } from '../services/chatwootService.js';
+import { supabaseAdmin } from '../_lib/supabaseAdmin.js';
+import { configureWebhook, getConnectionStatus } from '../_services/evolutionService.js';
+import { configureChatwootOnEvolution } from '../_services/chatwootService.js';
 
 const VERCEL_URL = process.env.VERCEL_URL
   ? `https://${process.env.VERCEL_URL}`
