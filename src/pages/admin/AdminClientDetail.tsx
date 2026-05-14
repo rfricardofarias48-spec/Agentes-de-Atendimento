@@ -689,8 +689,8 @@ export default function AdminClientDetail() {
 
             {/* Footer */}
             <div className="px-5 py-3 shrink-0 flex items-center justify-between gap-3" style={{ borderTop: '1px solid #f1f5f9' }}>
-              {/* Botão Tentar novamente — aparece quando infra tem falhas e não está rodando */}
-              {skillPhase === 'infra' && !infraRunning && infraSteps.some(s => !s.ok) ? (
+              {/* Botão Tentar novamente — aparece quando infra tem falhas, em qualquer fase */}
+              {!infraRunning && !finalRunning && skillPhase !== 'done' && infraSteps.some(s => !s.ok) ? (
                 <button
                   onClick={retryInfra}
                   className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-semibold text-white transition-all"
