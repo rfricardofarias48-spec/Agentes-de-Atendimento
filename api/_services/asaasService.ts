@@ -84,9 +84,11 @@ export async function generatePaymentLink(params: {
   plan: string;       // 'starter' | 'pro' | 'clinic'
   billing: 'mensal' | 'anual';
   saleId: string;
+  discountPercent?: number;
 }): Promise<AsaasPaymentLink> {
-  const { clientName, clientEmail, plan, billing, saleId } = params;
-  const amount = getPlanPrice(plan, billing);
+  const { clientName, clientEmail, plan, billing, saleId, discountPercent = 0 } = params;
+  const basePrice = getPlanPrice(plan, billing);
+  const amount = parseFloat((basePrice * (1 - discountPercent / 100)).toFixed(2));
   const cycle = billing === 'anual' ? 'YEARLY' : 'MONTHLY';
   const planLabel = PLAN_LABELS[plan] ?? plan;
   const billingLabel = billing === 'anual' ? 'Anual' : 'Mensal';

@@ -58,18 +58,21 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 }
 
 export default function AdminSales() {
-  const [clientName, setClientName]   = useState('')
-  const [clientEmail, setClientEmail] = useState('')
-  const [plan, setPlan]               = useState<Plan>('starter')
-  const [billing, setBilling]         = useState<Billing>('mensal')
-  const [loading, setLoading]         = useState(false)
-  const [error, setError]             = useState<string | null>(null)
-  const [result, setResult]           = useState<{ url: string; planLabel: string; billing: string; amount: number } | null>(null)
-  const [copied, setCopied]           = useState(false)
+  const [clientName, setClientName]       = useState('')
+  const [clientEmail, setClientEmail]     = useState('')
+  const [plan, setPlan]                   = useState<Plan>('starter')
+  const [billing, setBilling]             = useState<Billing>('mensal')
+  const [discountInput, setDiscountInput] = useState('')
+  const [loading, setLoading]             = useState(false)
+  const [error, setError]                 = useState<string | null>(null)
+  const [result, setResult]               = useState<{ url: string; planLabel: string; billing: string; amount: number; discountPercent: number } | null>(null)
+  const [copied, setCopied]               = useState(false)
 
-  const amount = PLAN_PRICES[plan][billing]
-  const monthlyEquiv = billing === 'anual' ? PLAN_PRICES[plan].anual / 12 : null
-  const discount = billing === 'anual' ? Math.round((1 - PLAN_PRICES[plan].anual / (PLAN_PRICES[plan].mensal * 12)) * 100) : 0
+  const baseAmount   = PLAN_PRICES[plan][billing]
+  const discountPct  = Math.min(100, Math.max(0, parseFloat(discountInput) || 0))
+  const amount       = parseFloat((baseAmount * (1 - discountPct / 100)).toFixed(2))
+  const monthlyEquiv = billing === 'anual' ? amount / 12 : null
+  const annualDiscount = billing === 'anual' ? Math.round((1 - PLAN_PRICES[plan].anual / (PLAN_PRICES[plan].mensal * 12)) * 100) : 0
 
   async function handleGenerate() {
     if (!clientName.trim() || !clientEmail.trim()) {
@@ -84,11 +87,11 @@ export default function AdminSales() {
       const res = await fetch('/api/sales/generate-link', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ clientName: clientName.trim(), clientEmail: clientEmail.trim(), plan, billing }),
+        body: JSON.stringify({ clientName: clientName.trim(), clientEmail: clientEmail.trim(), plan, billing, discountPercent: discountPct }),
       })
-      const data = await res.json() as { url?: string; planLabel?: string; billing?: string; amount?: number; error?: string }
+      const data = await res.json() as { url?: string; planLabel?: string; billing?: string; amount?: number; discountPercent?: number; error?: string }
       if (!res.ok || !data.url) throw new Error(data.error || 'Erro ao gerar link')
-      setResult({ url: data.url, planLabel: data.planLabel!, billing: data.billing!, amount: data.amount! })
+      setResult({ url: data.url, planLabel: data.planLabel!, billing: data.billing!, amount: data.amount!, discountPercent: data.discountPercent ?? 0 })
     } catch (e) {
       setError(String(e))
     } finally {
@@ -107,6 +110,7 @@ export default function AdminSales() {
     setResult(null)
     setClientName('')
     setClientEmail('')
+    setDiscountInput('')
     setError(null)
   }
 
@@ -206,7 +210,7 @@ export default function AdminSales() {
                     <>
                       <span className="text-[11px] font-semibold">{fmt(PLAN_PRICES[plan].anual)}</span>
                       <span className="text-[10px] px-1.5 py-0.5 rounded-md font-bold" style={{ background: '#dcfce7', color: '#16a34a' }}>
-                        -{discount}% off
+                        -{annualDiscount}% off
                       </span>
                     </>
                   ) : (
@@ -217,19 +221,47 @@ export default function AdminSales() {
             </div>
           </Field>
 
+          {/* Desconto adicional */}
+          <Field label="Desconto adicional (%)">
+            <div className="relative">
+              <input
+                type="number"
+                min="0"
+                max="100"
+                step="1"
+                value={discountInput}
+                onChange={e => setDiscountInput(e.target.value)}
+                placeholder="0"
+                className="input-dark w-full px-3.5 py-2.5 text-sm pr-10"
+              />
+              <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-sm font-semibold" style={{ color: '#98a2b3' }}>%</span>
+            </div>
+          </Field>
+
           {/* Resumo */}
-          <div className="flex items-center justify-between p-3.5 rounded-xl" style={{ background: '#f9fafb', border: '1px solid #f2f4f7' }}>
-            <div>
+          <div className="p-3.5 rounded-xl space-y-1.5" style={{ background: '#f9fafb', border: '1px solid #f2f4f7' }}>
+            <div className="flex items-center justify-between">
               <p className="text-xs font-medium" style={{ color: '#667085' }}>
                 {PLAN_LABELS[plan]} · {billing === 'anual' ? 'Anual' : 'Mensal'}
               </p>
-              {monthlyEquiv && (
-                <p className="text-[11px] mt-0.5" style={{ color: '#98a2b3' }}>
-                  equivale a {fmt(monthlyEquiv)}/mês
-                </p>
-              )}
+              {discountPct > 0
+                ? <p className="text-xs line-through" style={{ color: '#98a2b3' }}>{fmt(baseAmount)}</p>
+                : <p className="text-lg font-bold" style={{ color: '#101828' }}>{fmt(amount)}</p>
+              }
             </div>
-            <p className="text-lg font-bold" style={{ color: '#101828' }}>{fmt(amount)}</p>
+            {discountPct > 0 && (
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] px-1.5 py-0.5 rounded-md font-bold" style={{ background: '#dcfce7', color: '#16a34a' }}>
+                  -{discountPct}% desconto
+                </span>
+                <p className="text-lg font-bold" style={{ color: '#101828' }}>{fmt(amount)}</p>
+              </div>
+            )}
+            {monthlyEquiv && (
+              <p className="text-[11px]" style={{ color: '#98a2b3' }}>
+                equivale a {fmt(monthlyEquiv)}/mês
+              </p>
+            )}
           </div>
 
           {error && (
@@ -259,6 +291,11 @@ export default function AdminSales() {
                 <p className="font-semibold text-sm" style={{ color: '#101828' }}>Link gerado com sucesso!</p>
                 <p className="text-xs" style={{ color: '#98a2b3' }}>
                   {result.planLabel} · {result.billing === 'anual' ? 'Anual' : 'Mensal'} · {fmt(result.amount)}
+                  {result.discountPercent > 0 && (
+                    <span className="ml-1.5 px-1.5 py-0.5 rounded font-bold text-[10px]" style={{ background: '#dcfce7', color: '#16a34a' }}>
+                      -{result.discountPercent}% off
+                    </span>
+                  )}
                 </p>
               </div>
             </div>
