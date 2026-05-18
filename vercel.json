@@ -7,5 +7,9 @@
       "path": "/api/cron/reminders",
       "schedule": "30 10 * * *"
     }
-  ]
+  ],
+  "functions": {
+    "api/admin/auto-setup.ts": { "maxDuration": 60 },
+    "api/admin/finalize-setup.ts": { "maxDuration": 60 }
+  }
 }
