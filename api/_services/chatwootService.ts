@@ -237,43 +237,52 @@ export async function getFirstInboxId(
 
 /**
  * Cria webhook na conta Chatwoot para receber eventos de conversa.
- * URL: nosso endpoint /api/webhooks/chatwoot
- * Eventos: conversation_status_changed, message_created
- *
- * Rota correta: POST /api/v1/accounts/:id/webhooks (não /integrations/webhooks)
- * Body deve estar embrulhado em { webhook: { ... } }
+ * Rota correta: POST /api/v1/accounts/:id/webhooks
+ * Body embrulhado em { webhook: { url, subscriptions } }
+ * 422 "already been taken" é tratado como sucesso (idempotente).
  */
 export async function createChatwootWebhook(
   accountId: number,
   token: string,
   webhookUrl: string,
 ): Promise<boolean> {
-  // Usa apenas o token do usuário criado via Platform API — ele é account_user administrator
-  // CHATWOOT_ADMIN_TOKEN não funciona pois super_admin precisaria estar na account_users da conta
-  const tokens = [token].filter(Boolean);
-
-  for (const t of tokens) {
-    console.log(`[Chatwoot] Criando webhook para account #${accountId} com token …${t.slice(-6)}`);
-    const result = await chatwootRequest(
-      'POST',
-      `/api/v1/accounts/${accountId}/webhooks`,
-      t,
-      {
+  if (!CHATWOOT_URL || !token) return false;
+  console.log(`[Chatwoot] Criando webhook para account #${accountId} com token …${token.slice(-6)}`);
+  try {
+    const res = await fetch(`${CHATWOOT_URL}/api/v1/accounts/${accountId}/webhooks`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'api_access_token': token },
+      body: JSON.stringify({
         webhook: {
           url: webhookUrl,
           subscriptions: ['conversation_status_changed', 'message_created'],
         },
-      },
-    ) as { id?: number } | null;
+      }),
+      // @ts-ignore
+      dispatcher: tlsDispatcher,
+    });
 
-    if (result?.id) {
-      console.log(`[Chatwoot] Webhook criado (id=${result.id}) para account #${accountId}: ${webhookUrl}`);
+    const text = await res.text();
+    let data: Record<string, unknown> = {};
+    try { data = JSON.parse(text); } catch { /* ignore */ }
+
+    if (res.ok && (data as { id?: number }).id) {
+      console.log(`[Chatwoot] Webhook criado (id=${(data as { id: number }).id}) para account #${accountId}`);
       return true;
     }
-  }
 
-  console.error(`[Chatwoot] Falha ao criar webhook para account #${accountId}`);
-  return false;
+    // 422 "Url has already been taken" → webhook já existe, considerar sucesso
+    if (res.status === 422 && text.includes('already been taken')) {
+      console.log(`[Chatwoot] Webhook já existia para account #${accountId} — OK`);
+      return true;
+    }
+
+    console.error(`[Chatwoot] createChatwootWebhook HTTP ${res.status}: ${text.substring(0, 300)}`);
+    return false;
+  } catch (err) {
+    console.error('[Chatwoot] createChatwootWebhook error:', err);
+    return false;
+  }
 }
 
 // ── Platform API (requer CHATWOOT_PLATFORM_TOKEN criado no /super_admin → Platform Apps) ──
