@@ -965,15 +965,15 @@ export default function AdminClientDetail() {
                       Verificar
                     </button>
                   ) : org.evolution_instance && !org.chatwoot_account_id ? (
-                    // Evolution OK, Chatwoot pendente — mostrar QR e lembrar de configurar Chatwoot
+                    // Evolution criado mas Chatwoot pendente — re-rodar setup para configurar e exibir QR
                     <div className="flex items-center gap-2">
                       <button
-                        onClick={openQRModal}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all"
-                        style={{ background: '#f0f9ff', border: '1px solid #bae6fd', color: '#0369a1' }}
+                        onClick={openSkill}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-white transition-all"
+                        style={{ background: 'linear-gradient(135deg, #2C82B5, #2570a0)', boxShadow: '0 2px 8px rgba(44,130,181,0.3)' }}
                       >
-                        <RefreshCw className="w-3 h-3" />
-                        Escanear QR
+                        <Zap className="w-3.5 h-3.5" />
+                        Configurar + QR
                       </button>
                       <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold"
                         style={{ background: '#fff7ed', border: '1px solid #fed7aa', color: '#c2410c' }}>
