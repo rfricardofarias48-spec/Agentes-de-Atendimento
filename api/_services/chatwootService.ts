@@ -10,6 +10,7 @@ const cleanEnv = (key: string) => (process.env[key] || '').replace(/^﻿+/, '').
 
 const CHATWOOT_URL = cleanEnv('CHATWOOT_URL').replace(/\/$/, '');
 const CHATWOOT_ADMIN_TOKEN = cleanEnv('CHATWOOT_ADMIN_TOKEN');
+const CHATWOOT_PLATFORM_TOKEN = cleanEnv('CHATWOOT_PLATFORM_TOKEN');
 
 // Aceita certificados autoassinados em instâncias self-hosted (sslip.io, etc.)
 const tlsDispatcher = new Agent({ connect: { rejectUnauthorized: false } });
@@ -262,60 +263,124 @@ export async function createChatwootWebhook(
   return false;
 }
 
-/**
- * Cria uma nova conta Chatwoot para uma organização (via admin token).
- * Retorna { accountId, token } ou null.
- */
-export async function createChatwootAccount(orgName: string): Promise<{ accountId: number; token: string } | null> {
-  if (!CHATWOOT_ADMIN_TOKEN) {
-    console.warn('[Chatwoot] CHATWOOT_ADMIN_TOKEN não configurado');
+// ── Platform API (requer CHATWOOT_PLATFORM_TOKEN criado no /super_admin → Platform Apps) ──
+
+async function platformRequest(
+  method: string,
+  path: string,
+  body?: Record<string, unknown>,
+): Promise<unknown> {
+  if (!CHATWOOT_PLATFORM_TOKEN) {
+    console.warn('[Chatwoot] CHATWOOT_PLATFORM_TOKEN não configurado');
     return null;
   }
   if (!CHATWOOT_URL) {
     console.warn('[Chatwoot] CHATWOOT_URL não configurado');
     return null;
   }
-  // Alerta se a URL contiver /app — isso causaria 404 em todos os endpoints
-  if (CHATWOOT_URL.includes('/app')) {
-    console.error(`[Chatwoot] CHATWOOT_URL parece ter sufixo /app: "${CHATWOOT_URL}" — remova o /app, use apenas a URL base (ex: https://chat.exemplo.com)`);
-  }
-
-  // Chatwoot v4+ usa devise_token_auth: o endpoint de criação é POST /auth (não /auth/sign_up)
-  const signUpUrl = `${CHATWOOT_URL}/auth`;
-  const password = `Ac${Math.random().toString(36).slice(2, 10)}!1`;
-  console.log(`[Chatwoot] Tentando criar conta em: ${signUpUrl}`);
-
   try {
-    const res = await fetch(signUpUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      // @ts-ignore — dispatcher é aceito pelo fetch do Node 22 (undici)
+    const res = await fetch(`${CHATWOOT_URL}${path}`, {
+      method,
+      headers: { 'Content-Type': 'application/json', 'api_access_token': CHATWOOT_PLATFORM_TOKEN },
+      body: body ? JSON.stringify(body) : undefined,
+      // @ts-ignore
       dispatcher: tlsDispatcher,
-      body: JSON.stringify({
-        account_name: orgName,
-        email: `org-${Date.now()}@gestor.elevva.net.br`,
-        password,
-        password_confirmation: password,
-        user_full_name: orgName,
-        name: orgName,
-        confirm_success_url: `${CHATWOOT_URL}/auth/sign_in`,
-      }),
     });
-
     const text = await res.text();
     if (!res.ok) {
-      console.error(`[Chatwoot] signup FAILED — HTTP ${res.status} at ${signUpUrl} — resposta: ${text.substring(0, 400)}`);
+      console.error(`[Chatwoot Platform] ${method} ${path} → HTTP ${res.status}: ${text.substring(0, 300)}`);
       return null;
     }
-
-    const data = JSON.parse(text) as { data?: { access_token?: string; account_id?: number } };
-    if (data?.data?.account_id && data?.data?.access_token) {
-      return { accountId: data.data.account_id, token: data.data.access_token };
-    }
-    console.error('[Chatwoot] Resposta inesperada em /auth:', text.substring(0, 200));
-    return null;
+    try { return JSON.parse(text); } catch { return null; }
   } catch (err) {
-    console.error(`[Chatwoot] createChatwootAccount erro de rede em ${signUpUrl}:`, err);
+    console.error(`[Chatwoot Platform] fetch error on ${method} ${path}:`, err);
     return null;
   }
+}
+
+/**
+ * Cria uma nova Account (workspace) via Platform API.
+ * Retorna o account_id ou null.
+ */
+export async function platformCreateAccount(orgName: string): Promise<number | null> {
+  const data = await platformRequest('POST', '/platform/api/v1/accounts', {
+    name: orgName,
+    locale: 'pt_BR',
+  }) as { id?: number } | null;
+  if (data?.id) {
+    console.log(`[Chatwoot Platform] Account criada: #${data.id} — ${orgName}`);
+    return data.id;
+  }
+  return null;
+}
+
+/**
+ * Cria um usuário via Platform API.
+ * Retorna { userId, accessToken } — o access_token já vem na resposta, sem precisar de login.
+ */
+export async function platformCreateUser(params: {
+  name: string;
+  email: string;
+  password: string;
+}): Promise<{ userId: number; accessToken: string } | null> {
+  const data = await platformRequest('POST', '/platform/api/v1/users', {
+    name: params.name,
+    display_name: params.name,
+    email: params.email,
+    password: params.password,
+  }) as { id?: number; access_token?: string } | null;
+
+  if (data?.id && data?.access_token) {
+    console.log(`[Chatwoot Platform] Usuário criado: #${data.id} — ${params.email}`);
+    return { userId: data.id, accessToken: data.access_token };
+  }
+  return null;
+}
+
+/**
+ * Associa um usuário a uma Account com role administrator via Platform API.
+ */
+export async function platformAddUserToAccount(
+  accountId: number,
+  userId: number,
+): Promise<boolean> {
+  const data = await platformRequest(
+    'POST',
+    `/platform/api/v1/accounts/${accountId}/account_users`,
+    { user_id: userId, role: 'administrator' },
+  ) as { id?: number } | null;
+  const ok = !!data?.id;
+  if (ok) console.log(`[Chatwoot Platform] Usuário #${userId} associado à account #${accountId} como administrator`);
+  return ok;
+}
+
+/**
+ * Cria conta Chatwoot completa via Platform API (account + user + associação).
+ * Retorna { accountId, token, email, password } ou null.
+ */
+export async function platformSetupChatwootAccount(orgName: string, orgEmail: string): Promise<{
+  accountId: number;
+  token: string;
+  email: string;
+  password: string;
+} | null> {
+  if (!CHATWOOT_PLATFORM_TOKEN) {
+    console.warn('[Chatwoot] CHATWOOT_PLATFORM_TOKEN não configurado — setup manual necessário');
+    return null;
+  }
+
+  // 1. Criar Account
+  const accountId = await platformCreateAccount(orgName);
+  if (!accountId) return null;
+
+  // 2. Criar Usuário
+  const password = `Elv${Math.random().toString(36).slice(2, 8)}@${Math.floor(10 + Math.random() * 90)}`;
+  const email = orgEmail || `org-${Date.now()}@gestor.elevva.net.br`;
+  const user = await platformCreateUser({ name: orgName, email, password });
+  if (!user) return null;
+
+  // 3. Associar usuário à account
+  await platformAddUserToAccount(accountId, user.userId);
+
+  return { accountId, token: user.accessToken, email, password };
 }

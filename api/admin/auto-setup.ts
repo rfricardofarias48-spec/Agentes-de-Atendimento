@@ -2,7 +2,8 @@
  * POST /api/admin/auto-setup
  * Orquestra a criação completa de uma org:
  *   1. Cria instância Evolution
- *   2. Cria conta Chatwoot
+ *   2. Cria Account + Usuário Chatwoot via Platform API (automático)
+ *      └─ Fallback: se CHATWOOT_PLATFORM_TOKEN não configurado, exige credenciais manuais
  *   3. Aplica Settings da instância (Reject Calls, Ignore Groups…)
  *   4. Configura Webhook (Base64, eventos corretos)
  *   5. Integra Evolution ↔ Chatwoot (preenche aba Chatwoot)
@@ -24,11 +25,13 @@ import {
   configureChatwootOnEvolution,
   createChatwootWebhook,
   getFirstInboxId,
+  platformSetupChatwootAccount,
 } from '../_services/chatwootService.js';
 
 const WEBHOOK_URL = 'https://gestor.elevva.net.br/api/webhook/evolution';
 const CHATWOOT_WEBHOOK_URL = 'https://gestor.elevva.net.br/api/webhooks/chatwoot';
 const CHATWOOT_BASE_URL = (process.env.CHATWOOT_URL || '').replace(/^﻿+/, '').trim().replace(/\/$/, '');
+const HAS_PLATFORM_TOKEN = !!(process.env.CHATWOOT_PLATFORM_TOKEN || '').trim();
 
 interface Step {
   id: string;
@@ -54,7 +57,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const { data: org } = await supabaseAdmin
     .from('organizations')
-    .select('id, name, evolution_instance, evolution_token, chatwoot_account_id, chatwoot_token, chatwoot_inbox_id, chatwoot_url')
+    .select('id, name, phone, evolution_instance, evolution_token, chatwoot_account_id, chatwoot_token, chatwoot_inbox_id, chatwoot_url')
     .eq('id', orgId)
     .single();
 
@@ -83,22 +86,58 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     steps.push({ id: 'evolution_create', label: 'Instância Evolution', ok: true, detail: `Já existente: ${evolutionInstance}` });
   }
 
-  // ── 2. Chatwoot — credenciais manuais ────────────────────────────────────
+  // ── 2. Chatwoot — automático (Platform API) ou manual ────────────────────
   if (!chatwootAccountId || !chatwootToken) {
-    steps.push({
-      id: 'chatwoot_create',
-      label: 'Chatwoot — configuração manual necessária',
-      ok: false,
-      detail: 'Acesse o Chatwoot, crie ou use uma conta existente, copie o Account ID e o Access Token, salve no painel admin e rode o setup novamente para vincular ao Evolution.',
-    });
+    if (HAS_PLATFORM_TOKEN) {
+      // Automático via Platform API
+      const orgEmail = org.phone
+        ? `org-${slugify(org.name)}-${Date.now().toString(36)}@gestor.elevva.net.br`
+        : `org-${Date.now().toString(36)}@gestor.elevva.net.br`;
+
+      const cwSetup = await platformSetupChatwootAccount(org.name, orgEmail);
+      if (cwSetup) {
+        chatwootAccountId = cwSetup.accountId;
+        chatwootToken     = cwSetup.token;
+        steps.push({
+          id: 'chatwoot_create',
+          label: 'Conta Chatwoot criada automaticamente',
+          ok: true,
+          detail: `Account #${cwSetup.accountId} · Login: ${cwSetup.email} · Senha gerada automaticamente`,
+        });
+
+        // Salva e-mail/senha gerados como campo extra (futuro envio ao cliente)
+        await supabaseAdmin.from('organizations')
+          .update({ chatwoot_login_email: cwSetup.email, chatwoot_login_password: cwSetup.password })
+          .eq('id', orgId)
+          .then(() => {}); // best-effort, colunas podem não existir ainda
+      } else {
+        steps.push({
+          id: 'chatwoot_create',
+          label: 'Criar conta Chatwoot',
+          ok: false,
+          detail: 'Falha na Platform API — verifique CHATWOOT_PLATFORM_TOKEN e CHATWOOT_URL',
+        });
+      }
+    } else {
+      // Manual — CHATWOOT_PLATFORM_TOKEN não configurado
+      steps.push({
+        id: 'chatwoot_create',
+        label: 'Chatwoot — configuração manual necessária',
+        ok: false,
+        detail: 'Configure CHATWOOT_PLATFORM_TOKEN nas variáveis de ambiente para automação completa, ou preencha Account ID e Token manualmente.',
+      });
+    }
   } else {
     steps.push({
       id: 'chatwoot_create',
       label: 'Chatwoot',
       ok: true,
-      detail: `Account #${chatwootAccountId} — credenciais configuradas`,
+      detail: `Account #${chatwootAccountId} — credenciais já configuradas`,
     });
+  }
 
+  // Webhook Chatwoot (só se tiver credenciais)
+  if (chatwootAccountId && chatwootToken) {
     const cwWebhookOk = await createChatwootWebhook(chatwootAccountId, chatwootToken, CHATWOOT_WEBHOOK_URL);
     steps.push({
       id: 'chatwoot_webhook',
@@ -110,7 +149,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
   }
 
-  // ── Persistir credenciais antes de configurar ────────────────────────────
+  // ── Persistir credenciais ─────────────────────────────────────────────────
   await supabaseAdmin.from('organizations').update({
     evolution_instance:  evolutionInstance,
     evolution_token:     evolutionToken,
@@ -119,7 +158,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     chatwoot_url:        CHATWOOT_BASE_URL || null,
   }).eq('id', orgId);
 
-  // ── 3. Configurar Settings (aba Settings do painel Evolution) ────────────
+  // ── 3. Configurar Settings da instância ──────────────────────────────────
   const settingsOk = await configureInstanceSettings(evolutionInstance!, evolutionToken);
   steps.push({
     id: 'settings',
@@ -130,7 +169,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       : 'Falha ao aplicar settings — verifique token da instância',
   });
 
-  // ── 4. Configurar Webhook (aba Events → Webhook) ─────────────────────────
+  // ── 4. Configurar Webhook Evolution ──────────────────────────────────────
   const webhookOk = await configureWebhook(evolutionInstance!, WEBHOOK_URL, evolutionToken);
   steps.push({
     id: 'webhook',
@@ -141,7 +180,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       : 'Falha ao configurar webhook',
   });
 
-  // ── 5. Integrar Evolution ↔ Chatwoot (aba Integrations → Chatwoot) ───────
+  // ── 5. Integrar Evolution ↔ Chatwoot ─────────────────────────────────────
   let chatwootLinked = false;
   if (chatwootAccountId && chatwootToken) {
     chatwootLinked = await configureChatwootOnEvolution(
@@ -183,7 +222,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .eq('id', orgId);
   }
 
-  // ── 7. Obter QR code para o admin escanear ────────────────────────────────
+  // ── 7. Obter QR code ──────────────────────────────────────────────────────
   const qrCode = await getQRCode(evolutionInstance!, evolutionToken);
   steps.push({
     id: 'qr',
