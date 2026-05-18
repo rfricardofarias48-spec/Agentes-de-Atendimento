@@ -287,7 +287,12 @@ export default function AdminClientDetail() {
       })
       const d = await r.json() as { steps: SetupStep[]; qrCode: string | null }
       setInfraSteps(d.steps)
-      if (d.qrCode) {
+
+      // Só avança para QR se TODOS os steps críticos passaram
+      const CRITICAL = ['evolution_create', 'chatwoot_create', 'settings', 'webhook', 'chatwoot_link', 'inbox']
+      const criticalFailed = d.steps.some(s => CRITICAL.includes(s.id) && !s.ok)
+
+      if (d.qrCode && !criticalFailed) {
         setSkillQR(d.qrCode)
         qrTimerRef.current = setTimeout(() => {
           setSkillQRVisible(true)
@@ -726,8 +731,8 @@ export default function AdminClientDetail() {
 
             {/* Footer */}
             <div className="px-5 py-3 shrink-0 flex items-center justify-between gap-3" style={{ borderTop: '1px solid #f1f5f9' }}>
-              {/* Botão Tentar novamente — aparece quando infra tem falhas, em qualquer fase */}
-              {!infraRunning && !finalRunning && skillPhase !== 'done' && infraSteps.some(s => !s.ok) ? (
+              {/* Botão Tentar novamente — aparece quando infra ou finalize têm falhas */}
+              {!infraRunning && !finalRunning && skillPhase !== 'done' && (infraSteps.some(s => !s.ok) || finalSteps.some(s => !s.ok)) ? (
                 <button
                   onClick={retryInfra}
                   className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-semibold text-white transition-all"
@@ -741,10 +746,13 @@ export default function AdminClientDetail() {
               {skillPhase === 'done' ? (
                 <button onClick={closeSkill} className="btn-primary px-5 py-2.5 text-sm">Concluído</button>
               ) : (
-                <button onClick={closeSkill} disabled={infraRunning || finalRunning}
+                <button
+                  onClick={closeSkill}
+                  disabled={infraRunning || finalRunning}
                   className="px-5 py-2.5 rounded-xl text-sm font-semibold disabled:opacity-40 transition-colors"
-                  style={{ border: '1px solid #e2e8f0', color: '#64748b' }}>
-                  {infraRunning || finalRunning ? 'Aguarde...' : 'Fechar'}
+                  style={{ border: '1px solid #e2e8f0', color: '#64748b' }}
+                >
+                  {infraRunning || finalRunning ? 'Aguarde...' : 'Fechar sem concluir'}
                 </button>
               )}
             </div>
