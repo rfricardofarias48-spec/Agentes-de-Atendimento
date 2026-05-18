@@ -233,5 +233,5 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       : 'QR ainda sendo gerado — aguarde e clique em Atualizar QR',
   });
 
-  return res.status(200).json({ steps, qrCode, evolutionInstance });
+  return res.status(200).json({ steps, qrCode, evolutionInstance, chatwootAccountId, chatwootToken });
 }

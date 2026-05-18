@@ -315,6 +315,31 @@ export async function platformCreateAccount(orgName: string): Promise<number | n
 }
 
 /**
+ * Habilita as features necessárias para uma Account via Platform API.
+ * Sem isso, a account criada programaticamente fica com recursos limitados.
+ */
+export async function platformEnableAccountFeatures(accountId: number): Promise<boolean> {
+  const data = await platformRequest('PATCH', `/platform/api/v1/accounts/${accountId}`, {
+    features: {
+      agent_management: true,
+      auto_resolve_conversations: true,
+      automations: true,
+      canned_responses: true,
+      custom_attributes: true,
+      inbox_management: true,
+      integrations: true,
+      labels: true,
+      reports: true,
+      team_management: true,
+    },
+  }) as { id?: number } | null;
+  const ok = !!data?.id;
+  if (ok) console.log(`[Chatwoot Platform] Features habilitadas para account #${accountId}`);
+  else console.warn(`[Chatwoot Platform] Falha ao habilitar features para account #${accountId} — continuando mesmo assim`);
+  return ok;
+}
+
+/**
  * Cria um usuário via Platform API.
  * Retorna { userId, accessToken } — o access_token já vem na resposta, sem precisar de login.
  */
@@ -373,13 +398,16 @@ export async function platformSetupChatwootAccount(orgName: string, orgEmail: st
   const accountId = await platformCreateAccount(orgName);
   if (!accountId) return null;
 
-  // 2. Criar Usuário
+  // 2. Habilitar features necessárias (agent management, automations, inbox, reports, etc.)
+  await platformEnableAccountFeatures(accountId);
+
+  // 3. Criar Usuário
   const password = `Elv${Math.random().toString(36).slice(2, 8)}@${Math.floor(10 + Math.random() * 90)}`;
   const email = orgEmail || `org-${Date.now()}@gestor.elevva.net.br`;
   const user = await platformCreateUser({ name: orgName, email, password });
   if (!user) return null;
 
-  // 3. Associar usuário à account
+  // 4. Associar usuário à account como administrator
   await platformAddUserToAccount(accountId, user.userId);
 
   return { accountId, token: user.accessToken, email, password };
