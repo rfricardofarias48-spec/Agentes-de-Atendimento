@@ -364,6 +364,7 @@ export async function platformCreateUser(params: {
 
 /**
  * Associa um usuário a uma Account com role administrator via Platform API.
+ * A resposta pode ser { success: true } ou { id, role, ... } dependendo da versão.
  */
 export async function platformAddUserToAccount(
   accountId: number,
@@ -373,8 +374,9 @@ export async function platformAddUserToAccount(
     'POST',
     `/platform/api/v1/accounts/${accountId}/account_users`,
     { user_id: userId, role: 'administrator' },
-  ) as { id?: number } | null;
-  const ok = !!data?.id;
+  ) as Record<string, unknown> | null;
+  // Chatwoot pode retornar { success: true } ou { id, role } — qualquer resposta não-null é sucesso
+  const ok = data !== null;
   if (ok) console.log(`[Chatwoot Platform] Usuário #${userId} associado à account #${accountId} como administrator`);
   return ok;
 }
@@ -409,6 +411,9 @@ export async function platformSetupChatwootAccount(orgName: string, orgEmail: st
 
   // 4. Associar usuário à account como administrator
   await platformAddUserToAccount(accountId, user.userId);
+
+  // 5. Aguarda o Chatwoot finalizar commits antes de chamar APIs dependentes
+  await new Promise(r => setTimeout(r, 2000));
 
   return { accountId, token: user.accessToken, email, password };
 }
