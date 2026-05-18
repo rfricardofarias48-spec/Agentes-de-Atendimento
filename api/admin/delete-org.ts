@@ -27,12 +27,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!orgId) return res.status(400).json({ error: 'orgId required' });
 
   // Busca a org com todos os campos necessários para o cleanup externo
-  const { data: org } = await supabaseAdmin
+  const { data: org, error: orgFetchErr } = await supabaseAdmin
     .from('organizations')
-    .select('id, name, evolution_instance, evolution_token, chatwoot_account_id, chatwoot_user_id')
+    .select('*')
     .eq('id', orgId)
     .single();
 
+  if (orgFetchErr) {
+    console.error('[delete-org] Erro ao buscar org:', orgFetchErr.message);
+    return res.status(500).json({ error: `Erro ao buscar organização: ${orgFetchErr.message}` });
+  }
   if (!org) return res.status(404).json({ error: 'Organização não encontrada' });
 
   const errors: string[] = [];
