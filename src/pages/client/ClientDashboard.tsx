@@ -1,5 +1,5 @@
 import { type ReactNode, useEffect, useState, useMemo } from 'react'
-import { CalendarDays, BadgeCheck, CircleX, TrendingUp, ArrowRight, Zap, ExternalLink, AlertTriangle, Inbox, Calendar } from 'lucide-react'
+import { CalendarDays, BadgeCheck, CircleX, TrendingUp, ArrowRight, Zap, ExternalLink, AlertTriangle, Inbox, Calendar, Copy, Eye, EyeOff, LogIn } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { type Appointment, type Conversation, type Organization } from '../../types'
@@ -298,6 +298,28 @@ export default function ClientDashboard() {
 
 // ── Agent Card ───────────────────────────────────────────────────
 
+function CopyButton({ value }: { value: string }) {
+  const [copied, setCopied] = useState(false)
+  const copy = () => {
+    navigator.clipboard.writeText(value).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    })
+  }
+  return (
+    <button
+      onClick={copy}
+      className="shrink-0 p-1 rounded-md hover:bg-slate-100 transition-colors"
+      title="Copiar"
+    >
+      {copied
+        ? <BadgeCheck className="w-3.5 h-3.5 text-emerald-500" />
+        : <Copy className="w-3.5 h-3.5 text-slate-400" />
+      }
+    </button>
+  )
+}
+
 function AgentCard({ org, conversations, notificationPhone }: { org: Organization | null; conversations: Conversation[]; notificationPhone: string | null }) {
   const used   = org?.conversations_used ?? 0
   const limit  = org?.max_conversations_month ?? 1
@@ -310,16 +332,18 @@ function AgentCard({ org, conversations, notificationPhone }: { org: Organizatio
     ? 'linear-gradient(90deg, #f59e0b, #fbbf24)'
     : 'linear-gradient(90deg, #2C82B5, #5bafd4)'
 
-  // Escalated this month
   const now = new Date()
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
   const escalated = conversations.filter(c => c.escalated_to_human && new Date(c.started_at) >= monthStart).length
 
   const [progressWidth, setProgressWidth] = useState(0)
+  const [showPass, setShowPass] = useState(false)
   useEffect(() => {
     const t = setTimeout(() => setProgressWidth(pct), 300)
     return () => clearTimeout(t)
   }, [pct])
+
+  const hasCredentials = !!(org?.chatwoot_login_email && org?.chatwoot_login_password)
 
   return (
     <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-100 shadow-[0_2px_12px_rgba(0,0,0,0.03)] overflow-hidden flex flex-col">
@@ -399,6 +423,51 @@ function AgentCard({ org, conversations, notificationPhone }: { org: Organizatio
           </div>
         </div>
 
+        {/* Credenciais do Chatwoot */}
+        {hasCredentials && (
+          <div className="rounded-xl overflow-hidden" style={{ border: '1px solid rgba(44,130,181,0.18)', background: 'rgba(44,130,181,0.03)' }}>
+            <div className="flex items-center gap-2 px-3.5 py-2.5 border-b" style={{ borderColor: 'rgba(44,130,181,0.12)' }}>
+              <LogIn className="w-3.5 h-3.5 shrink-0" style={{ color: '#2C82B5' }} />
+              <p className="text-[10px] font-bold uppercase tracking-[0.12em]" style={{ color: '#2C82B5' }}>
+                Acesso ao Painel de Conversas
+              </p>
+            </div>
+            <div className="px-3.5 py-3 flex flex-col gap-2">
+              <p className="text-[10px] text-slate-500 leading-relaxed">
+                Use estas credenciais para fazer login no Chatwoot e ver as conversas do seu Bento em tempo real.
+              </p>
+              {/* E-mail */}
+              <div className="flex items-center gap-2 rounded-lg px-3 py-2" style={{ background: 'rgba(255,255,255,0.8)', border: '1px solid rgba(44,130,181,0.12)' }}>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[9px] font-bold uppercase tracking-[0.1em] text-slate-400 leading-none">E-mail</p>
+                  <p className="text-[11px] font-semibold text-gray-800 mt-0.5 leading-none truncate">{org!.chatwoot_login_email}</p>
+                </div>
+                <CopyButton value={org!.chatwoot_login_email!} />
+              </div>
+              {/* Senha */}
+              <div className="flex items-center gap-2 rounded-lg px-3 py-2" style={{ background: 'rgba(255,255,255,0.8)', border: '1px solid rgba(44,130,181,0.12)' }}>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[9px] font-bold uppercase tracking-[0.1em] text-slate-400 leading-none">Senha</p>
+                  <p className="text-[11px] font-semibold text-gray-800 mt-0.5 leading-none font-mono">
+                    {showPass ? org!.chatwoot_login_password : '••••••••••••'}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowPass(p => !p)}
+                  className="shrink-0 p-1 rounded-md hover:bg-slate-100 transition-colors"
+                  title={showPass ? 'Ocultar senha' : 'Mostrar senha'}
+                >
+                  {showPass
+                    ? <EyeOff className="w-3.5 h-3.5 text-slate-400" />
+                    : <Eye className="w-3.5 h-3.5 text-slate-400" />
+                  }
+                </button>
+                <CopyButton value={org!.chatwoot_login_password!} />
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* CTA */}
         <button
           onClick={() => org?.chatwoot_url && window.open(org.chatwoot_url, '_blank')}
@@ -407,8 +476,13 @@ function AgentCard({ org, conversations, notificationPhone }: { org: Organizatio
           style={{ background: 'linear-gradient(135deg, #2C82B5, #2570a0)' }}
         >
           <ExternalLink className="w-4 h-4" />
-          Ver Agente em Ação
+          {hasCredentials ? 'Abrir Chatwoot' : 'Ver Agente em Ação'}
         </button>
+        {hasCredentials && (
+          <p className="text-center text-[10px] text-slate-400 -mt-2">
+            Faça login com as credenciais acima ao abrir pela primeira vez
+          </p>
+        )}
 
       </div>
     </div>

@@ -16,6 +16,8 @@ export interface Organization {
   chatwoot_token: string | null
   chatwoot_inbox_id: number | null
   chatwoot_url: string | null
+  chatwoot_login_email: string | null
+  chatwoot_login_password: string | null
   asaas_key: string | null
   billing_email: string | null
   billing: 'mensal' | 'anual' | null
