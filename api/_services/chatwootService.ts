@@ -245,20 +245,26 @@ export async function createChatwootWebhook(
   token: string,
   webhookUrl: string,
 ): Promise<boolean> {
-  const result = await chatwootRequest(
-    'POST',
-    `/api/v1/accounts/${accountId}/integrations/webhooks`,
-    token,
-    {
-      url: webhookUrl,
-      subscriptions: ['conversation_status_changed', 'message_created'],
-    },
-  ) as { id?: number } | null;
+  // Tenta primeiro com o token do usuário; fallback com Platform Token (super admin)
+  const tokens = [token, CHATWOOT_PLATFORM_TOKEN].filter(Boolean);
 
-  if (result?.id) {
-    console.log(`[Chatwoot] Webhook criado para account #${accountId}: ${webhookUrl}`);
-    return true;
+  for (const t of tokens) {
+    const result = await chatwootRequest(
+      'POST',
+      `/api/v1/accounts/${accountId}/integrations/webhooks`,
+      t,
+      {
+        url: webhookUrl,
+        subscriptions: ['conversation_status_changed', 'message_created'],
+      },
+    ) as { id?: number } | null;
+
+    if (result?.id) {
+      console.log(`[Chatwoot] Webhook criado para account #${accountId}: ${webhookUrl}`);
+      return true;
+    }
   }
+
   console.error(`[Chatwoot] Falha ao criar webhook para account #${accountId}`);
   return false;
 }

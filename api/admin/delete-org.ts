@@ -29,96 +29,67 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const errors: string[] = [];
 
-  // ── 1. Buscar auth user(s) vinculados ────────────────────────────────────
-  const { data: profiles } = await supabaseAdmin
-    .from('user_profiles')
-    .select('user_id')
-    .eq('org_id', orgId);
+  try {
+    // ── 1. Buscar auth user(s) vinculados ──────────────────────────────────
+    const { data: profiles } = await supabaseAdmin
+      .from('user_profiles')
+      .select('user_id')
+      .eq('org_id', orgId);
 
-  const userIds = profiles?.map(p => p.user_id) ?? [];
+    const userIds = profiles?.map(p => p.user_id) ?? [];
 
-  // ── 2. Deletar conversas ─────────────────────────────────────────────────
-  const { error: convErr } = await supabaseAdmin
-    .from('conversations')
-    .delete()
-    .eq('org_id', orgId);
-  if (convErr) errors.push(`conversations: ${convErr.message}`);
+    // ── 2. Deletar tabelas filhas (todas com org_id) ───────────────────────
+    const tables = [
+      'conversations',
+      'appointments',
+      'blocked_slots',
+      'agent_settings',
+      'knowledge_items',
+      'user_profiles',
+    ];
 
-  // ── 3. Deletar agendamentos ──────────────────────────────────────────────
-  const { error: apptErr } = await supabaseAdmin
-    .from('appointments')
-    .delete()
-    .eq('org_id', orgId);
-  if (apptErr) errors.push(`appointments: ${apptErr.message}`);
+    for (const table of tables) {
+      const { error } = await supabaseAdmin.from(table as never).delete().eq('org_id', orgId);
+      if (error && !error.message.includes('does not exist') && !error.message.includes('column') ) {
+        errors.push(`${table}: ${error.message}`);
+      }
+    }
 
-  // ── 4. Deletar configurações do agente ───────────────────────────────────
-  const { error: agentErr } = await supabaseAdmin
-    .from('agent_settings')
-    .delete()
-    .eq('org_id', orgId);
-  if (agentErr) errors.push(`agent_settings: ${agentErr.message}`);
+    // ── 3. Deletar arquivos do Storage (PDFs) ──────────────────────────────
+    let storageCount = 0;
+    try {
+      const { data: storageFiles } = await supabaseAdmin.storage.from('specialty-pdfs').list(orgId);
+      if (storageFiles && storageFiles.length > 0) {
+        storageCount = storageFiles.length;
+        await supabaseAdmin.storage.from('specialty-pdfs').remove(storageFiles.map(f => `${orgId}/${f.name}`));
+      }
+    } catch { /* storage best-effort */ }
 
-  // ── 5. Deletar itens de conhecimento ─────────────────────────────────────
-  const { error: knowledgeErr } = await supabaseAdmin
-    .from('knowledge_items')
-    .delete()
-    .eq('org_id', orgId);
-  if (knowledgeErr && !knowledgeErr.message.includes('does not exist')) {
-    errors.push(`knowledge_items: ${knowledgeErr.message}`);
+    // ── 4. Deletar usuários do Supabase Auth ───────────────────────────────
+    for (const userId of userIds) {
+      const { error: authErr } = await supabaseAdmin.auth.admin.deleteUser(userId);
+      if (authErr) errors.push(`auth user ${userId}: ${authErr.message}`);
+    }
+
+    // ── 5. Deletar a organização ───────────────────────────────────────────
+    const { error: orgErr } = await supabaseAdmin
+      .from('organizations')
+      .delete()
+      .eq('id', orgId);
+
+    if (orgErr) {
+      errors.push(`organizations: ${orgErr.message}`);
+      return res.status(500).json({ ok: false, errors });
+    }
+
+    return res.status(200).json({
+      ok: true,
+      deleted: { org: org.name, authUsers: userIds.length, storageFiles: storageCount },
+      errors: errors.length > 0 ? errors : undefined,
+    });
+
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return res.status(500).json({ ok: false, errors: [msg] });
   }
-
-  // ── 6. Deletar vendas ────────────────────────────────────────────────────
-  const { error: salesErr } = await supabaseAdmin
-    .from('sales')
-    .delete()
-    .eq('org_id', orgId);
-  if (salesErr && !salesErr.message.includes('does not exist')) {
-    errors.push(`sales: ${salesErr.message}`);
-  }
-
-  // ── 7. Deletar user_profiles ─────────────────────────────────────────────
-  const { error: profileErr } = await supabaseAdmin
-    .from('user_profiles')
-    .delete()
-    .eq('org_id', orgId);
-  if (profileErr) errors.push(`user_profiles: ${profileErr.message}`);
-
-  // ── 8. Deletar arquivos do Storage (PDFs) ────────────────────────────────
-  const { data: storageFiles } = await supabaseAdmin.storage
-    .from('specialty-pdfs')
-    .list(orgId);
-
-  if (storageFiles && storageFiles.length > 0) {
-    const paths = storageFiles.map(f => `${orgId}/${f.name}`);
-    const { error: storageErr } = await supabaseAdmin.storage
-      .from('specialty-pdfs')
-      .remove(paths);
-    if (storageErr) errors.push(`storage: ${storageErr.message}`);
-  }
-
-  // ── 9. Deletar usuários do Supabase Auth ─────────────────────────────────
-  for (const userId of userIds) {
-    const { error: authErr } = await supabaseAdmin.auth.admin.deleteUser(userId);
-    if (authErr) errors.push(`auth user ${userId}: ${authErr.message}`);
-  }
-
-  // ── 10. Deletar a organização ────────────────────────────────────────────
-  const { error: orgErr } = await supabaseAdmin
-    .from('organizations')
-    .delete()
-    .eq('id', orgId);
-  if (orgErr) {
-    errors.push(`organizations: ${orgErr.message}`);
-    return res.status(500).json({ ok: false, errors });
-  }
-
-  return res.status(200).json({
-    ok: true,
-    deleted: {
-      org: org.name,
-      authUsers: userIds.length,
-      storageFiles: storageFiles?.length ?? 0,
-    },
-    errors: errors.length > 0 ? errors : undefined,
-  });
 }
