@@ -136,19 +136,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
   }
 
-  // Webhook Chatwoot (só se tiver credenciais)
-  if (chatwootAccountId && chatwootToken) {
-    const cwWebhookOk = await createChatwootWebhook(chatwootAccountId, chatwootToken, CHATWOOT_WEBHOOK_URL);
-    steps.push({
-      id: 'chatwoot_webhook',
-      label: 'Webhook Chatwoot',
-      ok: cwWebhookOk,
-      detail: cwWebhookOk
-        ? `URL: ${CHATWOOT_WEBHOOK_URL} · conversation_status_changed, message_created`
-        : 'Falha ao criar webhook — verifique credenciais Chatwoot',
-    });
-  }
-
   // ── Persistir credenciais ─────────────────────────────────────────────────
   await supabaseAdmin.from('organizations').update({
     evolution_instance:  evolutionInstance,
@@ -213,6 +200,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     } else if (chatwootInboxId) {
       steps.push({ id: 'inbox', label: 'Inbox WhatsApp', ok: true, detail: `Já configurado: ID ${chatwootInboxId}` });
     }
+
+    // ── 7. Webhook Chatwoot — feito aqui (conta já ativa, evita race condition) ──
+    // Tenta até 3x com 2s de intervalo
+    let cwWebhookOk = false;
+    for (let attempt = 1; attempt <= 3 && !cwWebhookOk; attempt++) {
+      if (attempt > 1) await new Promise(r => setTimeout(r, 2000));
+      cwWebhookOk = await createChatwootWebhook(chatwootAccountId, chatwootToken, CHATWOOT_WEBHOOK_URL);
+    }
+    steps.push({
+      id: 'chatwoot_webhook',
+      label: 'Webhook Chatwoot',
+      ok: cwWebhookOk,
+      detail: cwWebhookOk
+        ? `URL: ${CHATWOOT_WEBHOOK_URL} · conversation_status_changed, message_created`
+        : 'Falha ao criar webhook Chatwoot após 3 tentativas',
+    });
   }
 
   // ── Persistir inbox_id ────────────────────────────────────────────────────
