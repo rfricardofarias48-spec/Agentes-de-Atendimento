@@ -105,9 +105,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           detail: `Account #${cwSetup.accountId} · Login: ${cwSetup.email} · Senha gerada automaticamente`,
         });
 
-        // Salva e-mail/senha gerados como campo extra (futuro envio ao cliente)
+        // Salva credenciais e userId para possibilitar cleanup futuro
         await supabaseAdmin.from('organizations')
-          .update({ chatwoot_login_email: cwSetup.email, chatwoot_login_password: cwSetup.password })
+          .update({
+            chatwoot_login_email: cwSetup.email,
+            chatwoot_login_password: cwSetup.password,
+            chatwoot_user_id: cwSetup.userId,
+          })
           .eq('id', orgId)
           .then(() => {}); // best-effort, colunas podem não existir ainda
       } else {

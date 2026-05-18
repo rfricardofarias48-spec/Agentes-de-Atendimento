@@ -277,3 +277,35 @@ export async function downloadMediaBase64(
 
   return null;
 }
+
+/**
+ * Deleta permanentemente uma instância Evolution.
+ * O Evolution faz logout automático antes de deletar se estiver conectada.
+ * Usa o token da instância se disponível, caso contrário usa a chave global.
+ */
+export async function deleteInstance(
+  instanceName: string,
+  instanceToken?: string | null,
+): Promise<boolean> {
+  if (!BASE_URL) {
+    console.warn('[Evolution] EVOLUTION_API_URL não configurado');
+    return false;
+  }
+  const apiKey = getApiKey(instanceToken);
+  try {
+    const res = await fetch(`${BASE_URL}/instance/delete/${instanceName}`, {
+      method: 'DELETE',
+      headers: { apikey: apiKey },
+    });
+    if (res.ok) {
+      console.log(`[Evolution] Instância deletada: ${instanceName}`);
+      return true;
+    }
+    const text = await res.text();
+    console.error(`[Evolution] deleteInstance HTTP ${res.status}: ${text.substring(0, 200)}`);
+    return false;
+  } catch (err) {
+    console.error(`[Evolution] deleteInstance error (${instanceName}):`, err);
+    return false;
+  }
+}

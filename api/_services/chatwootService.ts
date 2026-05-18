@@ -409,6 +409,7 @@ export async function platformAddUserToAccount(
  */
 export async function platformSetupChatwootAccount(orgName: string, orgEmail: string): Promise<{
   accountId: number;
+  userId: number;
   token: string;
   email: string;
   password: string;
@@ -437,5 +438,64 @@ export async function platformSetupChatwootAccount(orgName: string, orgEmail: st
   // 5. Aguarda o Chatwoot finalizar commits antes de chamar APIs dependentes
   await new Promise(r => setTimeout(r, 2000));
 
-  return { accountId, token: user.accessToken, email, password };
+  return { accountId, userId: user.userId, token: user.accessToken, email, password };
+}
+
+/**
+ * Deleta uma Account Chatwoot via Platform API.
+ * Apaga em cascata: contacts, conversations, messages, inboxes, agents, webhooks, etc.
+ * Apenas a account especificada é removida — outras accounts não são afetadas.
+ */
+export async function platformDeleteAccount(accountId: number): Promise<boolean> {
+  if (!CHATWOOT_PLATFORM_TOKEN) {
+    console.warn('[Chatwoot Platform] CHATWOOT_PLATFORM_TOKEN não configurado — não é possível deletar account');
+    return false;
+  }
+  if (!CHATWOOT_URL) return false;
+  try {
+    const res = await fetch(`${CHATWOOT_URL}/platform/api/v1/accounts/${accountId}`, {
+      method: 'DELETE',
+      headers: { 'api_access_token': CHATWOOT_PLATFORM_TOKEN },
+      // @ts-ignore
+      dispatcher: tlsDispatcher,
+    });
+    // 204 No Content ou 200 OK = sucesso
+    if (res.ok || res.status === 204) {
+      console.log(`[Chatwoot Platform] Account #${accountId} deletada`);
+      return true;
+    }
+    const text = await res.text();
+    console.error(`[Chatwoot Platform] deleteAccount HTTP ${res.status}: ${text.substring(0, 200)}`);
+    return false;
+  } catch (err) {
+    console.error(`[Chatwoot Platform] deleteAccount error (account #${accountId}):`, err);
+    return false;
+  }
+}
+
+/**
+ * Deleta um Usuário Chatwoot via Platform API.
+ * Remove o usuário e todas suas associações (account_users, inbox_members, etc.).
+ * Só deve ser chamado para usuários criados exclusivamente para esta org.
+ */
+export async function platformDeleteUser(userId: number): Promise<boolean> {
+  if (!CHATWOOT_PLATFORM_TOKEN || !CHATWOOT_URL) return false;
+  try {
+    const res = await fetch(`${CHATWOOT_URL}/platform/api/v1/users/${userId}`, {
+      method: 'DELETE',
+      headers: { 'api_access_token': CHATWOOT_PLATFORM_TOKEN },
+      // @ts-ignore
+      dispatcher: tlsDispatcher,
+    });
+    if (res.ok || res.status === 204) {
+      console.log(`[Chatwoot Platform] Usuário #${userId} deletado`);
+      return true;
+    }
+    const text = await res.text();
+    console.error(`[Chatwoot Platform] deleteUser HTTP ${res.status}: ${text.substring(0, 200)}`);
+    return false;
+  } catch (err) {
+    console.error(`[Chatwoot Platform] deleteUser error (user #${userId}):`, err);
+    return false;
+  }
 }
