@@ -135,6 +135,43 @@ export default function AdminClientDetail() {
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const qrTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  // QR modal standalone
+  const [showQRModal, setShowQRModal]   = useState(false)
+  const [qrModalCode, setQrModalCode]   = useState<string | null>(null)
+  const [qrModalConn, setQrModalConn]   = useState(false)
+  const qrModalPollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  function stopQRModalPoll() {
+    if (qrModalPollRef.current) { clearInterval(qrModalPollRef.current); qrModalPollRef.current = null }
+  }
+
+  async function openQRModal() {
+    setQrModalCode(null)
+    setQrModalConn(false)
+    setShowQRModal(true)
+    // busca imediata
+    try {
+      const r = await fetch(`/api/admin/qr-status?orgId=${id}`)
+      const d = await r.json() as { connected: boolean; qrCode: string | null }
+      if (d.connected) { setQrModalConn(true); return }
+      setQrModalCode(d.qrCode)
+    } catch { /* ignore */ }
+    // polling
+    qrModalPollRef.current = setInterval(async () => {
+      try {
+        const r = await fetch(`/api/admin/qr-status?orgId=${id}`)
+        const d = await r.json() as { connected: boolean; qrCode: string | null }
+        if (d.connected) { setQrModalConn(true); stopQRModalPoll() }
+        else if (d.qrCode) setQrModalCode(d.qrCode)
+      } catch { /* ignore */ }
+    }, 4000)
+  }
+
+  function closeQRModal() {
+    stopQRModalPoll()
+    setShowQRModal(false)
+  }
+
   // Password reset
   const [newPass, setNewPass] = useState('')
   const [resetEmail, setResetEmail] = useState('')
@@ -716,6 +753,61 @@ export default function AdminClientDetail() {
         </>
       )}
 
+      {/* ── Modal QR standalone ─────────────────────────────────────────── */}
+      {showQRModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: 'rgba(15,23,42,0.65)', backdropFilter: 'blur(6px)' }}
+          onClick={e => { if (e.target === e.currentTarget) closeQRModal() }}>
+          <div className="w-full max-w-sm rounded-2xl overflow-hidden"
+            style={{ background: '#fff', boxShadow: '0 32px 96px rgba(0,0,0,0.22)' }}>
+            <div className="px-5 py-4 flex items-center justify-between" style={{ borderBottom: '1px solid #f1f5f9' }}>
+              <p className="font-bold text-[13px] text-slate-800">Conectar WhatsApp</p>
+              <button onClick={closeQRModal} className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors text-slate-400">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="p-5 space-y-4">
+              {qrModalConn ? (
+                <div className="flex items-center gap-3 px-3 py-3 rounded-xl" style={{ background: '#f0fdf4', border: '1px solid #bbf7d0' }}>
+                  <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                  <p className="text-[12px] font-semibold text-emerald-700">WhatsApp conectado com sucesso!</p>
+                </div>
+              ) : qrModalCode ? (
+                <>
+                  <p className="text-center text-[12px] text-slate-500">
+                    WhatsApp → ⋮ → <b>Aparelhos conectados</b> → Conectar um aparelho
+                  </p>
+                  <div className="flex justify-center">
+                    <div className="p-3 rounded-2xl" style={{ border: '2px solid #e2e8f0' }}>
+                      <img
+                        src={qrModalCode.startsWith('data:') ? qrModalCode : `data:image/png;base64,${qrModalCode}`}
+                        alt="QR Code" width={210} height={210}
+                        style={{ display: 'block', imageRendering: 'pixelated' }}
+                      />
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                      <p className="text-[11px] text-slate-400">Verificando a cada 4 s...</p>
+                    </div>
+                    <button onClick={openQRModal}
+                      className="flex items-center gap-1 text-[11px] font-semibold text-slate-400 hover:text-brand-600 transition-colors">
+                      <RefreshCw className="w-3 h-3" /> Atualizar QR
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <div className="flex items-center gap-3 py-6 justify-center">
+                  <Loader2 className="w-5 h-5 text-brand-400 animate-spin" />
+                  <p className="text-sm text-slate-400">Obtendo QR code...</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center gap-3">
         <button
@@ -873,11 +965,21 @@ export default function AdminClientDetail() {
                       Verificar
                     </button>
                   ) : org.evolution_instance && !org.chatwoot_account_id ? (
-                    // Evolution OK, Chatwoot pendente — preencher credenciais manualmente
-                    <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold"
-                      style={{ background: '#fff7ed', border: '1px solid #fed7aa', color: '#c2410c' }}>
-                      Chatwoot pendente ↓
-                    </span>
+                    // Evolution OK, Chatwoot pendente — mostrar QR e lembrar de configurar Chatwoot
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={openQRModal}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all"
+                        style={{ background: '#f0f9ff', border: '1px solid #bae6fd', color: '#0369a1' }}
+                      >
+                        <RefreshCw className="w-3 h-3" />
+                        Escanear QR
+                      </button>
+                      <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold"
+                        style={{ background: '#fff7ed', border: '1px solid #fed7aa', color: '#c2410c' }}>
+                        Chatwoot pendente ↓
+                      </span>
+                    </div>
                   ) : (
                     // Sem instância — iniciar setup do zero
                     <button
