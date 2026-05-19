@@ -21,7 +21,9 @@ import ClientSettings from './pages/client/ClientSettings'
 
 function RootRedirect() {
   const { session, role, loading } = useAuth()
-  if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" /></div>
+  // Aguarda troca do código PKCE do OAuth antes de redirecionar
+  const hasPendingOAuth = window.location.search.includes('code=')
+  if (loading || hasPendingOAuth) return <div className="min-h-screen flex items-center justify-center"><div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" /></div>
   if (!session) return <Navigate to="/login" replace />
   return <Navigate to={role === 'admin' ? '/admin' : '/dashboard'} replace />
 }
