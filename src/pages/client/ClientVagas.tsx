@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
-import { Briefcase, Plus, RefreshCw, X, Loader2, Folder, Bot, BotOff } from 'lucide-react'
+import { Briefcase, Plus, RefreshCw, X, Loader2, Folder, Bot, BotOff, Download, Calendar } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { type Job, type Niche } from '../../types'
@@ -20,9 +21,17 @@ function generateShortCode() {
   return Math.floor(100000 + Math.random() * 900000).toString()
 }
 
+const TAB_META: Record<SubTab, { title: string; subtitle: string }> = {
+  vagas:       { title: 'Minhas Vagas',  subtitle: 'Gerencie vagas, entrevistas e candidatos aprovados.' },
+  entrevistas: { title: 'Entrevistas',   subtitle: 'Acompanhe os agendamentos feitos pelo agente.' },
+  aprovados:   { title: 'Aprovados',     subtitle: 'Candidatos aprovados no processo seletivo.' },
+}
+
 export default function ClientVagas() {
   const { orgId } = useAuth()
+  const navigate  = useNavigate()
   const [activeTab, setActiveTab] = useState<SubTab>('vagas')
+  const [exportFn, setExportFn]   = useState<(() => void) | null>(null)
 
   // ── state ────────────────────────────────────────────────────────────────
   const [jobs, setJobs] = useState<Job[]>([])
@@ -186,9 +195,16 @@ export default function ClientVagas() {
   return (
     <div className="space-y-3">
 
-      {/* Header + sub-tabs + actions — tudo na mesma linha */}
+      {/* Título dinâmico por aba */}
+      <div>
+        <h1 className="text-2xl font-black text-slate-900 tracking-tight">
+          {TAB_META[activeTab].title}<span className="text-brand-500">.</span>
+        </h1>
+        <p className="text-sm text-slate-500 mt-0.5">{TAB_META[activeTab].subtitle}</p>
+      </div>
+
+      {/* Sub-tabs + botões de ação na mesma linha */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
-        {/* Sub-tab bar */}
         <div className="flex items-center gap-1 bg-white border border-slate-100 rounded-2xl p-1 shadow-sm">
           {SUB_TABS.map(tab => (
             <button
@@ -206,7 +222,7 @@ export default function ClientVagas() {
           ))}
         </div>
 
-        {/* Action buttons — só aparecem na aba Vagas */}
+        {/* Botões: Vagas */}
         {activeTab === 'vagas' && (
           <div className="flex items-center gap-2">
             <button onClick={handleRefresh} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-600 hover:bg-slate-50 transition-all shadow-sm">
@@ -221,6 +237,31 @@ export default function ClientVagas() {
               <Plus className="w-3 h-3" /> Nova Vaga
             </button>
           </div>
+        )}
+
+        {/* Botões: Entrevistas */}
+        {activeTab === 'entrevistas' && (
+          <div className="flex items-center gap-2">
+            {exportFn && (
+              <button onClick={exportFn} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-600 hover:bg-slate-50 transition-all shadow-sm">
+                <Download className="w-3 h-3" /> Exportar
+              </button>
+            )}
+            <button
+              onClick={() => navigate('/dashboard/appointments')}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-white text-xs font-bold transition-all shadow-[0_4px_14px_rgba(44,130,181,0.30)] hover:shadow-[0_6px_20px_rgba(44,130,181,0.42)] hover:-translate-y-[1px]"
+              style={{ background: 'linear-gradient(135deg, #2C82B5 0%, #2570a0 100%)' }}
+            >
+              <Calendar className="w-3 h-3" /> Agenda
+            </button>
+          </div>
+        )}
+
+        {/* Botões: Aprovados */}
+        {activeTab === 'aprovados' && exportFn && (
+          <button onClick={exportFn} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-600 hover:bg-slate-50 transition-all shadow-sm">
+            <Download className="w-3 h-3" /> Exportar
+          </button>
         )}
       </div>
 
@@ -269,10 +310,14 @@ export default function ClientVagas() {
       )}
 
       {/* ── Sub-tab: Entrevistas ─────────────────────────────────────────── */}
-      {activeTab === 'entrevistas' && <EntrevistasTab />}
+      {activeTab === 'entrevistas' && (
+        <EntrevistasTab onRegisterExport={fn => setExportFn(() => fn)} />
+      )}
 
       {/* ── Sub-tab: Aprovados ───────────────────────────────────────────── */}
-      {activeTab === 'aprovados' && <AprovadosTab />}
+      {activeTab === 'aprovados' && (
+        <AprovadosTab onRegisterExport={fn => setExportFn(() => fn)} />
+      )}
 
       {/* ── Modal Nova / Editar Vaga ─────────────────────────────────────── */}
       {showJobModal && (

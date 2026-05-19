@@ -30,7 +30,7 @@ function getInitials(name: string) {
   return name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase()
 }
 
-export default function ClientAprovados() {
+export default function ClientAprovados({ onRegisterExport }: { onRegisterExport?: (fn: () => void) => void }) {
   const { orgId } = useAuth()
   const [candidates, setCandidates] = useState<ApprovedCandidate[]>([])
   const [loading, setLoading] = useState(true)
@@ -86,6 +86,8 @@ export default function ClientAprovados() {
     }
   }
 
+  useEffect(() => { onRegisterExport?.(exportCsv) }, [filtered]) // eslint-disable-line
+
   function exportCsv() {
     const rows = [
       ['Candidato', 'Telefone', 'Vaga', 'Score', 'Experiência', 'Cidade', 'Aprovado em'].join(','),
@@ -107,23 +109,6 @@ export default function ClientAprovados() {
 
   return (
     <div className="space-y-5">
-
-      {/* Header */}
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div>
-          <h2 className="text-xl font-black text-slate-900 tracking-tight">
-            Aprovados<span className="text-brand-500">.</span>
-          </h2>
-          <p className="text-sm text-slate-500 mt-0.5">Candidatos aprovados no processo seletivo.</p>
-        </div>
-        <button
-          onClick={exportCsv}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white border border-slate-200 text-sm font-bold text-slate-600 hover:bg-slate-50 transition-colors shadow-sm"
-        >
-          <Download className="w-4 h-4" />
-          Exportar
-        </button>
-      </div>
 
       {/* Filters */}
       <div className="bg-white border border-slate-100 rounded-2xl px-5 py-4 shadow-sm flex flex-wrap items-end gap-3">

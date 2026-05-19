@@ -62,7 +62,7 @@ function fmtSlot(date: string | null, time: string | null) {
   return `${weekday}., ${day}${t}`
 }
 
-export default function ClientEntrevistas() {
+export default function ClientEntrevistas({ onRegisterExport }: { onRegisterExport?: (fn: () => void) => void }) {
   const { orgId } = useAuth()
   const navigate = useNavigate()
   const [interviews, setInterviews] = useState<Interview[]>([])
@@ -119,6 +119,8 @@ export default function ClientEntrevistas() {
     setInterviews(prev => prev.filter(i => i.id !== id))
   }
 
+  useEffect(() => { onRegisterExport?.(exportCsv) }, [filtered]) // eslint-disable-line
+
   function exportCsv() {
     const rows = [
       ['Candidato', 'Vaga', 'Entrevistador', 'Status', 'Data', 'Hora', 'Link'].join(','),
@@ -141,33 +143,6 @@ export default function ClientEntrevistas() {
 
   return (
     <div className="space-y-5">
-
-      {/* Header */}
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div>
-          <h2 className="text-xl font-black text-slate-900 tracking-tight">
-            Entrevistas<span className="text-brand-500">.</span>
-          </h2>
-          <p className="text-sm text-slate-500 mt-0.5">Acompanhe os agendamentos feitos pelo agente.</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={exportCsv}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white border border-slate-200 text-sm font-bold text-slate-600 hover:bg-slate-50 transition-colors shadow-sm"
-          >
-            <Download className="w-4 h-4" />
-            Exportar
-          </button>
-          <button
-            onClick={() => navigate('/dashboard/appointments')}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold text-white transition-all shadow-[0_4px_14px_rgba(44,130,181,0.30)] hover:shadow-[0_6px_20px_rgba(44,130,181,0.42)] hover:-translate-y-[1px]"
-            style={{ background: 'linear-gradient(135deg, #2C82B5 0%, #2570a0 100%)' }}
-          >
-            <Calendar className="w-4 h-4" />
-            Agenda
-          </button>
-        </div>
-      </div>
 
       {/* Filters */}
       <div className="bg-white border border-slate-100 rounded-2xl px-5 py-4 shadow-sm flex flex-wrap items-end gap-3">
