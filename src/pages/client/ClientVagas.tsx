@@ -225,16 +225,16 @@ export default function ClientVagas() {
         {/* Botões: Vagas */}
         {activeTab === 'vagas' && (
           <div className="flex items-center gap-2">
-            <button onClick={handleRefresh} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-600 hover:bg-slate-50 transition-all shadow-sm">
-              <RefreshCw className={cn('w-3 h-3', isRefreshing && 'animate-spin')} /> Atualizar
+            <button onClick={handleRefresh} className="flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 bg-white text-sm font-bold text-slate-600 hover:bg-slate-50 transition-all shadow-sm">
+              <RefreshCw className={cn('w-3.5 h-3.5', isRefreshing && 'animate-spin')} /> Atualizar
             </button>
-            <button onClick={() => setShowNicheModal(true)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-600 hover:bg-slate-50 transition-all shadow-sm">
-              <Plus className="w-3 h-3" /> Novo Nicho
+            <button onClick={() => setShowNicheModal(true)} className="flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 bg-white text-sm font-bold text-slate-600 hover:bg-slate-50 transition-all shadow-sm">
+              <Plus className="w-3.5 h-3.5" /> Novo Nicho
             </button>
             <button onClick={openNewJobModal}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-white text-xs font-bold transition-all shadow-[0_4px_14px_rgba(44,130,181,0.30)] hover:shadow-[0_6px_20px_rgba(44,130,181,0.42)] hover:-translate-y-[1px]"
+              className="flex items-center gap-2 px-4 py-2 rounded-xl text-white text-sm font-bold transition-all shadow-[0_4px_14px_rgba(44,130,181,0.30)] hover:shadow-[0_6px_20px_rgba(44,130,181,0.42)] hover:-translate-y-[1px]"
               style={{ background: 'linear-gradient(135deg, #2C82B5 0%, #2570a0 100%)' }}>
-              <Plus className="w-3 h-3" /> Nova Vaga
+              <Plus className="w-3.5 h-3.5" /> Nova Vaga
             </button>
           </div>
         )}
