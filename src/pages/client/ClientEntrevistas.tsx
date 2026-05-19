@@ -63,8 +63,7 @@ function fmtSlot(date: string | null, time: string | null) {
 }
 
 export default function ClientEntrevistas() {
-  const { user } = useAuth()
-  const userId = user?.id ?? null
+  const { orgId } = useAuth()
   const navigate = useNavigate()
   const [interviews, setInterviews] = useState<Interview[]>([])
   const [loading, setLoading] = useState(true)
@@ -76,12 +75,12 @@ export default function ClientEntrevistas() {
   const [entrevFilter, setEntrev] = useState('')
 
   useEffect(() => {
-    if (!userId) return
+    if (!orgId) return
     setLoading(true)
     supabase
       .from('interviews')
-      .select(`*, candidates ( id, status, analysis_result, "Nome Completo", "WhatsApp com DDD" ), jobs ( id, title, user_id )`)
-      .eq('jobs.user_id', userId)
+      .select(`*, candidates ( id, status, analysis_result ), jobs ( id, title, org_id )`)
+      .eq('jobs.org_id', orgId)
       .order('created_at', { ascending: false })
       .then(({ data }) => {
         if (data) {
@@ -90,15 +89,15 @@ export default function ClientEntrevistas() {
             const ar = cand?.analysis_result as { candidateName?: string; phoneNumbers?: string[] } | null
             return {
               ...row,
-              job_title:       (row.jobs as { title?: string } | null)?.title ?? '—',
-              candidate_name:  ar?.candidateName ?? (cand?.['Nome Completo'] as string | undefined) ?? 'Candidato',
-              candidate_phone: (ar?.phoneNumbers ?? [])[0] ?? (cand?.['WhatsApp com DDD'] as string | undefined) ?? null,
+              job_title:      (row.jobs as { title?: string } | null)?.title ?? '—',
+              candidate_name: ar?.candidateName ?? 'Candidato',
+              candidate_phone: (ar?.phoneNumbers ?? [])[0] ?? null,
             }
           }) as Interview[])
         }
         setLoading(false)
       })
-  }, [userId])
+  }, [orgId])
 
   const jobTitles = useMemo(() => [...new Set(interviews.map(i => i.job_title ?? '').filter(Boolean))], [interviews])
 

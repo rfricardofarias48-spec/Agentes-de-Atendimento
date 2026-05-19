@@ -31,8 +31,7 @@ function getInitials(name: string) {
 }
 
 export default function ClientAprovados() {
-  const { user } = useAuth()
-  const userId = user?.id ?? null
+  const { orgId } = useAuth()
   const [candidates, setCandidates] = useState<ApprovedCandidate[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -42,13 +41,13 @@ export default function ClientAprovados() {
   const [dateTo, setDateTo]     = useState('')
 
   useEffect(() => {
-    if (!userId) return
+    if (!orgId) return
     setLoading(true)
     supabase
       .from('candidates')
-      .select('*, jobs ( id, title, user_id )')
+      .select('*, jobs ( id, title, org_id )')
       .eq('is_selected', true)
-      .eq('jobs.user_id', userId)
+      .eq('jobs.org_id', orgId)
       .order('created_at', { ascending: false })
       .then(({ data }) => {
         if (data) {
@@ -63,7 +62,7 @@ export default function ClientAprovados() {
         }
         setLoading(false)
       })
-  }, [userId])
+  }, [orgId])
 
   const jobTitles = useMemo(() => [...new Set(candidates.map(c => c.job_title ?? '').filter(Boolean))], [candidates])
 
