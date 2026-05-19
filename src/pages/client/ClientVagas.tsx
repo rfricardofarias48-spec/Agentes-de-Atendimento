@@ -94,7 +94,7 @@ export default function ClientVagas() {
       if (!error) setJobs(prev => prev.map(j => j.id === editingJob.id ? { ...j, title: jobTitle, description: jobDescription, criteria: jobCriteria } : j))
     } else {
       const { data, error } = await supabase.from('jobs')
-        .insert([{ org_id: orgId, title: jobTitle, description: jobDescription, criteria: jobCriteria, short_code: generateShortCode(), niche_id: selectedNicheId || null, isPinned: false }])
+        .insert([{ org_id: orgId, title: jobTitle, description: jobDescription, criteria: jobCriteria, short_code: generateShortCode(), niche_id: selectedNicheId || null, is_pinned: false }])
         .select('*, candidates(*)').single()
       if (!error && data) setJobs(prev => [data as Job, ...prev])
     }
@@ -109,9 +109,9 @@ export default function ClientVagas() {
   }
   const handlePinJob = async (id: string) => {
     const job = jobs.find(j => j.id === id); if (!job) return
-    const newPinned = !job.isPinned
-    await supabase.from('jobs').update({ isPinned: newPinned }).eq('id', id)
-    setJobs(prev => prev.map(j => j.id === id ? { ...j, isPinned: newPinned } : j))
+    const newPinned = !job.is_pinned
+    await supabase.from('jobs').update({ is_pinned: newPinned }).eq('id', id)
+    setJobs(prev => prev.map(j => j.id === id ? { ...j, is_pinned: newPinned } : j))
   }
   const handleMoveJob = async (jobId: string, targetNicheId: string) => {
     await supabase.from('jobs').update({ niche_id: targetNicheId }).eq('id', jobId)
