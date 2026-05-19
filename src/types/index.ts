@@ -129,6 +129,7 @@ export interface Job {
   niche_id: string | null
   is_pinned: boolean
   short_code: string
+  auto_analyze: boolean
   created_at: string
   candidates: JobCandidate[]
 }

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Briefcase, ChevronRight, Users, Trash2, Pin, Sparkles, Pencil, Check, X } from 'lucide-react'
+import { Briefcase, ChevronRight, Users, Trash2, Pin, Sparkles, Pencil, Check, X, Copy, Bot, BotOff } from 'lucide-react'
 import { type Job } from '../../types'
 
 interface JobCardProps {
@@ -13,6 +13,15 @@ interface JobCardProps {
 
 export function JobCard({ job, onClick, onDelete, onPin, onEdit, isDeleting = false }: JobCardProps) {
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [copied, setCopied]             = useState(false)
+
+  function copyCode(e: React.MouseEvent) {
+    e.stopPropagation()
+    navigator.clipboard.writeText(job.short_code).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1800)
+    })
+  }
 
   const d = new Date(job.created_at)
   const formattedDate = `(${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')})`
@@ -96,13 +105,40 @@ export function JobCard({ job, onClick, onDelete, onPin, onEdit, isDeleting = fa
         </p>
       </div>
 
-      {/* Footer */}
-      <div className="pt-5 mt-2 flex items-center justify-between pointer-events-none">
-        <div className="bg-slate-50 px-2.5 py-1.5 rounded-full flex items-center gap-1.5 border border-slate-100">
-          <Users className="w-3.5 h-3.5 text-slate-400" />
-          <span className="text-[10px] font-black text-slate-600">
-            {job.candidates.length} {job.candidates.length === 1 ? 'CV' : 'CVs'}
+      {/* Short code */}
+      <div className="mt-4 mb-1 pointer-events-auto" onClick={e => e.stopPropagation()}>
+        <button
+          onClick={copyCode}
+          className="flex items-center gap-1.5 bg-slate-50 border border-dashed border-slate-200 px-3 py-1.5 rounded-xl hover:bg-slate-100 transition-all group w-full"
+          title="Copiar código da vaga"
+        >
+          <span className="text-[11px] font-black tracking-widest text-slate-500 font-mono flex-1 text-left">
+            #{job.short_code}
           </span>
+          {copied
+            ? <Check className="w-3 h-3 text-emerald-500 shrink-0" />
+            : <Copy className="w-3 h-3 text-slate-300 group-hover:text-slate-500 shrink-0" />}
+        </button>
+        <p className="text-[9px] text-slate-300 mt-1 ml-1">Código para candidatos</p>
+      </div>
+
+      {/* Footer */}
+      <div className="pt-3 mt-1 flex items-center justify-between pointer-events-none">
+        <div className="flex items-center gap-2">
+          <div className="bg-slate-50 px-2.5 py-1.5 rounded-full flex items-center gap-1.5 border border-slate-100">
+            <Users className="w-3.5 h-3.5 text-slate-400" />
+            <span className="text-[10px] font-black text-slate-600">
+              {job.candidates.length} {job.candidates.length === 1 ? 'CV' : 'CVs'}
+            </span>
+          </div>
+          {job.auto_analyze !== false
+            ? <span className="flex items-center gap-1 text-[9px] font-black text-emerald-600 bg-emerald-50 border border-emerald-100 px-2 py-1 rounded-full">
+                <Bot className="w-2.5 h-2.5" /> IA Ativa
+              </span>
+            : <span className="flex items-center gap-1 text-[9px] font-black text-slate-400 bg-slate-50 border border-slate-100 px-2 py-1 rounded-full">
+                <BotOff className="w-2.5 h-2.5" /> IA Pausada
+              </span>
+          }
         </div>
         <div className="bg-slate-900 text-white px-4 py-1.5 rounded-full flex items-center gap-1.5">
           <span className="text-[10px] font-black uppercase tracking-wide">Analisar</span>
