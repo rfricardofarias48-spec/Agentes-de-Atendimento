@@ -1,9 +1,8 @@
 import { useEffect, useState, useMemo } from 'react'
 import {
   Video, Loader2, ThumbsUp, ThumbsDown, Eye, Trash2,
-  Download, Calendar, User, Briefcase, Search,
+  User, Briefcase, Search,
 } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { cn } from '../../lib/utils'
@@ -64,7 +63,6 @@ function fmtSlot(date: string | null, time: string | null) {
 
 export default function ClientEntrevistas({ onRegisterExport }: { onRegisterExport?: (fn: () => void) => void }) {
   const { orgId } = useAuth()
-  const navigate = useNavigate()
   const [interviews, setInterviews] = useState<Interview[]>([])
   const [loading, setLoading] = useState(true)
 
