@@ -8,6 +8,7 @@ interface AuthContextType {
   role: 'admin' | 'client' | null
   orgId: string | null
   loading: boolean
+  noProfile: boolean
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>
   signOut: () => Promise<void>
 }
@@ -19,6 +20,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [role, setRole] = useState<'admin' | 'client' | null>(null)
   const [orgId, setOrgId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const [noProfile, setNoProfile] = useState(false)
 
   async function loadUserProfile(userId: string) {
     const { data } = await supabase
@@ -30,10 +32,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (data) {
       setRole(data.role)
       setOrgId(data.org_id)
+      setNoProfile(false)
     } else {
-      // Sem perfil vinculado — mantém role null, ProtectedRoute vai redirecionar ao login
       setRole(null)
       setOrgId(null)
+      setNoProfile(true)
     }
   }
 
@@ -47,7 +50,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session)
       if (session?.user) loadUserProfile(session.user.id)
-      else { setRole(null); setOrgId(null) }
+      else { setRole(null); setOrgId(null); setNoProfile(false) }
     })
 
     return () => subscription.unsubscribe()
@@ -71,6 +74,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       role,
       orgId,
       loading,
+      noProfile,
       signIn,
       signOut,
     }}>
