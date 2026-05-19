@@ -16,8 +16,6 @@ import AdminSales from './pages/admin/AdminSales'
 import ClientDashboard from './pages/client/ClientDashboard'
 import ClientAppointments from './pages/client/ClientAppointments'
 import ClientVagas from './pages/client/ClientVagas'
-import ClientEntrevistas from './pages/client/ClientEntrevistas'
-import ClientAprovados from './pages/client/ClientAprovados'
 import ClientPayments from './pages/client/ClientPayments'
 import ClientSettings from './pages/client/ClientSettings'
 
@@ -79,16 +77,6 @@ export default function App() {
           <Route path="/dashboard/vagas" element={
             <ProtectedRoute requiredRole="client">
               <ClientLayout><ClientVagas /></ClientLayout>
-            </ProtectedRoute>
-          } />
-          <Route path="/dashboard/entrevistas" element={
-            <ProtectedRoute requiredRole="client">
-              <ClientLayout><ClientEntrevistas /></ClientLayout>
-            </ProtectedRoute>
-          } />
-          <Route path="/dashboard/aprovados" element={
-            <ProtectedRoute requiredRole="client">
-              <ClientLayout><ClientAprovados /></ClientLayout>
             </ProtectedRoute>
           } />
           <Route path="/dashboard/payments" element={
