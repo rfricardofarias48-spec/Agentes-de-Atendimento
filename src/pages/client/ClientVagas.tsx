@@ -92,7 +92,8 @@ export default function ClientVagas() {
     if (editingJob) {
       const { error } = await supabase.from('jobs')
         .update({ title: jobTitle, description: jobDescription, criteria: jobCriteria, auto_analyze: jobAutoAnalyze }).eq('id', editingJob.id)
-      if (!error) setJobs(prev => prev.map(j => j.id === editingJob.id ? { ...j, title: jobTitle, description: jobDescription, criteria: jobCriteria, auto_analyze: jobAutoAnalyze } : j))
+      if (error) { alert(`Erro ao editar vaga: ${error.message}`); setJobSaving(false); return }
+      setJobs(prev => prev.map(j => j.id === editingJob.id ? { ...j, title: jobTitle, description: jobDescription, criteria: jobCriteria, auto_analyze: jobAutoAnalyze } : j))
     } else {
       const { data, error } = await supabase.from('jobs')
         .insert([{
@@ -106,7 +107,8 @@ export default function ClientVagas() {
           auto_analyze: jobAutoAnalyze,
         }])
         .select('*, candidates(*)').single()
-      if (!error && data) setJobs(prev => [data as Job, ...prev])
+      if (error) { alert(`Erro ao criar vaga: ${error.message}`); setJobSaving(false); return }
+      if (data) setJobs(prev => [data as Job, ...prev])
     }
     setJobSaving(false); setShowJobModal(false)
   }
@@ -135,7 +137,8 @@ export default function ClientVagas() {
     const { data, error } = await supabase.from('niches')
       .insert([{ org_id: orgId, name: newNicheName.trim(), order_pos: niches.length, is_pinned: false }])
       .select().single()
-    if (!error && data) { setNiches(prev => [...prev, data as Niche]); setNewNicheName(''); setShowNicheModal(false) }
+    if (error) { alert(`Erro ao criar nicho: ${error.message}`); setNicheSaving(false); return }
+    if (data) { setNiches(prev => [...prev, data as Niche]); setNewNicheName(''); setShowNicheModal(false) }
     setNicheSaving(false)
   }
   const handleCreateInlineNiche = async () => {
