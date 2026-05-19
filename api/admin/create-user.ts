@@ -21,12 +21,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ error: 'orgId, email e password são obrigatórios' });
   }
 
-  // Criar usuário no Auth
-  const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+  // Tentativa 1: criar direto
+  let { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
     email,
     password,
     email_confirm: true,
   });
+
+  // Se falhou por email duplicado, remove o registro antigo e tenta de novo
+  if (authError && (authError.message.toLowerCase().includes('already') || authError.status === 422)) {
+    const { data: list } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
+    const found = list?.users?.find(u => u.email === email);
+    if (found) await supabaseAdmin.auth.admin.deleteUser(found.id);
+
+    ({ data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+    }));
+  }
 
   if (authError) {
     return res.status(400).json({ error: authError.message });
