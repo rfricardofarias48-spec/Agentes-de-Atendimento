@@ -12,7 +12,7 @@ const SIDEBAR_BG = '#0f172a'
 const navItems = [
   { href: '/dashboard',              label: 'Visão Geral',      icon: LayoutDashboard },
   { href: '/dashboard/vagas',        label: 'Minhas Vagas',     icon: Briefcase },
-  { href: '/dashboard/appointments', label: 'Entrevistas',      icon: Calendar },
+  { href: '/dashboard/appointments', label: 'Agenda',           icon: Calendar },
   { href: '/dashboard/payments',     label: 'Minha Assinatura', icon: CreditCard },
   { href: '/dashboard/settings',     label: 'Configurações',    icon: Settings },
 ]
