@@ -159,7 +159,8 @@ export default function ClientEntrevistas() {
           </button>
           <button
             onClick={() => navigate('/dashboard/appointments')}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-sm font-bold text-white transition-colors shadow-sm"
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold text-white transition-all shadow-[0_4px_14px_rgba(44,130,181,0.30)] hover:shadow-[0_6px_20px_rgba(44,130,181,0.42)] hover:-translate-y-[1px]"
+            style={{ background: 'linear-gradient(135deg, #2C82B5 0%, #2570a0 100%)' }}
           >
             <Calendar className="w-4 h-4" />
             Agenda
