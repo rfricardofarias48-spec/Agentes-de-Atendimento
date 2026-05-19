@@ -3,6 +3,7 @@ import {
   Video, Loader2, ThumbsUp, ThumbsDown, Eye, Trash2,
   Download, Calendar, User, Briefcase, Search,
 } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { cn } from '../../lib/utils'
@@ -63,6 +64,7 @@ function fmtSlot(date: string | null, time: string | null) {
 
 export default function ClientEntrevistas() {
   const { orgId } = useAuth()
+  const navigate = useNavigate()
   const [interviews, setInterviews] = useState<Interview[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -155,9 +157,12 @@ export default function ClientEntrevistas() {
             <Download className="w-4 h-4" />
             Exportar
           </button>
-          <button className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-sm font-bold text-white transition-colors shadow-sm">
+          <button
+            onClick={() => navigate('/dashboard/appointments')}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-sm font-bold text-white transition-colors shadow-sm"
+          >
             <Calendar className="w-4 h-4" />
-            Horários Disponíveis
+            Agenda
           </button>
         </div>
       </div>
