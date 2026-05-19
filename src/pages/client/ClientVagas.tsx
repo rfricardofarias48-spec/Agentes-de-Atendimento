@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
-import { Briefcase, Plus, RefreshCw, X, Loader2, Folder, Bot, BotOff, Download, Calendar } from 'lucide-react'
+import { Briefcase, Plus, RefreshCw, X, Loader2, Folder, Download, Calendar } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
@@ -391,33 +391,6 @@ export default function ClientVagas() {
                   placeholder="Liste os requisitos chave (ex: React, Inglês Fluente, 3 anos de xp...)" rows={3}
                   className="w-full border border-slate-200 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900 placeholder:text-slate-300 bg-slate-50 resize-none" />
               </div>
-              {/* Toggle auto_analyze */}
-              <div className="flex items-center justify-between p-4 rounded-2xl border border-slate-200 bg-slate-50">
-                <div className="flex items-center gap-3">
-                  {jobAutoAnalyze
-                    ? <div className="w-9 h-9 bg-emerald-50 rounded-xl flex items-center justify-center"><Bot className="w-4 h-4 text-emerald-600" /></div>
-                    : <div className="w-9 h-9 bg-slate-100 rounded-xl flex items-center justify-center"><BotOff className="w-4 h-4 text-slate-400" /></div>
-                  }
-                  <div>
-                    <p className="text-[12px] font-black text-slate-700">Análise automática de CV</p>
-                    <p className="text-[10px] text-slate-400">{jobAutoAnalyze ? 'IA analisa os currículos enviados' : 'Análise pausada — não recebe CVs'}</p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setJobAutoAnalyze(v => !v)}
-                  className={cn(
-                    'relative w-11 h-6 rounded-full transition-all duration-300',
-                    jobAutoAnalyze ? 'bg-emerald-500' : 'bg-slate-300',
-                  )}
-                >
-                  <span className={cn(
-                    'absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-300',
-                    jobAutoAnalyze ? 'translate-x-5' : 'translate-x-0',
-                  )} />
-                </button>
-              </div>
-
               <button type="submit" disabled={jobSaving || !jobTitle.trim() || (!editingJob && niches.length > 0 && !selectedNicheId)}
                 className="w-full py-3.5 rounded-2xl bg-slate-700 hover:bg-slate-800 text-white font-black text-sm transition-all disabled:opacity-50 flex items-center justify-center gap-2">
                 {jobSaving ? <><Loader2 className="w-4 h-4 animate-spin" /> Salvando...</> : editingJob ? 'Salvar Alterações' : 'Criar Vaga com IA'}
