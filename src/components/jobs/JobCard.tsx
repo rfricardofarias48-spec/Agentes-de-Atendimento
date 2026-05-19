@@ -19,7 +19,7 @@ export function JobCard({ job, onClick, onDelete, onPin, onEdit, isDeleting = fa
 
   return (
     <div
-      className={`bg-white border border-slate-100 rounded-[1.5rem] p-5 relative shadow-[0px_4px_20px_rgba(0,0,0,0.02)] hover:shadow-[0px_4px_25px_rgba(0,0,0,0.05)] hover:-translate-y-1 transition-all duration-300 flex flex-col h-full select-none ${isDeleting ? 'opacity-70 grayscale pointer-events-none' : ''} ${job.is_pinned ? 'ring-2 ring-[#2C82B5] ring-offset-2' : ''}`}
+      className={`bg-white border border-slate-200 rounded-[1.5rem] p-5 relative shadow-[0px_4px_20px_rgba(0,0,0,0.07)] hover:shadow-[0px_4px_25px_rgba(0,0,0,0.05)] hover:-translate-y-1 transition-all duration-300 flex flex-col h-full select-none ${isDeleting ? 'opacity-70 grayscale pointer-events-none' : ''} ${job.is_pinned ? 'ring-2 ring-[#2C82B5] ring-offset-2' : ''}`}
       onMouseLeave={() => confirmDelete && setConfirmDelete(false)}
     >
       {/* Clickable overlay */}
