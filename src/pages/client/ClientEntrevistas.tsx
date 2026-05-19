@@ -63,7 +63,8 @@ function fmtSlot(date: string | null, time: string | null) {
 }
 
 export default function ClientEntrevistas() {
-  const { orgId } = useAuth()
+  const { user } = useAuth()
+  const userId = user?.id ?? null
   const navigate = useNavigate()
   const [interviews, setInterviews] = useState<Interview[]>([])
   const [loading, setLoading] = useState(true)
@@ -75,28 +76,29 @@ export default function ClientEntrevistas() {
   const [entrevFilter, setEntrev] = useState('')
 
   useEffect(() => {
-    if (!orgId) return
+    if (!userId) return
     setLoading(true)
     supabase
       .from('interviews')
-      .select(`*, candidates ( id, status, analysis_result ), jobs ( id, title, org_id )`)
-      .eq('jobs.org_id', orgId)
+      .select(`*, candidates ( id, status, analysis_result, "Nome Completo", "WhatsApp com DDD" ), jobs ( id, title, user_id )`)
+      .eq('jobs.user_id', userId)
       .order('created_at', { ascending: false })
       .then(({ data }) => {
         if (data) {
           setInterviews(data.map((row: Record<string, unknown>) => {
-            const analysisResult = (row.candidates as { analysis_result?: { candidateName?: string; phoneNumbers?: string[] } } | null)?.analysis_result
+            const cand = row.candidates as Record<string, unknown> | null
+            const ar = cand?.analysis_result as { candidateName?: string; phoneNumbers?: string[] } | null
             return {
               ...row,
               job_title:       (row.jobs as { title?: string } | null)?.title ?? '—',
-              candidate_name:  analysisResult?.candidateName ?? 'Candidato',
-              candidate_phone: (analysisResult?.phoneNumbers ?? [])[0] ?? null,
+              candidate_name:  ar?.candidateName ?? (cand?.['Nome Completo'] as string | undefined) ?? 'Candidato',
+              candidate_phone: (ar?.phoneNumbers ?? [])[0] ?? (cand?.['WhatsApp com DDD'] as string | undefined) ?? null,
             }
           }) as Interview[])
         }
         setLoading(false)
       })
-  }, [orgId])
+  }, [userId])
 
   const jobTitles = useMemo(() => [...new Set(interviews.map(i => i.job_title ?? '').filter(Boolean))], [interviews])
 

@@ -31,7 +31,8 @@ function getInitials(name: string) {
 }
 
 export default function ClientAprovados() {
-  const { orgId } = useAuth()
+  const { user } = useAuth()
+  const userId = user?.id ?? null
   const [candidates, setCandidates] = useState<ApprovedCandidate[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -41,26 +42,28 @@ export default function ClientAprovados() {
   const [dateTo, setDateTo]     = useState('')
 
   useEffect(() => {
-    if (!orgId) return
+    if (!userId) return
     setLoading(true)
     supabase
       .from('candidates')
-      .select('*, jobs ( id, title, org_id )')
-      .eq('status', 'APROVADO')
-      .eq('jobs.org_id', orgId)
-      .order('updated_at', { ascending: false })
+      .select('*, jobs ( id, title, user_id )')
+      .eq('is_selected', true)
+      .eq('jobs.user_id', userId)
+      .order('created_at', { ascending: false })
       .then(({ data }) => {
         if (data) {
           setCandidates(data.map((row: Record<string, unknown>) => ({
             ...row,
             job_title:       (row.jobs as { title?: string } | null)?.title ?? '—',
-            candidate_name:  (row.analysis_result as { candidateName?: string } | null)?.candidateName,
-            candidate_phone: ((row.analysis_result as { phoneNumbers?: string[] } | null)?.phoneNumbers ?? [])[0],
+            candidate_name:  (row.analysis_result as { candidateName?: string } | null)?.candidateName
+                             ?? (row['Nome Completo'] as string | undefined),
+            candidate_phone: ((row.analysis_result as { phoneNumbers?: string[] } | null)?.phoneNumbers ?? [])[0]
+                             ?? (row['WhatsApp com DDD'] as string | undefined),
           })) as ApprovedCandidate[])
         }
         setLoading(false)
       })
-  }, [orgId])
+  }, [userId])
 
   const jobTitles = useMemo(() => [...new Set(candidates.map(c => c.job_title ?? '').filter(Boolean))], [candidates])
 

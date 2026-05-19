@@ -21,7 +21,8 @@ function generateShortCode() {
 }
 
 export default function ClientVagas() {
-  const { orgId } = useAuth()
+  const { user } = useAuth()
+  const userId = user?.id ?? null
   const [activeTab, setActiveTab] = useState<SubTab>('vagas')
 
   // ── state ────────────────────────────────────────────────────────────────
@@ -49,19 +50,19 @@ export default function ClientVagas() {
 
   // ── fetch ────────────────────────────────────────────────────────────────
   const fetchJobs = useCallback(async () => {
-    if (!orgId) return
+    if (!userId) return
     const { data } = await supabase
-      .from('jobs').select('*, candidates(*)').eq('org_id', orgId).order('created_at', { ascending: false })
+      .from('jobs').select('*, candidates(*)').eq('user_id', userId).order('created_at', { ascending: false })
     if (data) setJobs(data as Job[])
-  }, [orgId])
+  }, [userId])
 
   const fetchNiches = useCallback(async () => {
-    if (!orgId) return
+    if (!userId) return
     const { data } = await supabase
-      .from('niches').select('*').eq('org_id', orgId)
+      .from('niches').select('*').eq('user_id', userId)
       .order('is_pinned', { ascending: false }).order('order_pos', { ascending: true })
     if (data) setNiches(data as Niche[])
-  }, [orgId])
+  }, [userId])
 
   useEffect(() => { fetchJobs(); fetchNiches() }, [fetchJobs, fetchNiches])
 
@@ -86,7 +87,7 @@ export default function ClientVagas() {
   // ── job handlers ──────────────────────────────────────────────────────────
   const handleJobSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!orgId || !jobTitle.trim()) return
+    if (!userId || !jobTitle.trim()) return
     setJobSaving(true)
     if (editingJob) {
       const { error } = await supabase.from('jobs')
@@ -94,7 +95,7 @@ export default function ClientVagas() {
       if (!error) setJobs(prev => prev.map(j => j.id === editingJob.id ? { ...j, title: jobTitle, description: jobDescription, criteria: jobCriteria } : j))
     } else {
       const { data, error } = await supabase.from('jobs')
-        .insert([{ org_id: orgId, title: jobTitle, description: jobDescription, criteria: jobCriteria, short_code: generateShortCode(), niche_id: selectedNicheId || null, is_pinned: false }])
+        .insert([{ user_id: userId, title: jobTitle, description: jobDescription, criteria: jobCriteria, short_code: generateShortCode(), niche_id: selectedNicheId || null, is_pinned: false }])
         .select('*, candidates(*)').single()
       if (!error && data) setJobs(prev => [data as Job, ...prev])
     }
@@ -120,19 +121,19 @@ export default function ClientVagas() {
 
   // ── niche handlers ────────────────────────────────────────────────────────
   const handleCreateNiche = async () => {
-    if (!newNicheName.trim() || !orgId) return
+    if (!newNicheName.trim() || !userId) return
     setNicheSaving(true)
     const { data, error } = await supabase.from('niches')
-      .insert([{ org_id: orgId, name: newNicheName.trim(), order_pos: niches.length, is_pinned: false }])
+      .insert([{ user_id: userId, name: newNicheName.trim(), order_pos: niches.length, is_pinned: false }])
       .select().single()
     if (!error && data) { setNiches(prev => [...prev, data as Niche]); setNewNicheName(''); setShowNicheModal(false) }
     setNicheSaving(false)
   }
   const handleCreateInlineNiche = async () => {
-    if (!inlineNicheName.trim() || !orgId) return
+    if (!inlineNicheName.trim() || !userId) return
     setInlineNicheLoading(true)
     const { data, error } = await supabase.from('niches')
-      .insert([{ org_id: orgId, name: inlineNicheName.trim(), order_pos: niches.length, is_pinned: false }])
+      .insert([{ user_id: userId, name: inlineNicheName.trim(), order_pos: niches.length, is_pinned: false }])
       .select().single()
     if (!error && data) {
       const n = data as Niche
