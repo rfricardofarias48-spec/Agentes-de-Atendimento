@@ -1,6 +1,6 @@
 export type UserRole = 'admin' | 'client'
 
-export type OrgPlan = 'starter' | 'pro' | 'clinic'
+export type OrgPlan = 'starter' | 'pro' | 'max' | 'ultra'
 export type OrgStatus = 'active' | 'inactive' | 'trial' | 'suspended'
 
 export interface Organization {

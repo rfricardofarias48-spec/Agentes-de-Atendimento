@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Check, Zap, Loader2 } from 'lucide-react'
+import { Check, Zap, Loader2, ArrowUpRight } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { type Organization } from '../../types'
@@ -7,66 +7,92 @@ import { cn } from '../../lib/utils'
 
 // ── Plan metadata ──────────────────────────────────────────────
 const PLAN_META: Record<string, { label: string; price: number }> = {
-  starter: { label: 'Essencial', price: 299.90 },
-  pro:     { label: 'Pro',       price: 449.90 },
-  clinic:  { label: 'Max',       price: 849.90 },
+  starter: { label: 'Essencial',      price: 399 },
+  pro:     { label: 'Pro',            price: 749 },
+  max:     { label: 'Max · Agência',  price: 1699 },
+  ultra:   { label: 'Ultra · Agência',price: 2999 },
 }
 
 const PLANS = [
   {
     key: 'starter',
     name: 'Essencial',
-    price_monthly: 299.90,
-    description: 'Para o profissional autônomo automatizar agenda e atendimento.',
+    price_monthly: 399,
+    price_annual_monthly: 319.20,
+    description: 'Para equipes enxutas e recrutamento ágil.',
     highlight: false,
     badge: null,
+    badgeStyle: null as null | 'popular' | 'maxima',
     features: [
-      'Até 100 agendamentos/mês',
-      'Agendamento, reagendamento e cancelamento',
-      'Orientações Pré-Consulta',
-      'Orçamentos',
-      'Atendimento Humano (1 assento no Chatwoot)',
+      'Até 3 vagas em simultâneo',
+      'Triagem e ranking',
+      'Relatórios automáticos',
+      'Agendamento autônomo',
+      'Google Calendar e Meet',
     ],
     cta: 'Assinar Essencial',
   },
   {
     key: 'pro',
     name: 'Pro',
-    price_monthly: 449.90,
-    description: 'Mais volume e atendentes para clínicas em crescimento.',
+    price_monthly: 749,
+    price_annual_monthly: 599.20,
+    description: 'Tração total para seu RH com mais vagas.',
     highlight: true,
     badge: 'Mais Popular',
+    badgeStyle: 'popular' as null | 'popular' | 'maxima',
     features: [
-      'Até 200 agendamentos/mês',
-      'Agendamento, reagendamento e cancelamento',
-      'Orientações Pré-Consulta',
-      'Orçamentos',
-      'Atendimento Humano (2 assentos no Chatwoot)',
+      'Até 10 vagas em simultâneo',
+      'Todas as funções do Essencial',
+      'Portal de Admissão',
+      'Conformidade LGPD',
     ],
     cta: 'Assinar Pro',
   },
   {
-    key: 'clinic',
-    name: 'Max',
-    price_monthly: 849.90,
-    description: 'Alta capacidade e suporte ampliado para clínicas de grande volume.',
+    key: 'max',
+    name: 'Max · Agência',
+    price_monthly: 1699,
+    price_annual_monthly: 1189.30,
+    description: 'Para agências em crescimento com múltiplos clientes.',
     highlight: false,
     badge: null,
+    badgeStyle: null as null | 'popular' | 'maxima',
     features: [
-      'Até 400 agendamentos/mês',
-      'Agendamento, reagendamento e cancelamento',
-      'Orientações Pré-Consulta',
-      'Orçamentos',
-      'Atendimento Humano (3 assentos no Chatwoot)',
+      'Até 25 vagas simultâneas',
+      'Todas as funções do Pro',
+      'Múltiplos clientes',
+      'Relatórios avançados',
     ],
     cta: 'Assinar Max',
   },
+  {
+    key: 'ultra',
+    name: 'Ultra · Agência',
+    price_monthly: 2999,
+    price_annual_monthly: 2099.30,
+    description: 'Para grandes agências com alta demanda de vagas.',
+    highlight: true,
+    badge: '★ Máxima',
+    badgeStyle: 'maxima' as null | 'popular' | 'maxima',
+    features: [
+      'Até 50 vagas simultâneas',
+      'Todas as funções do Max',
+      'Suporte prioritário',
+      'SLA garantido',
+    ],
+    cta: 'Assinar Ultra',
+  },
 ]
-
-const ANNUAL_DISCOUNT = 0.20
 
 function fmt(v: number) {
   return v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
+function fmtDate(iso: string | null) {
+  if (!iso) return null
+  const d = new Date(iso)
+  return d.toLocaleDateString('pt-BR')
 }
 
 export default function ClientPayments() {
@@ -82,8 +108,10 @@ export default function ClientPayments() {
       .then(({ data }) => { if (data) setOrg(data) })
   }, [orgId])
 
-  const planMeta = org ? (PLAN_META[org.plan] ?? { label: org.plan, price: 0 }) : null
+  const planMeta = org ? (PLAN_META[org.plan] ?? { label: org.plan.toUpperCase(), price: 0 }) : null
   const usagePct = org ? Math.min(100, (org.conversations_used / org.max_conversations_month) * 100) : 0
+  const isCustomPlan = org ? !PLAN_META[org.plan] : false
+  const renewDate = org ? fmtDate((org as Organization & { subscription_period_end?: string }).subscription_period_end ?? null) : null
 
   async function handleSubscribe(planKey: string) {
     setCtaError(null)
@@ -118,7 +146,7 @@ export default function ClientPayments() {
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Minha Assinatura</h1>
-        <p className="text-sm text-gray-500">Escolha o plano ideal para a sua clínica</p>
+        <p className="text-sm text-gray-500">Gerencie seu plano e limites de uso.</p>
       </div>
 
       {/* ── Active Plan Banner ──────────────────────────────────── */}
@@ -127,28 +155,51 @@ export default function ClientPayments() {
 
           {/* Top row */}
           <div className="flex items-center justify-between mb-3">
-            <span className="text-[10px] font-black text-brand-400 uppercase tracking-widest">
-              Plano Ativo
-            </span>
+            <div className="flex items-center gap-3">
+              <span className="text-[10px] font-black text-brand-400 uppercase tracking-widest">
+                Plano Ativo
+              </span>
+              {renewDate && (
+                <span className="text-[10px] font-semibold text-slate-400 bg-slate-800 px-2.5 py-1 rounded-full">
+                  Renova em: {renewDate}
+                </span>
+              )}
+            </div>
             <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center">
-              <Zap className="w-4 h-4 text-brand-400" />
+              <ArrowUpRight className="w-4 h-4 text-slate-400" />
             </div>
           </div>
 
           {/* Plan name + usage */}
           <div className="flex items-end justify-between gap-4 flex-wrap">
-            <h2 className="text-4xl font-black text-white uppercase tracking-tight leading-none">
-              {planMeta.label}
-            </h2>
+            <div className="flex items-end gap-4">
+              <h2 className="text-4xl font-black text-white uppercase tracking-tight leading-none">
+                {planMeta.label}
+              </h2>
+              <div className="flex items-center gap-2 mb-0.5">
+                {planMeta.price > 0 && (
+                  <span className="text-xl font-bold text-slate-300">
+                    R$ {fmt(planMeta.price)}<span className="text-sm text-slate-500 font-medium">/mês</span>
+                  </span>
+                )}
+                {isCustomPlan && (
+                  <span className="text-[10px] font-black text-gray-900 bg-brand-400 px-2.5 py-1 rounded-full uppercase tracking-wider">
+                    Personalizado
+                  </span>
+                )}
+              </div>
+            </div>
 
             {/* Usage counter */}
             <div className="text-right">
               <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">
-                Conversas este mês
+                Vagas Ativas
               </p>
               <p className="text-2xl font-black text-white">
                 {org.conversations_used}
-                <span className="text-slate-500 text-base font-medium"> / {org.max_conversations_month}</span>
+                <span className="text-slate-500 text-base font-medium">
+                  {' / '}{org.max_conversations_month === 999999 ? '∞' : org.max_conversations_month}
+                </span>
               </p>
             </div>
           </div>
@@ -173,7 +224,7 @@ export default function ClientPayments() {
 
       {/* ── Plans Available ─────────────────────────────────────── */}
       <div className="flex items-center gap-2">
-        <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Planos Disponíveis</span>
+        <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">↗ Planos Disponíveis</span>
         <div className="flex-1 h-px bg-slate-100" />
       </div>
 
@@ -204,15 +255,13 @@ export default function ClientPayments() {
         </div>
       </div>
 
-      {/* Plans grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+      {/* Plans grid — 4 colunas */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 items-center">
         {PLANS.map(plan => {
-          const price = annual ? plan.price_monthly * (1 - ANNUAL_DISCOUNT) : plan.price_monthly
+          const price = annual ? plan.price_annual_monthly : plan.price_monthly
           const selectedBilling = annual ? 'anual' : 'mensal'
           const samePlan = org?.plan === plan.key
-          // Mesmo plano E mesmo período → desabilitado
           const isCurrent = samePlan && (org?.billing ?? 'mensal') === selectedBilling
-          // Mesmo plano mas período diferente → permite migrar para anual
           const isUpgradeBilling = samePlan && !isCurrent && selectedBilling === 'anual'
 
           return (
@@ -221,13 +270,18 @@ export default function ClientPayments() {
               className={cn(
                 'relative flex flex-col rounded-[2rem] px-6 py-8',
                 plan.highlight
-                  ? 'bg-[#111111] text-white shadow-2xl md:-mx-1 md:py-10 z-10'
+                  ? 'bg-[#111111] text-white shadow-2xl xl:-mx-1 xl:py-10 z-10'
                   : 'bg-white border border-slate-100 shadow-[0px_4px_24px_rgba(0,0,0,0.05)]',
               )}
             >
               {/* Badge */}
               {plan.badge && (
-                <span className="absolute top-5 right-5 bg-brand-400 text-gray-900 text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full">
+                <span className={cn(
+                  'absolute top-5 right-5 text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full',
+                  plan.badgeStyle === 'maxima'
+                    ? 'bg-brand-400 text-gray-900'
+                    : 'bg-brand-400 text-gray-900',
+                )}>
                   {plan.badge}
                 </span>
               )}
@@ -246,13 +300,13 @@ export default function ClientPayments() {
                   <span className={cn('text-4xl font-black tracking-tighter', plan.highlight ? 'text-white' : 'text-gray-900')}>
                     R$ {fmt(price)}
                   </span>
-                  <span className={cn('text-sm font-medium', plan.highlight ? 'text-slate-400' : 'text-slate-400')}>
+                  <span className="text-sm font-medium text-slate-400">
                     /mês
                   </span>
                 </div>
                 {annual && (
                   <p className="text-xs font-medium text-brand-500 mt-0.5">
-                    Cobrado como R$ {fmt(plan.price_monthly * 12 * (1 - ANNUAL_DISCOUNT))}/ano
+                    Cobrado como R$ {fmt(plan.price_annual_monthly * 12)}/ano
                   </p>
                 )}
               </div>
@@ -295,7 +349,9 @@ export default function ClientPayments() {
                     ? 'Plano Atual'
                     : isUpgradeBilling
                       ? 'Migrar para Anual'
-                      : plan.cta
+                      : isCurrent
+                        ? 'Fazer Downgrade'
+                        : plan.cta
                 }
               </button>
             </div>
