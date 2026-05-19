@@ -86,7 +86,7 @@ export function JobCard({ job, onClick, onDelete, onPin, onEdit, isDeleting = fa
 
       {/* Title + description */}
       <div className="mb-auto pointer-events-none">
-        <h3 className="text-xl font-black text-slate-900 tracking-tighter leading-none">
+        <h3 className="text-base font-black text-slate-900 tracking-tighter leading-none">
           {job.title}{' '}
           <span className="text-[10px] font-bold text-slate-400 ml-1 align-middle">{formattedDate}</span>
         </h3>

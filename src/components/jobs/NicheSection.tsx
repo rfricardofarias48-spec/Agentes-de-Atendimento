@@ -198,7 +198,7 @@ export function NicheSection({
               <p className="text-xs text-slate-400 mt-0.5">Clique em "+ Nova Vaga" e selecione este nicho.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
               {jobs.map(job => (
                 <JobWithMoveMenu
                   key={job.id}
