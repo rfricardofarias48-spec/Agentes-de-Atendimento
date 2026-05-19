@@ -8,7 +8,8 @@ import { planLabel, statusLabel, formatDateShort, cn } from '../../lib/utils'
 const planBadge: Record<string, string> = {
   starter: 'bg-slate-100 text-slate-600',
   pro:     'bg-blue-50 text-blue-600',
-  clinic:  'bg-brand-50 text-brand-700',
+  max:     'bg-brand-50 text-brand-700',
+  ultra:   'bg-purple-50 text-purple-700',
 }
 const statusBadge: Record<string, string> = {
   active:    'bg-emerald-50 text-emerald-700',
@@ -17,14 +18,14 @@ const statusBadge: Record<string, string> = {
   suspended: 'bg-red-50 text-red-600',
 }
 
-const planFilter = ['todos', 'starter', 'pro', 'clinic'] as const
+const planFilter = ['todos', 'starter', 'pro', 'max', 'ultra'] as const
 type PlanFilter = typeof planFilter[number]
 
 const PLAN_LABELS: Record<PlanFilter, string> = {
-  todos: 'Todos', starter: 'Essencial', pro: 'Pro', clinic: 'Max',
+  todos: 'Todos', starter: 'Essencial', pro: 'Pro', max: 'Max', ultra: 'Ultra',
 }
 
-const MAX_CONV: Record<OrgPlan, number> = { starter: 600, pro: 2000, clinic: 999999 }
+const MAX_CONV: Record<OrgPlan, number> = { starter: 3, pro: 10, max: 25, ultra: 50 }
 
 function slugify(name: string): string {
   return name
@@ -125,7 +126,7 @@ function NewClientModal({ onClose, onCreated }: { onClose: () => void; onCreated
     }
   }
 
-  const plans: OrgPlan[] = ['starter', 'pro', 'clinic']
+  const plans: OrgPlan[] = ['starter', 'pro', 'max', 'ultra']
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
@@ -300,7 +301,8 @@ export default function AdminClients() {
     todos:   orgs.length,
     starter: orgs.filter(o => o.plan === 'starter').length,
     pro:     orgs.filter(o => o.plan === 'pro').length,
-    clinic:  orgs.filter(o => o.plan === 'clinic').length,
+    max:     orgs.filter(o => o.plan === 'max').length,
+    ultra:   orgs.filter(o => o.plan === 'ultra').length,
   }
 
   return (

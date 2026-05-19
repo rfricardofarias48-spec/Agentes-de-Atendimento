@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Check, Zap, Loader2, ArrowUpRight } from 'lucide-react'
+import { Check, Loader2, ArrowUpRight } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { type Organization } from '../../types'

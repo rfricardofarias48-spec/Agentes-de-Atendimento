@@ -3,7 +3,7 @@ import {
   Link2, Copy, Check, Loader2, ExternalLink, DollarSign,
 } from 'lucide-react'
 
-type Plan = 'starter' | 'pro' | 'clinic'
+type Plan = 'starter' | 'pro' | 'max' | 'ultra'
 type Billing = 'mensal' | 'anual'
 
 const ANNUAL_DISCOUNT = 0.20
@@ -11,13 +11,15 @@ const ANNUAL_DISCOUNT = 0.20
 const PLAN_LABELS: Record<Plan, string> = {
   starter: 'Essencial',
   pro:     'Pro',
-  clinic:  'Max',
+  max:     'Max',
+  ultra:   'Ultra',
 }
 
 const MONTHLY: Record<Plan, number> = {
-  starter: 299.90,
-  pro:     449.90,
-  clinic:  849.90,
+  starter: 399,
+  pro:     749,
+  max:     1699,
+  ultra:   2999,
 }
 
 function annualTotal(plan: Plan) {
@@ -27,13 +29,15 @@ function annualTotal(plan: Plan) {
 const PLAN_PRICES: Record<Plan, { mensal: number; anual: number }> = {
   starter: { mensal: MONTHLY.starter, anual: annualTotal('starter') },
   pro:     { mensal: MONTHLY.pro,     anual: annualTotal('pro') },
-  clinic:  { mensal: MONTHLY.clinic,  anual: annualTotal('clinic') },
+  max:     { mensal: MONTHLY.max,     anual: annualTotal('max') },
+  ultra:   { mensal: MONTHLY.ultra,   anual: annualTotal('ultra') },
 }
 
 const PLAN_COLORS: Record<Plan, { bg: string; text: string; border: string }> = {
   starter: { bg: '#f8fafc', text: '#475467',  border: '#e4e7ec' },
   pro:     { bg: '#eff6ff', text: '#1d4ed8',  border: '#bfdbfe' },
-  clinic:  { bg: '#f0f7ff', text: '#2570a0',  border: '#b3d4ec' },
+  max:     { bg: '#f0f7ff', text: '#2570a0',  border: '#b3d4ec' },
+  ultra:   { bg: '#faf5ff', text: '#7c3aed',  border: '#ddd6fe' },
 }
 
 const fmt = (v: number) =>

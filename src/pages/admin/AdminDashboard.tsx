@@ -10,7 +10,8 @@ import { cn } from '../../lib/utils'
 const planBadge: Record<string, string> = {
   starter: 'bg-slate-100 text-slate-600',
   pro:     'bg-blue-50 text-blue-600',
-  clinic:  'bg-brand-50 text-brand-700',
+  max:     'bg-brand-50 text-brand-700',
+  ultra:   'bg-purple-50 text-purple-700',
 }
 const statusBadge: Record<string, string> = {
   active:    'bg-emerald-50 text-emerald-700',
@@ -18,7 +19,7 @@ const statusBadge: Record<string, string> = {
   inactive:  'bg-slate-100 text-slate-500',
   suspended: 'bg-red-50 text-red-600',
 }
-const PLAN_MRR: Record<string, number> = { starter: 299.90, pro: 449.90, clinic: 849.90 }
+const PLAN_MRR: Record<string, number> = { starter: 399, pro: 749, max: 1699, ultra: 2999 }
 
 const CARD_ACCENTS = {
   brand:   { border: '#2C82B5', iconBg: 'rgba(44,130,181,0.12)',  iconColor: '#2C82B5'  },
@@ -63,7 +64,8 @@ export default function AdminDashboard() {
   const totalConvs   = orgs.reduce((s, o) => s + (o.conversations_used ?? 0), 0)
   const starterCount = orgs.filter(o => o.plan === 'starter').length
   const proCount     = orgs.filter(o => o.plan === 'pro').length
-  const clinicCount  = orgs.filter(o => o.plan === 'clinic').length
+  const maxCount     = orgs.filter(o => o.plan === 'max').length
+  const ultraCount   = orgs.filter(o => o.plan === 'ultra').length
 
   return (
     <div className="space-y-5 pb-8">
@@ -141,7 +143,8 @@ export default function AdminDashboard() {
             {[
               { label: 'Essencial', count: starterCount, color: '#94a3b8' },
               { label: 'Pro',      count: proCount,     color: '#3b82f6' },
-              { label: 'Max',      count: clinicCount,  color: '#2C82B5' },
+              { label: 'Max',      count: maxCount,     color: '#2C82B5' },
+              { label: 'Ultra',    count: ultraCount,   color: '#7c3aed' },
             ].map(({ label, count, color }) => (
               <div key={label} className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
