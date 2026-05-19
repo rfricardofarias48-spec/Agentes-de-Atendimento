@@ -19,7 +19,7 @@ export function JobCard({ job, onClick, onDelete, onPin, onEdit, isDeleting = fa
 
   return (
     <div
-      className={`bg-white border border-slate-100 rounded-[2rem] p-6 relative shadow-[0px_4px_20px_rgba(0,0,0,0.02)] hover:shadow-[0px_4px_25px_rgba(0,0,0,0.05)] hover:-translate-y-1 transition-all duration-300 flex flex-col h-full select-none ${isDeleting ? 'opacity-70 grayscale pointer-events-none' : ''} ${job.isPinned ? 'ring-2 ring-[#65a30d] ring-offset-2' : ''}`}
+      className={`bg-white border border-slate-100 rounded-[2rem] p-6 relative shadow-[0px_4px_20px_rgba(0,0,0,0.02)] hover:shadow-[0px_4px_25px_rgba(0,0,0,0.05)] hover:-translate-y-1 transition-all duration-300 flex flex-col h-full select-none ${isDeleting ? 'opacity-70 grayscale pointer-events-none' : ''} ${job.isPinned ? 'ring-2 ring-[#2C82B5] ring-offset-2' : ''}`}
       onMouseLeave={() => confirmDelete && setConfirmDelete(false)}
     >
       {/* Clickable overlay */}
@@ -32,7 +32,7 @@ export function JobCard({ job, onClick, onDelete, onPin, onEdit, isDeleting = fa
       <div className="flex justify-between items-start mb-5 relative z-10 pointer-events-none">
         <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-600 shrink-0 border border-slate-100">
           {job.isPinned
-            ? <Sparkles className="w-5 h-5 text-[#65a30d] fill-current" />
+            ? <Sparkles className="w-5 h-5 text-[#2C82B5] fill-current" />
             : <Briefcase className="w-5 h-5" />}
         </div>
 
@@ -44,7 +44,7 @@ export function JobCard({ job, onClick, onDelete, onPin, onEdit, isDeleting = fa
             <>
               <button
                 onClick={e => { e.stopPropagation(); onPin(job.id) }}
-                className={`w-8 h-8 flex items-center justify-center rounded-xl transition-all ${job.isPinned ? 'bg-slate-100 text-[#65a30d]' : 'bg-slate-50 text-slate-400 hover:bg-slate-100 hover:text-slate-600'}`}
+                className={`w-8 h-8 flex items-center justify-center rounded-xl transition-all ${job.isPinned ? 'bg-slate-100 text-[#2C82B5]' : 'bg-slate-50 text-slate-400 hover:bg-slate-100 hover:text-slate-600'}`}
                 title={job.isPinned ? 'Desafixar' : 'Fixar'}
               >
                 <Pin className={`w-3.5 h-3.5 ${job.isPinned ? 'fill-current' : ''}`} />
@@ -106,7 +106,7 @@ export function JobCard({ job, onClick, onDelete, onPin, onEdit, isDeleting = fa
         </div>
         <div className="bg-slate-900 text-white px-4 py-1.5 rounded-full flex items-center gap-1.5">
           <span className="text-[10px] font-black uppercase tracking-wide">Analisar</span>
-          <ChevronRight className="w-3 h-3 text-[#65a30d]" />
+          <ChevronRight className="w-3 h-3 text-[#2C82B5]" />
         </div>
       </div>
     </div>

@@ -86,7 +86,7 @@ function JobWithMoveMenu({
               onClick={e => { e.stopPropagation(); onMoveJob(job.id, n.id); setOpen(false) }}
               className="w-full text-left px-3 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-2 transition-colors"
             >
-              <div className="w-1.5 h-1.5 rounded-full bg-[#65a30d]" />
+              <div className="w-1.5 h-1.5 rounded-full bg-[#2C82B5]" />
               {n.name}
             </button>
           ))}
@@ -107,7 +107,7 @@ export function NicheSection({
   const totalCvs = jobs.reduce((sum, j) => sum + j.candidates.length, 0)
 
   return (
-    <div className={`rounded-[2rem] border transition-all duration-200 shadow-[0px_2px_12px_rgba(0,0,0,0.03)] ${niche.is_pinned ? 'border-[#65a30d]/40 bg-[#f8fef0]' : 'border-slate-100 bg-white'}`}>
+    <div className={`rounded-[2rem] border transition-all duration-200 shadow-[0px_2px_12px_rgba(0,0,0,0.03)] ${niche.is_pinned ? 'border-[#2C82B5]/40 bg-[#f0f7fd]' : 'border-slate-100 bg-white'}`}>
 
       {/* Header */}
       <div className="flex items-center gap-3 px-5 py-4">
@@ -118,7 +118,7 @@ export function NicheSection({
           {isCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
         </button>
 
-        {niche.is_pinned && <Sparkles className="w-4 h-4 text-[#65a30d] fill-current shrink-0" />}
+        {niche.is_pinned && <Sparkles className="w-4 h-4 text-[#2C82B5] fill-current shrink-0" />}
 
         <button onClick={onToggle} className="flex-1 text-left min-w-0">
           <span className="font-black text-slate-900 text-base tracking-tight truncate block">
@@ -142,7 +142,7 @@ export function NicheSection({
             <>
               <button
                 onClick={() => onPin(niche.id)}
-                className={`w-8 h-8 flex items-center justify-center rounded-xl transition-all ${niche.is_pinned ? 'bg-[#65a30d]/10 text-[#65a30d]' : 'bg-slate-50 text-slate-400 hover:bg-slate-100 hover:text-slate-600'}`}
+                className={`w-8 h-8 flex items-center justify-center rounded-xl transition-all ${niche.is_pinned ? 'bg-[#2C82B5]/10 text-[#2C82B5]' : 'bg-slate-50 text-slate-400 hover:bg-slate-100 hover:text-slate-600'}`}
                 title={niche.is_pinned ? 'Desafixar' : 'Fixar no topo'}
               >
                 <Pin className={`w-3.5 h-3.5 ${niche.is_pinned ? 'fill-current' : ''}`} />
