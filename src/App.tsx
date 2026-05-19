@@ -15,7 +15,7 @@ import AdminSales from './pages/admin/AdminSales'
 
 import ClientDashboard from './pages/client/ClientDashboard'
 import ClientAppointments from './pages/client/ClientAppointments'
-import ClientTraining from './pages/client/ClientTraining'
+import ClientVagas from './pages/client/ClientVagas'
 import ClientPayments from './pages/client/ClientPayments'
 import ClientSettings from './pages/client/ClientSettings'
 
@@ -74,9 +74,9 @@ export default function App() {
               <ClientLayout><ClientAppointments /></ClientLayout>
             </ProtectedRoute>
           } />
-          <Route path="/dashboard/training" element={
+          <Route path="/dashboard/vagas" element={
             <ProtectedRoute requiredRole="client">
-              <ClientLayout><ClientTraining /></ClientLayout>
+              <ClientLayout><ClientVagas /></ClientLayout>
             </ProtectedRoute>
           } />
           <Route path="/dashboard/payments" element={

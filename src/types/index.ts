@@ -101,3 +101,34 @@ export interface DashboardStats {
   conversion_rate: number
   period: '7d' | '30d' | '90d'
 }
+
+// ── Módulo de Vagas ───────────────────────────────────────────
+
+export interface Niche {
+  id: string
+  org_id: string
+  name: string
+  order_pos: number
+  is_pinned: boolean
+  created_at: string
+}
+
+export interface JobCandidate {
+  id: string
+  job_id: string
+  status: string
+  created_at: string
+}
+
+export interface Job {
+  id: string
+  org_id: string
+  title: string
+  description: string
+  criteria: string
+  niche_id: string | null
+  isPinned: boolean
+  short_code: string
+  created_at: string
+  candidates: JobCandidate[]
+}
