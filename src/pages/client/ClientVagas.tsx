@@ -87,17 +87,32 @@ export default function ClientVagas() {
   // ── job handlers ──────────────────────────────────────────────────────────
   const handleJobSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!userId || !jobTitle.trim()) return
+    if (!userId || !jobTitle.trim()) {
+      alert(`userId=${userId} | título="${jobTitle}" — dados inválidos`)
+      return
+    }
     setJobSaving(true)
     if (editingJob) {
       const { error } = await supabase.from('jobs')
         .update({ title: jobTitle, description: jobDescription, criteria: jobCriteria }).eq('id', editingJob.id)
-      if (!error) setJobs(prev => prev.map(j => j.id === editingJob.id ? { ...j, title: jobTitle, description: jobDescription, criteria: jobCriteria } : j))
+      if (error) alert(`Erro ao editar vaga: ${error.message}`)
+      else setJobs(prev => prev.map(j => j.id === editingJob.id ? { ...j, title: jobTitle, description: jobDescription, criteria: jobCriteria } : j))
     } else {
       const { data, error } = await supabase.from('jobs')
-        .insert([{ user_id: userId, title: jobTitle, description: jobDescription, criteria: jobCriteria, short_code: generateShortCode(), niche_id: selectedNicheId || null, is_pinned: false }])
+        .insert([{
+          user_id: userId,
+          title: jobTitle,
+          description: jobDescription,
+          criteria: jobCriteria,
+          short_code: generateShortCode(),
+          niche_id: selectedNicheId || null,
+          is_pinned: false,
+          is_paused: false,
+          auto_analyze: false,
+        }])
         .select('*, candidates(*)').single()
-      if (!error && data) setJobs(prev => [data as Job, ...prev])
+      if (error) { alert(`Erro ao criar vaga: ${error.message}`); setJobSaving(false); return }
+      if (data) setJobs(prev => [data as Job, ...prev])
     }
     setJobSaving(false); setShowJobModal(false)
   }
@@ -121,12 +136,16 @@ export default function ClientVagas() {
 
   // ── niche handlers ────────────────────────────────────────────────────────
   const handleCreateNiche = async () => {
-    if (!newNicheName.trim() || !userId) return
+    if (!newNicheName.trim() || !userId) {
+      alert(`userId=${userId} | nome="${newNicheName}" — dados inválidos`)
+      return
+    }
     setNicheSaving(true)
     const { data, error } = await supabase.from('niches')
       .insert([{ user_id: userId, name: newNicheName.trim(), order_pos: niches.length, is_pinned: false }])
       .select().single()
-    if (!error && data) { setNiches(prev => [...prev, data as Niche]); setNewNicheName(''); setShowNicheModal(false) }
+    if (error) alert(`Erro ao criar nicho: ${error.message}`)
+    else if (data) { setNiches(prev => [...prev, data as Niche]); setNewNicheName(''); setShowNicheModal(false) }
     setNicheSaving(false)
   }
   const handleCreateInlineNiche = async () => {
@@ -135,7 +154,8 @@ export default function ClientVagas() {
     const { data, error } = await supabase.from('niches')
       .insert([{ user_id: userId, name: inlineNicheName.trim(), order_pos: niches.length, is_pinned: false }])
       .select().single()
-    if (!error && data) {
+    if (error) alert(`Erro ao criar nicho inline: ${error.message}`)
+    else if (data) {
       const n = data as Niche
       setNiches(prev => [...prev, n]); setSelectedNicheId(n.id); setInlineNicheName(''); setShowInlineNiche(false)
     }
