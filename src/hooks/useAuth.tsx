@@ -41,16 +41,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session)
-      if (session?.user) loadUserProfile(session.user.id).finally(() => setLoading(false))
-      else setLoading(false)
-    })
-
+    // onAuthStateChange é mais confiável que getSession() para OAuth
+    // porque processa o hash da URL (#access_token=...) antes do getSession
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session)
-      if (session?.user) loadUserProfile(session.user.id)
-      else { setRole(null); setOrgId(null); setNoProfile(false) }
+      if (session?.user) {
+        loadUserProfile(session.user.id).finally(() => setLoading(false))
+      } else {
+        setRole(null); setOrgId(null); setNoProfile(false)
+        setLoading(false)
+      }
     })
 
     return () => subscription.unsubscribe()
