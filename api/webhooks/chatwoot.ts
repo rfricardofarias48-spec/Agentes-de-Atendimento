@@ -38,12 +38,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       contact_inbox?: { source_id?: string };
     } | undefined;
 
-    console.log(`[Webhook/Chatwoot] event="${event}" account=${account?.id} conv=${conversation?.id} msg_type=${rawMsgType} isIncoming=${isIncoming} content="${msgContent.substring(0, 40)}"`);
+    console.log(`[Webhook/Chatwoot] event="${event}" account=${account?.id} conv=${conversation?.id} msg_type=${rawMsgType} isIncoming=${isIncoming} sender_type=${sender?.type} content="${msgContent.substring(0, 40)}"`);
 
     // ── Mensagem recebida do candidato → acionar agente ──────────────────
     if (event === 'message_created') {
-      // Ignora: saída, atividade, privada, sem conteúdo
-      if (!isIncoming || isPrivate || !msgContent) {
+      // Ignora: saída, atividade, privada, sem conteúdo, ou mensagens de bot/agente
+      const senderType = sender?.type ?? '';
+      const isContactMessage = !senderType || senderType === 'contact';
+      if (!isIncoming || isPrivate || !msgContent || !isContactMessage) {
         return res.status(200).json({ ok: true, skipped: true });
       }
 

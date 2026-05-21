@@ -402,6 +402,43 @@ export async function handleJobCode(opts: {
   return `✅ Vaga encontrada: *${job.title}*\n\nAgora envie seu currículo em *PDF* para prosseguir com a candidatura.`;
 }
 
+// ── System prompt do agente ───────────────────────────────────
+
+async function fetchSystemPrompt(orgId: string): Promise<string | null> {
+  const { data } = await supabase
+    .from('agent_prompts')
+    .select('system_prompt')
+    .eq('org_id', orgId)
+    .eq('is_active', true)
+    .maybeSingle();
+  return data?.system_prompt ?? null;
+}
+
+/**
+ * Gera uma resposta natural usando OpenAI guiado pelo system_prompt do agente.
+ * Se não houver system_prompt, retorna null e o fallback hardcoded é usado.
+ */
+async function generateAIResponse(
+  systemPrompt: string,
+  actionContext: string,
+): Promise<string | null> {
+  try {
+    const completion = await openai.chat.completions.create({
+      model: MODEL,
+      temperature: 0.4,
+      max_completion_tokens: 400,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: actionContext },
+      ],
+    });
+    return completion.choices[0]?.message?.content?.trim() ?? null;
+  } catch (err) {
+    console.error('[Recruitment] generateAIResponse error:', (err as Error).message);
+    return null;
+  }
+}
+
 // ── Helpers de listagem ───────────────────────────────────────
 
 async function listNiches(orgId: string) {
@@ -466,13 +503,16 @@ export async function processBentoMessage(opts: {
   const trimmed = text.trim();
   const firstName = (pushName || '').split(' ')[0] || 'candidato';
 
-  // Busca sessão atual
-  const { data: sessionRow } = await supabase
-    .from('recruitment_sessions')
-    .select('*')
-    .eq('phone', phone)
-    .eq('org_id', orgId)
-    .single();
+  // Busca sessão atual e system prompt em paralelo
+  const [{ data: sessionRow }, systemPrompt] = await Promise.all([
+    supabase
+      .from('recruitment_sessions')
+      .select('*')
+      .eq('phone', phone)
+      .eq('org_id', orgId)
+      .single(),
+    fetchSystemPrompt(orgId),
+  ]);
 
   const session = sessionRow as {
     state: string;
@@ -483,19 +523,35 @@ export async function processBentoMessage(opts: {
 
   const state = session?.state ?? 'new';
 
+  // Helper: usa OpenAI se houver system_prompt, senão retorna o fallback
+  async function reply(actionContext: string, fallback: string): Promise<string> {
+    if (!systemPrompt) return fallback;
+    const ai = await generateAIResponse(systemPrompt, actionContext);
+    return ai ?? fallback;
+  }
+
   // ── Estado: aguardando PDF ─────────────────────────────────
   if (state === 'awaiting_cv') {
-    return '📄 Por favor, envie seu currículo em formato *PDF* para prosseguir. 📄';
+    return reply(
+      `O candidato "${firstName}" está no estado "aguardando currículo" e enviou uma mensagem de texto: "${trimmed}". Lembre-o gentilmente de enviar o currículo em formato PDF para prosseguir.`,
+      '📄 Por favor, envie seu currículo em formato *PDF* para prosseguir. 📄',
+    );
   }
 
   // ── Estado: analisando ─────────────────────────────────────
   if (state === 'analyzing') {
-    return 'Aguarde! Estamos analisando seu currículo... ⏳';
+    return reply(
+      `O candidato "${firstName}" enviou uma mensagem enquanto o currículo está sendo analisado: "${trimmed}". Peça que aguarde.`,
+      'Aguarde! Estamos analisando seu currículo... ⏳',
+    );
   }
 
   // ── Estado: currículo recebido ─────────────────────────────
   if (state === 'cv_received') {
-    return 'Seu currículo já foi recebido! Em breve nossa equipe entrará em contato com os próximos passos. 😊';
+    return reply(
+      `O candidato "${firstName}" já enviou o currículo e enviou nova mensagem: "${trimmed}". Informe que o currículo foi recebido e que a equipe entrará em contato.`,
+      'Seu currículo já foi recebido! Em breve nossa equipe entrará em contato com os próximos passos. 😊',
+    );
   }
 
   // ── Estado: selecionando vaga ──────────────────────────────
@@ -505,11 +561,16 @@ export async function processBentoMessage(opts: {
     if (!isNaN(num) && num >= 1 && num <= jobs.length) {
       const job = jobs[num - 1];
       await updateSessionContext(phone, orgId, { state: 'awaiting_cv', job_id: job.id, context: {} });
-      return `✅ A vaga de *${job.title}* foi registrada!\n\nAgora, por favor, envie seu currículo em formato *PDF*.`;
+      return reply(
+        `O candidato "${firstName}" selecionou a vaga "${job.title}". Confirme a escolha e peça que envie o currículo em PDF.`,
+        `✅ A vaga de *${job.title}* foi registrada!\n\nAgora, por favor, envie seu currículo em formato *PDF*.`,
+      );
     }
-    // Não entendeu
     const menu = buildJobMenu(jobs);
-    return `Não entendi. Por favor, responda com o número da vaga:\n\n${menu}`;
+    return reply(
+      `O candidato "${firstName}" enviou "${trimmed}" mas era esperado um número de 1 a ${jobs.length}. Peça que escolha novamente informando o número da vaga. Lista de vagas:\n${menu}`,
+      `Não entendi. Por favor, responda com o número da vaga:\n\n${menu}`,
+    );
   }
 
   // ── Estado: selecionando nicho ─────────────────────────────
@@ -520,36 +581,51 @@ export async function processBentoMessage(opts: {
       const niche = niches[num - 1];
       const jobs = await listJobsByNiche(niche.id, orgId);
       if (jobs.length === 0) {
-        // Sem vagas neste nicho — volta ao menu de nichos
         const freshNiches = await listNiches(orgId);
         await updateSessionContext(phone, orgId, { state: 'selecting_niche', niche_id: null, context: { niches: freshNiches } });
         const menu = buildNicheMenu(freshNiches);
-        return `No momento não há vagas abertas em *${niche.name}*. 😔\n\nEscolha outra área:\n\n${menu}`;
+        return reply(
+          `O candidato "${firstName}" escolheu a área "${niche.name}" mas não há vagas abertas nela. Informe isso com empatia e mostre o menu de áreas novamente:\n${menu}`,
+          `No momento não há vagas abertas em *${niche.name}*. 😔\n\nEscolha outra área:\n\n${menu}`,
+        );
       }
       await updateSessionContext(phone, orgId, { state: 'selecting_job', niche_id: niche.id, context: { jobs } });
       const menu = buildJobMenu(jobs);
-      return `Ótimo! Vagas disponíveis em *${niche.name}*:\n\n${menu}\n\nResponda com o *número* da vaga que deseja se candidatar.`;
+      return reply(
+        `O candidato "${firstName}" escolheu a área "${niche.name}". Mostre as vagas disponíveis e peça que escolha pelo número:\n${menu}`,
+        `Ótimo! Vagas disponíveis em *${niche.name}*:\n\n${menu}\n\nResponda com o *número* da vaga que deseja se candidatar.`,
+      );
     }
-    // Não entendeu
     const menu = buildNicheMenu(niches);
-    return `Não entendi. Por favor, responda com o número da área:\n\n${menu}`;
+    return reply(
+      `O candidato "${firstName}" enviou "${trimmed}" mas era esperado um número de 1 a ${niches.length}. Peça que escolha novamente. Menu de áreas:\n${menu}`,
+      `Não entendi. Por favor, responda com o número da área:\n\n${menu}`,
+    );
   }
 
   // ── Estado: novo / primeiro contato ───────────────────────
   const niches = await listNiches(orgId);
 
   if (niches.length === 0) {
-    // Sem nichos — tenta listar vagas direto
     const jobs = await listAllJobs(orgId);
     if (jobs.length === 0) {
-      return 'Olá! No momento não há vagas abertas. Em breve novas oportunidades serão divulgadas!';
+      return reply(
+        `Primeiro contato do candidato "${firstName}". Não há vagas abertas no momento. Informe isso de forma cordial.`,
+        'Olá! No momento não há vagas abertas. Em breve novas oportunidades serão divulgadas!',
+      );
     }
     await updateSessionContext(phone, orgId, { state: 'selecting_job', context: { jobs } });
     const menu = buildJobMenu(jobs);
-    return `Olá, *${firstName}*! 👋 Sou o Bento, assistente de recrutamento. 🤖\n\nVagas disponíveis:\n\n${menu}\n\nResponda com o *número* da vaga que deseja se candidatar.`;
+    return reply(
+      `Primeiro contato do candidato "${firstName}" (telefone: ${phone}). Dê as boas-vindas, apresente-se como assistente de recrutamento e mostre as vagas disponíveis pedindo que escolha pelo número:\n${menu}`,
+      `Olá, *${firstName}*! 👋 Sou o Bento, assistente de recrutamento. 🤖\n\nVagas disponíveis:\n\n${menu}\n\nResponda com o *número* da vaga que deseja se candidatar.`,
+    );
   }
 
   await updateSessionContext(phone, orgId, { state: 'selecting_niche', context: { niches } });
   const menu = buildNicheMenu(niches);
-  return `Olá, *${firstName}*! 👋 Sou o Bento, assistente de recrutamento. 🤖\n\nTemos vagas abertas em diversas áreas! Em qual delas você tem interesse?\n\n${menu}\n\nResponda com o *número* da área desejada.`;
+  return reply(
+    `Primeiro contato do candidato "${firstName}" (telefone: ${phone}). Dê as boas-vindas, apresente-se como assistente de recrutamento e mostre as áreas disponíveis pedindo que escolha pelo número:\n${menu}`,
+    `Olá, *${firstName}*! 👋 Sou o Bento, assistente de recrutamento. 🤖\n\nTemos vagas abertas em diversas áreas! Em qual delas você tem interesse?\n\n${menu}\n\nResponda com o *número* da área desejada.`,
+  );
 }
