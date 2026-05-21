@@ -33,7 +33,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (event === 'message_created') {
       const msgType = message?.message_type;
       const msgContent = (message?.content || '').trim();
+      // Log completo para diagnóstico
       console.log(`[Webhook/Chatwoot] message_type=${msgType} private=${message?.private} content="${msgContent.substring(0, 50)}"`);
+      console.log(`[Webhook/Chatwoot] payload_keys=${Object.keys(payload).join(',')} message_raw=${JSON.stringify(message).substring(0, 200)}`);
 
       // Ignora mensagens de saída (agente), privadas e sem conteúdo
       if (!message || msgType !== 0 || message.private || !msgContent) {
