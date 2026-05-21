@@ -425,8 +425,8 @@ async function generateAIResponse(
   try {
     const completion = await openai.chat.completions.create({
       model: MODEL,
-      temperature: 0.4,
-      max_completion_tokens: 400,
+      temperature: 0.3,
+      max_completion_tokens: 150,
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: actionContext },
