@@ -22,8 +22,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const payload = req.body as Record<string, unknown>;
 
     // Payload é flat — campos da mensagem ficam na raiz
+    // message_type pode ser number (0) ou string ("incoming") dependendo da versão do Chatwoot
     const event       = String(payload.event || '');
-    const msgType     = payload.message_type as number | undefined;
+    const rawMsgType  = payload.message_type;
+    const isIncoming  = rawMsgType === 0 || rawMsgType === 'incoming';
     const msgContent  = String(payload.content || '').trim();
     const isPrivate   = payload.private as boolean | undefined;
     const sender      = payload.sender as { id?: number; name?: string; phone_number?: string; type?: string } | undefined;
@@ -36,12 +38,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       contact_inbox?: { source_id?: string };
     } | undefined;
 
-    console.log(`[Webhook/Chatwoot] event="${event}" account=${account?.id} conv=${conversation?.id} msg_type=${msgType} content="${msgContent.substring(0, 40)}"`);
+    console.log(`[Webhook/Chatwoot] event="${event}" account=${account?.id} conv=${conversation?.id} msg_type=${rawMsgType} isIncoming=${isIncoming} content="${msgContent.substring(0, 40)}"`);
 
     // ── Mensagem recebida do candidato → acionar agente ──────────────────
     if (event === 'message_created') {
-      // Ignora: saída (1), atividade (2), privada, sem conteúdo
-      if (msgType !== 0 || isPrivate || !msgContent) {
+      // Ignora: saída, atividade, privada, sem conteúdo
+      if (!isIncoming || isPrivate || !msgContent) {
         return res.status(200).json({ ok: true, skipped: true });
       }
 
