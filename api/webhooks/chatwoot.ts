@@ -15,19 +15,11 @@ import { sendText } from '../_services/evolutionService.js';
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  // Responde 200 imediatamente para o Chatwoot não re-tentar
-  res.status(200).json({ received: true });
-
   try {
     const payload = req.body as Record<string, unknown>;
     const event = String(payload.event || '');
     const account = payload.account as { id?: number } | undefined;
-    const conversation = payload.conversation as {
-      id?: number;
-      status?: string;
-      meta?: { sender?: { phone_number?: string; name?: string } };
-      contact_inbox?: { source_id?: string };
-    } | undefined;
+    const conversation = payload.conversation as Record<string, unknown> | undefined;
     const message = payload.message as {
       id?: number;
       content?: string;
@@ -35,31 +27,39 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       private?: boolean;
     } | undefined;
 
-    console.log(`[Webhook/Chatwoot] event="${event}" account=${account?.id} conv=${conversation?.id}`);
+    console.log(`[Webhook/Chatwoot] event="${event}" account=${account?.id} conv=${(conversation?.id as number | undefined)}`);
 
     // ── Mensagem recebida do candidato → acionar agente ──────────────────
     if (event === 'message_created') {
-      // Ignora mensagens de saída (agente), privadas e sem conteúdo
-      if (!message || message.message_type !== 0 || message.private) return;
+      const msgType = message?.message_type;
+      const msgContent = (message?.content || '').trim();
+      console.log(`[Webhook/Chatwoot] message_type=${msgType} private=${message?.private} content="${msgContent.substring(0, 50)}"`);
 
-      const text = (message.content || '').trim();
-      if (!text) return;
+      // Ignora mensagens de saída (agente), privadas e sem conteúdo
+      if (!message || msgType !== 0 || message.private || !msgContent) {
+        return res.status(200).json({ ok: true, skipped: true });
+      }
 
       const accountId = account?.id;
-      if (!accountId) return;
+      if (!accountId) return res.status(200).json({ ok: true, skipped: 'no accountId' });
 
-      // Extrai telefone do contato
+      // Extrai telefone: tenta meta.sender.phone_number, depois contact_inbox.source_id
+      const meta = conversation?.meta as { sender?: { phone_number?: string; name?: string } } | undefined;
+      const contactInbox = conversation?.contact_inbox as { source_id?: string } | undefined;
+
+      console.log(`[Webhook/Chatwoot] meta.sender.phone=${meta?.sender?.phone_number} contact_inbox.source=${contactInbox?.source_id}`);
+
       const rawPhone =
-        conversation?.meta?.sender?.phone_number ||
-        conversation?.contact_inbox?.source_id?.replace(/@.*$/, '');
+        meta?.sender?.phone_number ||
+        contactInbox?.source_id?.replace(/@.*$/, '');
 
       if (!rawPhone) {
         console.warn('[Webhook/Chatwoot] Telefone não encontrado no payload');
-        return;
+        return res.status(200).json({ ok: true, skipped: 'no phone' });
       }
 
       const phone = rawPhone.replace(/^\+/, '').replace(/\D/g, '');
-      const pushName = conversation?.meta?.sender?.name || '';
+      const pushName = meta?.sender?.name || '';
 
       // Busca org pela conta Chatwoot
       const { data: org } = await supabaseAdmin
@@ -71,20 +71,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       if (!org?.evolution_instance) {
         console.warn(`[Webhook/Chatwoot] Org não encontrada para account_id=${accountId}`);
-        return;
+        return res.status(200).json({ ok: true, skipped: 'no org' });
       }
 
       console.log(`[Webhook/Chatwoot] Bento processando: phone=${phone} org="${org.name}"`);
 
-      const reply = await processBentoMessage({ phone, orgId: org.id, pushName, text });
+      const reply = await processBentoMessage({ phone, orgId: org.id, pushName, text: msgContent });
+      console.log(`[Webhook/Chatwoot] Bento reply="${reply.substring(0, 80)}"`);
       await sendText(org.evolution_instance, phone, reply, org.evolution_token);
-      return;
+
+      return res.status(200).json({ ok: true });
     }
 
     // ── Conversa resolvida → reseta escalated_to_human ───────────────────
     if (
       event === 'conversation_status_changed' &&
-      conversation?.status === 'resolved' &&
+      (conversation?.status as string | undefined) === 'resolved' &&
       conversation?.id
     ) {
       const chatwootConvId = String(conversation.id);
@@ -100,7 +102,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         console.log(`[Webhook/Chatwoot] Conversa ${chatwootConvId} resolvida — escalated_to_human resetado`);
       }
     }
+
+    return res.status(200).json({ ok: true });
   } catch (err) {
     console.error('[Webhook/Chatwoot] Erro ao processar evento:', err);
+    return res.status(200).json({ ok: true });
   }
 }
