@@ -428,7 +428,7 @@ export async function platformSetupChatwootAccount(orgName: string, orgEmail: st
 
   // 3. Criar Usuário
   const password = `Elv${Math.random().toString(36).slice(2, 8)}@${Math.floor(10 + Math.random() * 90)}`;
-  const email = orgEmail || `org-${Date.now()}@gestor.elevva.net.br`;
+  const email = orgEmail || `org-${Date.now()}@app.elevva.net.br`;
   const user = await platformCreateUser({ name: orgName, email, password });
   if (!user) return null;
 

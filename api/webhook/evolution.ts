@@ -13,7 +13,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { cleanPhone } from '../_services/evolutionService.js';
 import { getOrgByInstance, processMessage, processProMessage } from '../_services/agentService.js';
-import { handleJobCode, handleCvMessage, getSession } from '../_services/recruitmentService.js';
+import { handleJobCode, handleCvMessage, getSession, processBentoMessage } from '../_services/recruitmentService.js';
 import { sendText } from '../_services/evolutionService.js';
 
 const DOCUMENT_TYPES = ['documentMessage', 'documentWithCaptionMessage'];
@@ -137,17 +137,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return;
     }
 
-    // ── Mensagem normal → agente de atendimento ────────────────────────────────
-    console.log(`[Webhook/Evolution] Processing org="${ctx.org.name}" phone="${phone}"`);
+    // ── Mensagem normal → Bento (agente de recrutamento) ─────────────────────
+    console.log(`[Webhook/Evolution] Bento processing org="${ctx.org.name}" phone="${phone}"`);
 
-    // Se quem mandou é o profissional (notification_phone), entra em modo profissional
-    const notifPhone = ctx.settings.notification_phone?.replace(/\D/g, '') || '';
-    if (notifPhone && phone === notifPhone) {
-      await processProMessage(ctx.org, ctx.settings, phone, trimmed);
-      return;
-    }
-
-    await processMessage(ctx.org, ctx.settings, phone, trimmed, pushName);
+    const reply = await processBentoMessage({ phone, orgId, pushName, text: trimmed });
+    await sendText(instanceName, phone, reply, instanceToken);
   } catch (err) {
     console.error('[Webhook/Evolution] Error:', err);
   }

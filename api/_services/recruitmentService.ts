@@ -402,3 +402,155 @@ export async function handleJobCode(opts: {
 
   return `✅ Vaga encontrada: *${job.title}*\n\nAgora envie seu currículo em *PDF* para prosseguir com a candidatura.`;
 }
+
+// ── Helpers de listagem ───────────────────────────────────────
+
+async function listNiches(orgId: string) {
+  const { data } = await supabase
+    .from('niches')
+    .select('id, name')
+    .eq('org_id', orgId)
+    .order('is_pinned', { ascending: false })
+    .order('order_pos', { ascending: true });
+  return (data ?? []) as { id: string; name: string }[];
+}
+
+async function listJobsByNiche(nicheId: string, orgId: string) {
+  const { data } = await supabase
+    .from('jobs')
+    .select('id, title, auto_analyze')
+    .eq('niche_id', nicheId)
+    .eq('org_id', orgId)
+    .eq('auto_analyze', true);
+  return (data ?? []) as { id: string; title: string; auto_analyze: boolean }[];
+}
+
+async function listAllJobs(orgId: string) {
+  const { data } = await supabase
+    .from('jobs')
+    .select('id, title, auto_analyze')
+    .eq('org_id', orgId)
+    .eq('auto_analyze', true);
+  return (data ?? []) as { id: string; title: string; auto_analyze: boolean }[];
+}
+
+async function updateSessionContext(
+  phone: string, orgId: string,
+  patch: Partial<{ state: string; job_id: string | null; niche_id: string | null; context: object }>,
+) {
+  await supabase.from('recruitment_sessions').upsert({
+    phone, org_id: orgId,
+    updated_at: new Date().toISOString(),
+    ...patch,
+  });
+}
+
+function buildNicheMenu(niches: { id: string; name: string }[]): string {
+  return niches.map((n, i) => `*${i + 1}.* ${n.name}`).join('\n');
+}
+
+function buildJobMenu(jobs: { id: string; title: string }[]): string {
+  return jobs.map((j, i) => `*${i + 1}.* ${j.title}`).join('\n');
+}
+
+/**
+ * Máquina de estados do Bento — processa mensagens de texto do candidato.
+ * Retorna a mensagem de resposta a ser enviada.
+ */
+export async function processBentoMessage(opts: {
+  phone: string;
+  orgId: string;
+  pushName: string;
+  text: string;
+}): Promise<string> {
+  const { phone, orgId, pushName, text } = opts;
+  const trimmed = text.trim();
+  const firstName = (pushName || '').split(' ')[0] || 'candidato';
+
+  // Busca sessão atual
+  const { data: sessionRow } = await supabase
+    .from('recruitment_sessions')
+    .select('*')
+    .eq('phone', phone)
+    .eq('org_id', orgId)
+    .single();
+
+  const session = sessionRow as {
+    state: string;
+    job_id: string | null;
+    niche_id: string | null;
+    context: { niches?: { id: string; name: string }[]; jobs?: { id: string; title: string }[] } | null;
+  } | null;
+
+  const state = session?.state ?? 'new';
+
+  // ── Estado: aguardando PDF ─────────────────────────────────
+  if (state === 'awaiting_cv') {
+    return '📄 Por favor, envie seu currículo em formato *PDF* para prosseguir. 📄';
+  }
+
+  // ── Estado: analisando ─────────────────────────────────────
+  if (state === 'analyzing') {
+    return 'Aguarde! Estamos analisando seu currículo... ⏳';
+  }
+
+  // ── Estado: currículo recebido ─────────────────────────────
+  if (state === 'cv_received') {
+    return 'Seu currículo já foi recebido! Em breve nossa equipe entrará em contato com os próximos passos. 😊';
+  }
+
+  // ── Estado: selecionando vaga ──────────────────────────────
+  if (state === 'selecting_job') {
+    const jobs = session?.context?.jobs ?? [];
+    const num = parseInt(trimmed, 10);
+    if (!isNaN(num) && num >= 1 && num <= jobs.length) {
+      const job = jobs[num - 1];
+      await updateSessionContext(phone, orgId, { state: 'awaiting_cv', job_id: job.id, context: {} });
+      return `✅ A vaga de *${job.title}* foi registrada!\n\nAgora, por favor, envie seu currículo em formato *PDF*.`;
+    }
+    // Não entendeu
+    const menu = buildJobMenu(jobs);
+    return `Não entendi. Por favor, responda com o número da vaga:\n\n${menu}`;
+  }
+
+  // ── Estado: selecionando nicho ─────────────────────────────
+  if (state === 'selecting_niche') {
+    const niches = session?.context?.niches ?? [];
+    const num = parseInt(trimmed, 10);
+    if (!isNaN(num) && num >= 1 && num <= niches.length) {
+      const niche = niches[num - 1];
+      const jobs = await listJobsByNiche(niche.id, orgId);
+      if (jobs.length === 0) {
+        // Sem vagas neste nicho — volta ao menu de nichos
+        const freshNiches = await listNiches(orgId);
+        await updateSessionContext(phone, orgId, { state: 'selecting_niche', niche_id: null, context: { niches: freshNiches } });
+        const menu = buildNicheMenu(freshNiches);
+        return `No momento não há vagas abertas em *${niche.name}*. 😔\n\nEscolha outra área:\n\n${menu}`;
+      }
+      await updateSessionContext(phone, orgId, { state: 'selecting_job', niche_id: niche.id, context: { jobs } });
+      const menu = buildJobMenu(jobs);
+      return `Ótimo! Vagas disponíveis em *${niche.name}*:\n\n${menu}\n\nResponda com o *número* da vaga que deseja se candidatar.`;
+    }
+    // Não entendeu
+    const menu = buildNicheMenu(niches);
+    return `Não entendi. Por favor, responda com o número da área:\n\n${menu}`;
+  }
+
+  // ── Estado: novo / primeiro contato ───────────────────────
+  const niches = await listNiches(orgId);
+
+  if (niches.length === 0) {
+    // Sem nichos — tenta listar vagas direto
+    const jobs = await listAllJobs(orgId);
+    if (jobs.length === 0) {
+      return 'Olá! No momento não há vagas abertas. Em breve novas oportunidades serão divulgadas!';
+    }
+    await updateSessionContext(phone, orgId, { state: 'selecting_job', context: { jobs } });
+    const menu = buildJobMenu(jobs);
+    return `Olá, *${firstName}*! 👋 Sou o Bento, assistente de recrutamento. 🤖\n\nVagas disponíveis:\n\n${menu}\n\nResponda com o *número* da vaga que deseja se candidatar.`;
+  }
+
+  await updateSessionContext(phone, orgId, { state: 'selecting_niche', context: { niches } });
+  const menu = buildNicheMenu(niches);
+  return `Olá, *${firstName}*! 👋 Sou o Bento, assistente de recrutamento. 🤖\n\nTemos vagas abertas em diversas áreas! Em qual delas você tem interesse?\n\n${menu}\n\nResponda com o *número* da área desejada.`;
+}

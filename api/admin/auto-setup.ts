@@ -28,8 +28,12 @@ import {
   platformSetupChatwootAccount,
 } from '../_services/chatwootService.js';
 
-const WEBHOOK_URL = 'https://gestor.elevva.net.br/api/webhook/evolution';
-const CHATWOOT_WEBHOOK_URL = 'https://gestor.elevva.net.br/api/webhooks/chatwoot';
+const WEBHOOK_URL = process.env.VITE_APP_URL
+  ? `${process.env.VITE_APP_URL}/api/webhook/evolution`
+  : 'https://app.elevva.net.br/api/webhook/evolution';
+const CHATWOOT_WEBHOOK_URL = process.env.VITE_APP_URL
+  ? `${process.env.VITE_APP_URL}/api/webhooks/chatwoot`
+  : 'https://app.elevva.net.br/api/webhooks/chatwoot';
 const CHATWOOT_BASE_URL = (process.env.CHATWOOT_URL || '').replace(/^﻿+/, '').trim().replace(/\/$/, '');
 const HAS_PLATFORM_TOKEN = !!(process.env.CHATWOOT_PLATFORM_TOKEN || '').trim();
 
@@ -91,8 +95,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (HAS_PLATFORM_TOKEN) {
       // Automático via Platform API
       const orgEmail = org.phone
-        ? `org-${slugify(org.name)}-${Date.now().toString(36)}@gestor.elevva.net.br`
-        : `org-${Date.now().toString(36)}@gestor.elevva.net.br`;
+        ? `org-${slugify(org.name)}-${Date.now().toString(36)}@app.elevva.net.br`
+        : `org-${Date.now().toString(36)}@app.elevva.net.br`;
 
       const cwSetup = await platformSetupChatwootAccount(org.name, orgEmail);
       if (cwSetup) {

@@ -12,7 +12,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { supabaseAdmin } from '../_lib/supabaseAdmin.js';
 import { validateWebhookToken } from '../_services/asaasService.js';
 
-const APP_URL = process.env.VITE_APP_URL || 'https://gestor.elevva.net.br';
+const APP_URL = process.env.VITE_APP_URL || 'https://app.elevva.net.br';
 
 const maxConvByPlan: Record<string, number> = {
   starter: 600,
