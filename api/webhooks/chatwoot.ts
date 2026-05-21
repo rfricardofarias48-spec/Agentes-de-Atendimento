@@ -67,6 +67,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       const phone    = rawPhone.replace(/^\+/, '').replace(/\D/g, '');
+
+      // Rejeita números inválidos — telefones reais têm ≥ 10 dígitos
+      if (phone.length < 10) {
+        console.warn(`[Webhook/Chatwoot] Telefone inválido ignorado: "${phone}" (sender.type=${sender?.type})`);
+        return res.status(200).json({ ok: true, skipped: 'invalid phone' });
+      }
+
       const pushName = sender?.name || conversation?.meta?.sender?.name || '';
 
       // Busca org pela conta Chatwoot
