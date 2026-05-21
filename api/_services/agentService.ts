@@ -817,7 +817,7 @@ export async function getOrgByInstance(instanceName: string): Promise<{
     .from('organizations')
     .select('id, name, evolution_instance, evolution_token, chatwoot_account_id, chatwoot_token, chatwoot_inbox_id, chatwoot_url, agent_tone, status')
     .eq('evolution_instance', instanceName)
-    .eq('status', 'active')
+    .in('status', ['active', 'trial'])
     .single();
 
   if (!org) return null;
