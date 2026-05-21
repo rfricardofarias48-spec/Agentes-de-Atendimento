@@ -325,10 +325,23 @@ export async function handleCvMessage(opts: {
 }): Promise<string> {
   const { phone, orgId, instanceName, instanceToken, messageKey, message, mimeType, embeddedBase64 } = opts;
 
+  const [session, systemPrompt] = await Promise.all([
+    getSession(phone, orgId),
+    fetchSystemPrompt(orgId),
+  ]);
+
+  async function reply(context: string, fallback: string): Promise<string> {
+    if (!systemPrompt) return fallback;
+    const ai = await generateAIResponse(systemPrompt, context);
+    return ai ?? fallback;
+  }
+
   // 1. Verifica sessão — precisa de uma vaga selecionada
-  const session = await getSession(phone, orgId);
   if (!session?.job_id || session.state !== 'awaiting_cv') {
-    return '📄 Para enviar seu currículo, primeiro me informe o *código da vaga* (6 dígitos). Exemplo: *123456*';
+    return reply(
+      'O candidato enviou um PDF mas não há vaga selecionada na sessão. Oriente-o a reiniciar o atendimento escolhendo uma área e uma vaga antes de enviar o currículo.',
+      '📄 Para enviar seu currículo, primeiro escolha uma área e uma vaga. Digite qualquer mensagem para reiniciar.',
+    );
   }
 
   // 2. Busca dados da vaga
@@ -338,28 +351,41 @@ export async function handleCvMessage(opts: {
     .eq('id', session.job_id)
     .single();
 
-  if (!job) return '❌ Vaga não encontrada. Por favor, informe o código novamente.';
-  if (!job.auto_analyze) return '📋 Esta vaga não está aceitando currículos no momento.';
+  if (!job) {
+    return reply(
+      'A vaga que o candidato havia selecionado não foi encontrada. Peça que reinicie o atendimento.',
+      '❌ Vaga não encontrada. Por favor, reinicie o atendimento.',
+    );
+  }
+  if (!job.auto_analyze) {
+    return reply(
+      `A vaga "${job.title}" não está aceitando currículos no momento. Informe o candidato com gentileza.`,
+      `📋 A vaga *${job.title}* não está aceitando currículos no momento.`,
+    );
+  }
 
   // 3. Obtém o buffer do PDF
   let buffer: Buffer | null = null;
 
   if (embeddedBase64) {
-    // Usa base64 embutido no webhook (mais eficiente)
     const raw = embeddedBase64.replace(/^data:[^;]+;base64,/, '');
     buffer = Buffer.from(raw, 'base64');
     console.log('[Recruitment] Usando base64 embutido, length:', raw.length);
   } else {
-    // Fallback: baixa via API da Evolution
     buffer = await downloadMedia(instanceName, messageKey, instanceToken);
   }
 
-  if (!buffer) return '❌ Não consegui baixar seu currículo. Tente enviar novamente em PDF.';
+  if (!buffer) {
+    return reply(
+      'Não foi possível abrir o arquivo PDF enviado pelo candidato. Peça que envie novamente.',
+      '❌ Não consegui abrir o arquivo. Por favor, envie novamente em formato *PDF*.',
+    );
+  }
 
-  // 4. Upload no Storage (em paralelo com a análise — fire and forget para o path)
+  // 4. Upload no Storage (em paralelo com a análise)
   const filePathPromise = uploadCv(orgId, job.id, phone, buffer, mimeType);
 
-  // 5. Analisa com GPT (extrai texto do PDF internamente)
+  // 5. Analisa com GPT
   const analysis = await analyzeCv(buffer, job.title, job.criteria || '', phone);
 
   // 6. Aguarda upload e salva candidato
@@ -370,14 +396,19 @@ export async function handleCvMessage(opts: {
   await clearSession(phone, orgId);
 
   // 8. Resposta ao candidato
-  const score = analysis.matchScore.toFixed(1);
   const isError = analysis.candidateName === 'Erro na Análise' || analysis.candidateName === 'Erro de Configuração';
 
   if (isError) {
-    return '⚠️ Ocorreu um erro ao analisar seu currículo. Por favor, tente enviar novamente em alguns instantes.';
+    return reply(
+      'Ocorreu um erro ao analisar o currículo do candidato. Informe com empatia e peça que tente novamente.',
+      '⚠️ Ocorreu um erro ao analisar seu currículo. Por favor, tente enviar novamente em alguns instantes.',
+    );
   }
 
-  return `✅ *Currículo recebido com sucesso!*\n\nOlá, *${analysis.candidateName}*! Seu currículo para a vaga *${job.title}* foi recebido e analisado.\n\nFicamos felizes com seu interesse e entraremos em contato caso seu perfil avance no processo seletivo.\n\n_Pontuação de aderência: ${score}/10_`;
+  return reply(
+    `O candidato "${analysis.candidateName}" acabou de enviar o currículo para a vaga "${job.title}" e a análise foi concluída com sucesso. Confirme o recebimento, agradeça o interesse e informe que entrarão em contato caso o perfil avance no processo seletivo.`,
+    `✅ *Currículo recebido com sucesso!*\n\nOlá, *${analysis.candidateName}*! Seu currículo para a vaga *${job.title}* foi recebido e analisado.\n\nFicamos felizes com seu interesse e entraremos em contato caso seu perfil avance no processo seletivo.`,
+  );
 }
 
 /**
@@ -391,17 +422,36 @@ export async function handleJobCode(opts: {
 }): Promise<string> {
   const { phone, orgId, code } = opts;
 
-  const job = await findJobByCode(code, orgId);
+  const [job, systemPrompt] = await Promise.all([
+    findJobByCode(code, orgId),
+    fetchSystemPrompt(orgId),
+  ]);
+
+  async function reply(context: string, fallback: string): Promise<string> {
+    if (!systemPrompt) return fallback;
+    const ai = await generateAIResponse(systemPrompt, context);
+    return ai ?? fallback;
+  }
+
   if (!job) {
-    return `❌ Código *${code}* não encontrado. Verifique e tente novamente.`;
+    return reply(
+      `O candidato informou o código "${code}" mas ele não corresponde a nenhuma vaga. Informe que o código não foi encontrado e peça para verificar.`,
+      `❌ Código *${code}* não encontrado. Verifique e tente novamente.`,
+    );
   }
   if (!job.auto_analyze) {
-    return `⏸️ A vaga *${job.title}* não está aceitando currículos no momento.`;
+    return reply(
+      `A vaga "${job.title}" foi encontrada pelo código mas não está aceitando currículos no momento. Informe o candidato com gentileza.`,
+      `⏸️ A vaga *${job.title}* não está aceitando currículos no momento.`,
+    );
   }
 
   await setSession(phone, orgId, job.id, 'awaiting_cv');
 
-  return `✅ Vaga encontrada: *${job.title}*\n\nAgora envie seu currículo em *PDF* para prosseguir com a candidatura.`;
+  return reply(
+    `O candidato informou o código da vaga e a vaga encontrada é "${job.title}". Confirme a seleção e peça que envie o currículo em PDF.`,
+    `✅ Vaga encontrada: *${job.title}*\n\nAgora envie seu currículo em *PDF* para prosseguir com a candidatura.`,
+  );
 }
 
 // ── System prompt do agente ───────────────────────────────────
