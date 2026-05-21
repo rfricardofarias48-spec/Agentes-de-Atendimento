@@ -2,6 +2,9 @@
  * POST /api/webhooks/chatwoot
  * Recebe eventos do Chatwoot para todas as contas (shared instance).
  *
+ * IMPORTANTE: o payload do Chatwoot é FLAT — message_type, content, sender
+ * ficam no nível raiz, NÃO dentro de um objeto "message".
+ *
  * Eventos tratados:
  *  - message_created (message_type=0, incoming) → chama agente Bento
  *  - conversation_status_changed (resolved)     → reseta escalated_to_human
@@ -17,52 +20,50 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     const payload = req.body as Record<string, unknown>;
-    const event = String(payload.event || '');
-    const account = payload.account as { id?: number } | undefined;
-    const conversation = payload.conversation as Record<string, unknown> | undefined;
-    const message = payload.message as {
+
+    // Payload é flat — campos da mensagem ficam na raiz
+    const event       = String(payload.event || '');
+    const msgType     = payload.message_type as number | undefined;
+    const msgContent  = String(payload.content || '').trim();
+    const isPrivate   = payload.private as boolean | undefined;
+    const sender      = payload.sender as { id?: number; name?: string; phone_number?: string; type?: string } | undefined;
+    const sourceId    = String(payload.source_id || '');
+    const account     = payload.account as { id?: number } | undefined;
+    const conversation = payload.conversation as {
       id?: number;
-      content?: string;
-      message_type?: number; // 0=incoming 1=outgoing 2=activity
-      private?: boolean;
+      status?: string;
+      meta?: { sender?: { phone_number?: string; name?: string } };
+      contact_inbox?: { source_id?: string };
     } | undefined;
 
-    console.log(`[Webhook/Chatwoot] event="${event}" account=${account?.id} conv=${(conversation?.id as number | undefined)}`);
+    console.log(`[Webhook/Chatwoot] event="${event}" account=${account?.id} conv=${conversation?.id} msg_type=${msgType} content="${msgContent.substring(0, 40)}"`);
 
     // ── Mensagem recebida do candidato → acionar agente ──────────────────
     if (event === 'message_created') {
-      const msgType = message?.message_type;
-      const msgContent = (message?.content || '').trim();
-      // Log completo para diagnóstico
-      console.log(`[Webhook/Chatwoot] payload_keys=${Object.keys(payload).join(',')}`);
-      console.log(`[Webhook/Chatwoot] message_raw=${JSON.stringify(message ?? null).substring(0, 300)}`);
-      console.log(`[Webhook/Chatwoot] message_type=${msgType} private=${message?.private} content="${msgContent.substring(0, 50)}"`);
-
-      // Ignora mensagens de saída (agente), privadas e sem conteúdo
-      if (!message || msgType !== 0 || message.private || !msgContent) {
+      // Ignora: saída (1), atividade (2), privada, sem conteúdo
+      if (msgType !== 0 || isPrivate || !msgContent) {
         return res.status(200).json({ ok: true, skipped: true });
       }
 
       const accountId = account?.id;
       if (!accountId) return res.status(200).json({ ok: true, skipped: 'no accountId' });
 
-      // Extrai telefone: tenta meta.sender.phone_number, depois contact_inbox.source_id
-      const meta = conversation?.meta as { sender?: { phone_number?: string; name?: string } } | undefined;
-      const contactInbox = conversation?.contact_inbox as { source_id?: string } | undefined;
-
-      console.log(`[Webhook/Chatwoot] meta.sender.phone=${meta?.sender?.phone_number} contact_inbox.source=${contactInbox?.source_id}`);
-
+      // Extrai telefone: sender.phone_number → source_id (JID) → conversation.meta
       const rawPhone =
-        meta?.sender?.phone_number ||
-        contactInbox?.source_id?.replace(/@.*$/, '');
+        sender?.phone_number ||
+        (sourceId ? sourceId.replace(/@.*$/, '') : undefined) ||
+        conversation?.meta?.sender?.phone_number ||
+        conversation?.contact_inbox?.source_id?.replace(/@.*$/, '');
+
+      console.log(`[Webhook/Chatwoot] sender.phone=${sender?.phone_number} source_id=${sourceId} rawPhone=${rawPhone}`);
 
       if (!rawPhone) {
         console.warn('[Webhook/Chatwoot] Telefone não encontrado no payload');
         return res.status(200).json({ ok: true, skipped: 'no phone' });
       }
 
-      const phone = rawPhone.replace(/^\+/, '').replace(/\D/g, '');
-      const pushName = meta?.sender?.name || '';
+      const phone    = rawPhone.replace(/^\+/, '').replace(/\D/g, '');
+      const pushName = sender?.name || conversation?.meta?.sender?.name || '';
 
       // Busca org pela conta Chatwoot
       const { data: org } = await supabaseAdmin
@@ -77,10 +78,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(200).json({ ok: true, skipped: 'no org' });
       }
 
-      console.log(`[Webhook/Chatwoot] Bento processando: phone=${phone} org="${org.name}"`);
+      console.log(`[Webhook/Chatwoot] Bento → phone=${phone} org="${org.name}" text="${msgContent.substring(0, 40)}"`);
 
       const reply = await processBentoMessage({ phone, orgId: org.id, pushName, text: msgContent });
-      console.log(`[Webhook/Chatwoot] Bento reply="${reply.substring(0, 80)}"`);
+      console.log(`[Webhook/Chatwoot] reply="${reply.substring(0, 80)}"`);
       await sendText(org.evolution_instance, phone, reply, org.evolution_token);
 
       return res.status(200).json({ ok: true });
@@ -89,11 +90,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // ── Conversa resolvida → reseta escalated_to_human ───────────────────
     if (
       event === 'conversation_status_changed' &&
-      (conversation?.status as string | undefined) === 'resolved' &&
+      conversation?.status === 'resolved' &&
       conversation?.id
     ) {
       const chatwootConvId = String(conversation.id);
-
       const { error } = await supabaseAdmin
         .from('conversations')
         .update({ escalated_to_human: false })
