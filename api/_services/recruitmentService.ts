@@ -294,6 +294,8 @@ export async function saveCandidate(
       status:          'COMPLETED',
       file_path:       filePath,
       analysis_result: analysis,
+      candidate_name:  analysis.candidateName || null,
+      candidate_phone: phone || null,
       is_selected:     false,
       created_at:      new Date().toISOString(),
       updated_at:      new Date().toISOString(),

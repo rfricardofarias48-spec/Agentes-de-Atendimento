@@ -6,14 +6,22 @@
  * ficam no nível raiz, NÃO dentro de um objeto "message".
  *
  * Eventos tratados:
- *  - message_created (message_type=0, incoming) → chama agente Bento
- *  - conversation_status_changed (resolved)     → reseta escalated_to_human
+ *  - message_created (incoming, contact)
+ *      → texto  → processBentoMessage
+ *      → PDF    → handleCvMessage (baixa de attachments[].data_url)
+ *  - conversation_status_changed (resolved) → reseta escalated_to_human
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { supabaseAdmin } from '../_lib/supabaseAdmin.js';
-import { processBentoMessage } from '../_services/recruitmentService.js';
+import { processBentoMessage, handleCvMessage } from '../_services/recruitmentService.js';
 import { sendText } from '../_services/evolutionService.js';
+
+type ChatwootAttachment = {
+  data_url?: string;
+  file_type?: string;
+  extension?: string;
+};
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
@@ -21,8 +29,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const payload = req.body as Record<string, unknown>;
 
-    // Payload é flat — campos da mensagem ficam na raiz
-    // message_type pode ser number (0) ou string ("incoming") dependendo da versão do Chatwoot
     const event       = String(payload.event || '');
     const rawMsgType  = payload.message_type;
     const isIncoming  = rawMsgType === 0 || rawMsgType === 'incoming';
@@ -37,15 +43,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       meta?: { sender?: { phone_number?: string; name?: string } };
       contact_inbox?: { source_id?: string };
     } | undefined;
+    const attachments = (payload.attachments as ChatwootAttachment[] | undefined) ?? [];
 
-    console.log(`[Webhook/Chatwoot] event="${event}" account=${account?.id} conv=${conversation?.id} msg_type=${rawMsgType} isIncoming=${isIncoming} sender_type=${sender?.type} content="${msgContent.substring(0, 40)}"`);
+    // Detecta PDF nos anexos
+    const pdfAttachment = attachments.find(
+      a => a.extension === 'pdf' || (a.data_url ?? '').toLowerCase().includes('.pdf'),
+    );
+    const hasPdf  = !!pdfAttachment?.data_url;
+    const hasText = !!msgContent;
 
-    // ── Mensagem recebida do candidato → acionar agente ──────────────────
+    console.log(`[Webhook/Chatwoot] event="${event}" account=${account?.id} conv=${conversation?.id} msg_type=${rawMsgType} isIncoming=${isIncoming} sender_type=${sender?.type} hasPdf=${hasPdf} content="${msgContent.substring(0, 40)}"`);
+
+    // ── Mensagem recebida do candidato ───────────────────────────────────────
     if (event === 'message_created') {
-      // Ignora: saída, atividade, privada, sem conteúdo, ou mensagens de bot/agente
-      const senderType = sender?.type ?? '';
+      const senderType       = sender?.type ?? '';
       const isContactMessage = !senderType || senderType === 'contact';
-      if (!isIncoming || isPrivate || !msgContent || !isContactMessage) {
+
+      // Ignora: saída, privada, bot/agente, sem texto nem PDF
+      if (!isIncoming || isPrivate || !isContactMessage || (!hasText && !hasPdf)) {
         return res.status(200).json({ ok: true, skipped: true });
       }
 
@@ -66,7 +81,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(200).json({ ok: true, skipped: 'no phone' });
       }
 
-      const phone    = rawPhone.replace(/^\+/, '').replace(/\D/g, '');
+      const phone = rawPhone.replace(/^\+/, '').replace(/\D/g, '');
 
       // Rejeita números inválidos — telefones reais têm ≥ 10 dígitos
       if (phone.length < 10) {
@@ -89,6 +104,52 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(200).json({ ok: true, skipped: 'no org' });
       }
 
+      // ── PDF recebido → pipeline de recrutamento ────────────────────────────
+      if (hasPdf) {
+        const dataUrl = pdfAttachment!.data_url!;
+        console.log(`[Webhook/Chatwoot] PDF recebido → phone=${phone} org="${org.name}" url="${dataUrl.substring(0, 60)}"`);
+
+        try {
+          const pdfRes = await fetch(dataUrl);
+          if (!pdfRes.ok) {
+            console.error(`[Webhook/Chatwoot] Falha ao baixar PDF: HTTP ${pdfRes.status}`);
+            await sendText(org.evolution_instance, phone,
+              '❌ Não consegui abrir o arquivo. Por favor, envie novamente em formato *PDF*.',
+              org.evolution_token,
+            );
+            return res.status(200).json({ ok: true });
+          }
+
+          const buffer     = Buffer.from(await pdfRes.arrayBuffer());
+          const base64     = buffer.toString('base64');
+
+          console.log(`[Webhook/Chatwoot] PDF baixado, ${buffer.length} bytes → chamando handleCvMessage`);
+
+          const cvReply = await handleCvMessage({
+            phone,
+            orgId:          org.id,
+            instanceName:   org.evolution_instance,
+            instanceToken:  org.evolution_token,
+            messageKey:     {},
+            message:        {},
+            mimeType:       'application/pdf',
+            embeddedBase64: base64,
+          });
+
+          console.log(`[Webhook/Chatwoot] CV reply="${cvReply.substring(0, 80)}"`);
+          await sendText(org.evolution_instance, phone, cvReply, org.evolution_token);
+        } catch (pdfErr) {
+          console.error('[Webhook/Chatwoot] Erro ao processar PDF:', pdfErr);
+          await sendText(org.evolution_instance, phone,
+            '⚠️ Erro ao processar currículo. Tente enviar novamente em alguns instantes.',
+            org.evolution_token,
+          );
+        }
+
+        return res.status(200).json({ ok: true });
+      }
+
+      // ── Texto → agente Bento ───────────────────────────────────────────────
       console.log(`[Webhook/Chatwoot] Bento → phone=${phone} org="${org.name}" text="${msgContent.substring(0, 40)}"`);
 
       const reply = await processBentoMessage({ phone, orgId: org.id, pushName, text: msgContent });
@@ -98,7 +159,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(200).json({ ok: true });
     }
 
-    // ── Conversa resolvida → reseta escalated_to_human ───────────────────
+    // ── Conversa resolvida → reseta escalated_to_human ───────────────────────
     if (
       event === 'conversation_status_changed' &&
       conversation?.status === 'resolved' &&
