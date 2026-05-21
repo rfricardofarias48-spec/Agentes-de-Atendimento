@@ -7,12 +7,8 @@
  *  2. Candidato envia PDF/documento      → baixamos, extraímos texto, analisamos, salvamos
  */
 
-import { createRequire } from 'module';
 import OpenAI from 'openai';
 import { createClient } from '@supabase/supabase-js';
-
-const require = createRequire(import.meta.url);
-const pdfParse = require('pdf-parse') as (buf: Buffer) => Promise<{ text: string }>;
 
 function env(k: string) { return (process.env[k] || '').replace(/^﻿+/, '').trim(); }
 
@@ -150,6 +146,9 @@ export async function clearSession(phone: string, orgId: string) {
 
 async function extractPdfText(buffer: Buffer): Promise<string | null> {
   try {
+    const { createRequire } = await import('module');
+    const req = createRequire(import.meta.url);
+    const pdfParse = req('pdf-parse') as (buf: Buffer) => Promise<{ text: string }>;
     const parsed = await pdfParse(buffer);
     const text = parsed.text?.trim() || '';
     console.log('[Recruitment] PDF extraído, caracteres:', text.length);
