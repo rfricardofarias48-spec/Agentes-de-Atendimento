@@ -145,7 +145,6 @@ export default function ClientAprovados({ onRegisterExport }: { onRegisterExport
         window.open(json.url, '_blank')
       } else {
         // Fallback: open contacts search
-        const c = candidates.find(x => x.id === candidateId)
         if (org?.chatwoot_url && org?.chatwoot_account_id) {
           window.open(`${org.chatwoot_url}/app/accounts/${org.chatwoot_account_id}/contacts?q=${encodeURIComponent(rawPhone)}`, '_blank')
         } else if (org?.chatwoot_url) {
