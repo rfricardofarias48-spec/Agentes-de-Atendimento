@@ -1,5 +1,5 @@
 import { type ReactNode, useEffect, useState, useMemo } from 'react'
-import { CalendarDays, BadgeCheck, Clock, TrendingUp, ArrowRight, Zap, ExternalLink, AlertTriangle, Inbox, Calendar, Copy, Eye, EyeOff, LogIn, FileText, ThumbsUp, ThumbsDown, Loader2 } from 'lucide-react'
+import { CalendarDays, BadgeCheck, Clock, TrendingUp, Zap, ExternalLink, AlertTriangle, Inbox, Calendar, Copy, Eye, EyeOff, LogIn, FileText, ThumbsUp, ThumbsDown, Loader2 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { type Organization } from '../../types'
@@ -479,7 +479,7 @@ function AnimatedNumber({ value, ready, delay = 0 }: { value: number; ready: boo
 
 // ── Chart Bar ──────────────────────────────────────────────────────
 
-function ChartBar({ count, index, maxCount, ready, label }: { count: number; index: number; maxCount: number; ready: boolean; label: string }) {
+function ChartBar({ count, index, maxCount, ready }: { count: number; index: number; maxCount: number; ready: boolean; label: string }) {
   const [displayCount, setDisplayCount] = useState(0)
   const [hovered, setHovered] = useState(false)
   useEffect(() => {
@@ -499,7 +499,7 @@ function ChartBar({ count, index, maxCount, ready, label }: { count: number; ind
 
   const CHART_H = 140
   const heightPx = count > 0 ? Math.max((count / maxCount) * CHART_H * 0.88, 16) : 4
-  const _ = label // used via tooltip
+
 
   return (
     <div className="flex-1 relative flex flex-col justify-end px-[3px]" style={{ height: `${CHART_H}px` }}
