@@ -143,6 +143,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .eq('status', 'AGUARDANDO_RESPOSTA')
       .maybeSingle()
 
+    const scheduledAt = `${date}T${time}:00-03:00`
+
     if (existing) {
       await supabaseAdmin.from('interviews')
         .update({ slot_date: date, slot_time: time, status: 'CONFIRMADA' })
@@ -162,6 +164,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         candidate_phone: booking.candidate_phone,
       })
     }
+
+    // Add confirmed interview to the calendar (appointments)
+    await supabaseAdmin.from('appointments').insert({
+      org_id: booking.org_id,
+      patient_name: booking.candidate_name || 'Candidato',
+      patient_phone: booking.candidate_phone || '',
+      specialty: `Entrevista — ${jobTitle}`,
+      doctor_name: booking.interviewer_name,
+      scheduled_at: scheduledAt,
+      status: 'confirmed',
+      notes: booking.format === 'Online' && booking.meeting_link
+        ? `Link: ${booking.meeting_link}`
+        : booking.format || null,
+      duration_minutes: 60,
+    })
 
     const org = booking.organizations as { evolution_instance?: string; evolution_token?: string }
     if (org?.evolution_instance && booking.candidate_phone) {
