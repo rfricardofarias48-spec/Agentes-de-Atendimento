@@ -169,6 +169,7 @@ export default function ClientCandidatos() {
   const getName  = (c: Candidate) => c.analysis_result?.candidateName || c.candidate_name || 'Nome não identificado'
   const getScore = (c: Candidate) => c.analysis_result?.matchScore ?? 0
   const sorted   = [...candidates].sort((a, b) => getScore(b) - getScore(a))
+  // Only APPROVED (not yet scheduled) — INTERVIEW_SCHEDULED already have a link
   const approved = candidates.filter(c => c.status === 'APPROVED')
 
   if (loading) return (
@@ -255,8 +256,9 @@ export default function ClientCandidatos() {
             const score    = getScore(c)
             const ar       = c.analysis_result
             const isOpen   = expandedId === c.id
-            const isApproved = c.status === 'APPROVED'
-            const isLoading  = updatingId === c.id
+            const isApproved   = c.status === 'APPROVED'
+            const isScheduled  = c.status === 'INTERVIEW_SCHEDULED'
+            const isLoading    = updatingId === c.id
             const isDeleting = deletingId === c.id
             const rank     = idx + 1
 
@@ -265,7 +267,9 @@ export default function ClientCandidatos() {
                 key={c.id}
                 className={cn(
                   'relative rounded-2xl border bg-white transition-all duration-200 overflow-hidden',
-                  isApproved
+                  isScheduled
+                    ? 'border-[#2C82B5]/30 shadow-sm'
+                    : isApproved
                     ? 'border-emerald-200 shadow-sm'
                     : isOpen
                     ? 'border-slate-200 shadow-[0_4px_20px_rgba(0,0,0,0.07)]'
@@ -273,8 +277,11 @@ export default function ClientCandidatos() {
                 )}
                 onMouseLeave={() => confirmDeleteId === c.id && setConfirmDeleteId(null)}
               >
-                {/* Accent bar esquerda para aprovados */}
-                {isApproved && (
+                {/* Accent bar esquerda */}
+                {isScheduled && (
+                  <div className="absolute left-0 top-0 bottom-0 w-1 bg-[#2C82B5] rounded-l-2xl" />
+                )}
+                {isApproved && !isScheduled && (
                   <div className="absolute left-0 top-0 bottom-0 w-1 bg-emerald-400 rounded-l-2xl" />
                 )}
 
@@ -352,23 +359,29 @@ export default function ClientCandidatos() {
                     )}
 
                     {/* Approve button */}
-                    <button
-                      disabled={isLoading}
-                      onClick={() => handleApprove(c)}
-                      className={cn(
-                        'flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-black transition-all',
-                        isApproved
-                          ? 'bg-emerald-500 text-white shadow-[0_2px_10px_rgba(16,185,129,0.35)] hover:bg-emerald-600'
-                          : 'bg-slate-900 text-white hover:bg-slate-700 shadow-sm',
-                      )}
-                    >
-                      {isLoading
-                        ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        : isApproved
-                        ? <><ThumbsUp className="w-3.5 h-3.5 fill-current" /> Aprovado</>
-                        : <><ThumbsUp className="w-3.5 h-3.5" /> Aprovar</>
-                      }
-                    </button>
+                    {isScheduled ? (
+                      <div className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-black bg-[#2C82B5]/10 text-[#2C82B5] border border-[#2C82B5]/20 cursor-default select-none">
+                        <Calendar className="w-3.5 h-3.5" /> Em entrevista
+                      </div>
+                    ) : (
+                      <button
+                        disabled={isLoading}
+                        onClick={() => handleApprove(c)}
+                        className={cn(
+                          'flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-black transition-all',
+                          isApproved
+                            ? 'bg-emerald-500 text-white shadow-[0_2px_10px_rgba(16,185,129,0.35)] hover:bg-emerald-600'
+                            : 'bg-slate-900 text-white hover:bg-slate-700 shadow-sm',
+                        )}
+                      >
+                        {isLoading
+                          ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          : isApproved
+                          ? <><ThumbsUp className="w-3.5 h-3.5 fill-current" /> Aprovado</>
+                          : <><ThumbsUp className="w-3.5 h-3.5" /> Aprovar</>
+                        }
+                      </button>
+                    )}
 
                     {/* Expand */}
                     <button
