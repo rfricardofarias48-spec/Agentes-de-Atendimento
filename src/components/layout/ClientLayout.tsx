@@ -43,7 +43,7 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
       <div className="mx-5 h-px mb-2 shrink-0" style={{ background: 'rgba(255,255,255,0.07)' }} />
 
       {/* Nav label */}
-      <p className="px-5 mb-1 text-[9px] font-black uppercase tracking-[0.18em] shrink-0" style={{ color: 'rgba(148,163,184,0.4)' }}>
+      <p className="px-5 mb-2 text-[9px] font-black uppercase tracking-[0.18em] shrink-0" style={{ color: 'rgba(148,163,184,0.4)' }}>
         Menu
       </p>
 
@@ -57,7 +57,7 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
               to={href}
               onClick={onNavClick}
               className={cn(
-                'flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-[13px] font-semibold transition-all duration-150',
+                'flex items-center gap-3 px-3 py-2.5 rounded-xl text-[15px] font-semibold transition-all duration-150',
                 active
                   ? 'text-white shadow-[0_4px_14px_rgba(44,130,181,0.35)]'
                   : 'hover:bg-white/[0.06]',
@@ -79,7 +79,7 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
       <div className="p-3 shrink-0" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
         <button
           onClick={handleSignOut}
-          className="flex items-center gap-2.5 w-full px-3 py-1.5 rounded-lg text-[13px] font-semibold transition-all duration-150 hover:bg-white/[0.06]"
+          className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-[15px] font-semibold transition-all duration-150 hover:bg-white/[0.06]"
           style={{ color: 'rgba(148,163,184,0.55)' }}
           onMouseEnter={e => (e.currentTarget.style.color = '#f87171')}
           onMouseLeave={e => (e.currentTarget.style.color = 'rgba(148,163,184,0.55)')}
@@ -97,7 +97,7 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
 
       {/* ── Desktop sidebar ──────────────────────────────────────────── */}
       <aside
-        className="hidden lg:flex flex-col w-56 shrink-0"
+        className="hidden lg:flex flex-col w-44 shrink-0"
         style={{ background: SIDEBAR_BG }}
       >
         <SidebarContent />
@@ -108,7 +108,7 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
         <>
           <div className="fixed inset-0 z-30 bg-black/50 lg:hidden" onClick={() => setMobileOpen(false)} />
           <aside
-            className="fixed inset-y-0 left-0 z-40 lg:hidden w-56 flex flex-col shadow-2xl"
+            className="fixed inset-y-0 left-0 z-40 lg:hidden w-44 flex flex-col shadow-2xl"
             style={{ background: SIDEBAR_BG }}
           >
             <SidebarContent onNavClick={() => setMobileOpen(false)} />
