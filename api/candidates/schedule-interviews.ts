@@ -129,9 +129,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     })
     const jobTitle = (booking.jobs as { title: string })?.title ?? 'vaga'
 
-    await Promise.all([
-      supabaseAdmin.from('interview_bookings').update({ status: 'BOOKED', booked_date: date, booked_time: time }).eq('token', token),
-      supabaseAdmin.from('interviews').insert({
+    // Update booking as confirmed
+    await supabaseAdmin.from('interview_bookings')
+      .update({ status: 'BOOKED', booked_date: date, booked_time: time }).eq('token', token)
+
+    // Update the existing interview record (created when link was sent), or insert if missing
+    const { data: existing } = await supabaseAdmin
+      .from('interviews')
+      .select('id')
+      .eq('candidate_id', booking.candidate_id)
+      .eq('job_id', booking.job_id)
+      .eq('org_id', booking.org_id)
+      .eq('status', 'AGUARDANDO_RESPOSTA')
+      .maybeSingle()
+
+    if (existing) {
+      await supabaseAdmin.from('interviews')
+        .update({ slot_date: date, slot_time: time, status: 'CONFIRMADA' })
+        .eq('id', existing.id)
+    } else {
+      await supabaseAdmin.from('interviews').insert({
         job_id: booking.job_id,
         candidate_id: booking.candidate_id,
         org_id: booking.org_id,
@@ -143,8 +160,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         status: 'CONFIRMADA',
         candidate_name: booking.candidate_name,
         candidate_phone: booking.candidate_phone,
-      }),
-    ])
+      })
+    }
 
     const org = booking.organizations as { evolution_instance?: string; evolution_token?: string }
     if (org?.evolution_instance && booking.candidate_phone) {
@@ -256,6 +273,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (!booking) throw new Error('Falha ao criar booking')
 
       const bookingLink = `${appUrl}/b/${booking.token}`
+
+      // Create interview record immediately (awaiting candidate to pick slot)
+      await supabaseAdmin.from('interviews').insert({
+        job_id: jobId,
+        candidate_id: c.id,
+        org_id: orgId,
+        format,
+        meeting_link: meetingLink || null,
+        interviewer_name: interviewer,
+        status: 'AGUARDANDO_RESPOSTA',
+        candidate_name: name,
+        candidate_phone: c.candidate_phone ?? null,
+      })
 
       // Update candidate status
       await supabaseAdmin.from('candidates').update({ status: 'INTERVIEW_SCHEDULED' }).eq('id', c.id)
