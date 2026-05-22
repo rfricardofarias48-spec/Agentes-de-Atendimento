@@ -122,10 +122,11 @@ export default function ClientCandidatos() {
 
   const handleApprove = async (c: Candidate) => {
     setUpdatingId(c.id)
+    // Approve for interview only — is_selected stays false until approved in Entrevistas tab
     const next = c.status === 'APPROVED' ? 'COMPLETED' : 'APPROVED'
     const { error } = await supabase.from('candidates')
-      .update({ status: next, is_selected: next === 'APPROVED' }).eq('id', c.id)
-    if (!error) setCandidates(prev => prev.map(x => x.id === c.id ? { ...x, status: next, is_selected: next === 'APPROVED' } : x))
+      .update({ status: next, is_selected: false }).eq('id', c.id)
+    if (!error) setCandidates(prev => prev.map(x => x.id === c.id ? { ...x, status: next, is_selected: false } : x))
     setUpdatingId(null)
   }
 

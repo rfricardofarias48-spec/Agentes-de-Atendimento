@@ -45,9 +45,9 @@ export default function ClientAprovados({ onRegisterExport }: { onRegisterExport
     setLoading(true)
     supabase
       .from('candidates')
-      .select('*, jobs ( id, title, org_id )')
+      .select('*, jobs ( id, title )')
       .eq('is_selected', true)
-      .eq('jobs.org_id', orgId)
+      .eq('org_id', orgId)
       .order('created_at', { ascending: false })
       .then(({ data }) => {
         if (data) {

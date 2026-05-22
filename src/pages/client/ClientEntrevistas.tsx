@@ -116,6 +116,25 @@ export default function ClientEntrevistas({ onRegisterExport }: { onRegisterExpo
   async function handleUpdateStatus(id: string, status: InterviewStatus) {
     await supabase.from('interviews').update({ status }).eq('id', id)
     setInterviews(prev => prev.map(i => i.id === id ? { ...i, status } : i))
+
+    // Final approval from interview → mark candidate as selected (goes to Aprovados tab)
+    if (status === 'APROVADO') {
+      const interview = interviews.find(i => i.id === id)
+      if (interview?.candidate_id) {
+        await supabase.from('candidates')
+          .update({ is_selected: true, status: 'HIRED' })
+          .eq('id', interview.candidate_id)
+      }
+    }
+    // Cancelled from interview → ensure candidate is not marked as selected
+    if (status === 'CANCELADA') {
+      const interview = interviews.find(i => i.id === id)
+      if (interview?.candidate_id) {
+        await supabase.from('candidates')
+          .update({ is_selected: false })
+          .eq('id', interview.candidate_id)
+      }
+    }
   }
 
   async function handleDelete(id: string) {
