@@ -9,6 +9,10 @@
 
 import OpenAI from 'openai';
 import { createClient } from '@supabase/supabase-js';
+import { createRequire } from 'module';
+
+const _require = createRequire(import.meta.url);
+const pdfParse = _require('pdf-parse') as (buf: Buffer) => Promise<{ text: string }>;
 
 function env(k: string) { return (process.env[k] || '').replace(/^﻿+/, '').trim(); }
 
@@ -146,10 +150,6 @@ export async function clearSession(phone: string, orgId: string) {
 
 async function extractPdfText(buffer: Buffer): Promise<string | null> {
   try {
-    const { createRequire } = await import('module');
-    const req = createRequire(import.meta.url);
-    // Importa lib diretamente — index.js tem bug isDebugMode que trava em serverless
-    const pdfParse = req('pdf-parse/lib/pdf-parse.js') as (buf: Buffer, opts?: object) => Promise<{ text: string }>;
     const parsed = await pdfParse(buffer);
     const text = parsed.text?.trim() || '';
     console.log('[Recruitment] PDF extraído, caracteres:', text.length);
