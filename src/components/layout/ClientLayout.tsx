@@ -97,7 +97,7 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
 
       {/* ── Desktop sidebar ──────────────────────────────────────────── */}
       <aside
-        className="hidden lg:flex flex-col w-44 shrink-0"
+        className="hidden lg:flex flex-col w-48 shrink-0"
         style={{ background: SIDEBAR_BG }}
       >
         <SidebarContent />
@@ -108,7 +108,7 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
         <>
           <div className="fixed inset-0 z-30 bg-black/50 lg:hidden" onClick={() => setMobileOpen(false)} />
           <aside
-            className="fixed inset-y-0 left-0 z-40 lg:hidden w-44 flex flex-col shadow-2xl"
+            className="fixed inset-y-0 left-0 z-40 lg:hidden w-48 flex flex-col shadow-2xl"
             style={{ background: SIDEBAR_BG }}
           >
             <SidebarContent onNavClick={() => setMobileOpen(false)} />
