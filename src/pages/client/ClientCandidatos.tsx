@@ -166,7 +166,14 @@ export default function ClientCandidatos() {
     if (data?.signedUrl) window.open(data.signedUrl, '_blank')
   }
 
-  const getName  = (c: Candidate) => c.analysis_result?.candidateName || c.candidate_name || 'Nome não identificado'
+  const fmtName = (full: string | null | undefined) => {
+    if (!full) return 'Nome não identificado'
+    const parts = full.trim().split(/\s+/).filter(Boolean)
+    const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1).toLowerCase()
+    if (parts.length === 1) return cap(parts[0])
+    return `${cap(parts[0])} ${cap(parts[parts.length - 1])}`
+  }
+  const getName  = (c: Candidate) => fmtName(c.analysis_result?.candidateName || c.candidate_name)
   const getScore = (c: Candidate) => c.analysis_result?.matchScore ?? 0
   const sorted   = [...candidates].sort((a, b) => getScore(b) - getScore(a))
   // Only APPROVED (not yet scheduled) — INTERVIEW_SCHEDULED already have a link

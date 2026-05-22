@@ -53,6 +53,14 @@ const STATUS_STYLE: Record<InterviewStatus, string> = {
   APROVADO:            'bg-green-50 text-green-700 border border-green-200',
 }
 
+function fmtName(full: string | null): string {
+  if (!full) return '—'
+  const parts = full.trim().split(/\s+/).filter(Boolean)
+  const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1).toLowerCase()
+  if (parts.length === 1) return cap(parts[0])
+  return `${cap(parts[0])} ${cap(parts[parts.length - 1])}`
+}
+
 function fmtSlot(date: string | null, time: string | null) {
   if (!date) return '—'
   const d = new Date(date + 'T00:00:00')
@@ -244,7 +252,7 @@ export default function ClientEntrevistas({ onRegisterExport }: { onRegisterExpo
                         </div>
                         <div>
                           <p className="font-bold text-slate-900 leading-none text-[13px]">
-                            {interview.candidate_name || 'Candidato'}
+                            {fmtName(interview.candidate_name)}
                           </p>
                           {interview.candidate_phone && (
                             <p className="text-[10px] text-slate-400 mt-0.5">{interview.candidate_phone}</p>
