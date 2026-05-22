@@ -261,23 +261,26 @@ export default function ClientEntrevistas({ onRegisterExport }: { onRegisterExpo
 
       {/* Success toast */}
       {successMsg && (
-        <div className="fixed bottom-6 right-6 z-50 max-w-sm w-full animate-in slide-in-from-bottom-4 fade-in duration-300">
-          <div className="bg-white border border-emerald-200 rounded-2xl shadow-xl px-5 py-4 flex items-start gap-3">
-            <div className="w-8 h-8 bg-emerald-50 rounded-xl flex items-center justify-center shrink-0 mt-0.5">
-              <CheckCircle className="w-4 h-4 text-emerald-600" />
+        <div className="fixed bottom-6 right-6 z-50 max-w-[340px] w-full">
+          <div className="bg-white rounded-[1.25rem] shadow-2xl border border-slate-100 overflow-hidden">
+            <div className="h-1 w-full" style={{ background: 'linear-gradient(90deg, #2C82B5, #4fa8d8)' }} />
+            <div className="px-5 py-4 flex items-start gap-3.5">
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 mt-0.5" style={{ background: 'rgba(44,130,181,0.1)' }}>
+                <CheckCircle className="w-4.5 h-4.5" style={{ color: '#2C82B5' }} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[13px] font-black text-slate-900 leading-snug">Candidato aprovado! 🎉</p>
+                <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">
+                  Bento acabou de comunicar o candidato da aprovação, ele foi instruído a aguardar os próximos passos.
+                </p>
+              </div>
+              <button
+                onClick={() => setSuccessMsg(false)}
+                className="w-6 h-6 flex items-center justify-center rounded-lg text-slate-300 hover:text-slate-500 hover:bg-slate-50 transition-colors shrink-0 mt-0.5"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-black text-slate-900 leading-snug">Candidato aprovado!</p>
-              <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">
-                Bento acabou de comunicar o candidato da aprovação, ele foi instruído a aguardar os próximos passos.
-              </p>
-            </div>
-            <button
-              onClick={() => setSuccessMsg(false)}
-              className="w-6 h-6 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors shrink-0"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
           </div>
         </div>
       )}
@@ -286,42 +289,64 @@ export default function ClientEntrevistas({ onRegisterExport }: { onRegisterExpo
       {confirmApprove && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div
-            className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+            className="absolute inset-0 bg-slate-900/50 backdrop-blur-[2px]"
             onClick={() => !approving && setConfirmApprove(null)}
           />
-          <div className="relative bg-white rounded-2xl shadow-2xl border border-slate-100 w-full max-w-sm p-6 animate-in zoom-in-95 fade-in duration-200">
-            {/* Icon */}
-            <div className="w-12 h-12 bg-emerald-50 rounded-2xl flex items-center justify-center mb-4">
-              <ThumbsUp className="w-5 h-5 text-emerald-600" />
+          <div className="relative bg-white rounded-[2rem] shadow-2xl w-full max-w-[380px] overflow-hidden animate-in zoom-in-95 fade-in duration-200">
+
+            {/* Header band */}
+            <div className="px-7 pt-7 pb-6">
+              {/* Icon */}
+              <div className="w-14 h-14 rounded-[1.25rem] flex items-center justify-center mb-5" style={{ background: 'rgba(44,130,181,0.1)' }}>
+                <ThumbsUp className="w-6 h-6" style={{ color: '#2C82B5' }} />
+              </div>
+
+              {/* Title */}
+              <p className="text-[10px] font-black uppercase tracking-widest mb-1" style={{ color: '#2C82B5' }}>
+                Confirmação
+              </p>
+              <h2 className="text-xl font-black text-slate-900 leading-tight mb-4">
+                Aprovar para a vaga?
+              </h2>
+
+              {/* Candidate chip */}
+              <div className="flex items-center gap-3 bg-slate-50 border border-slate-100 rounded-2xl px-4 py-3 mb-4">
+                <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 text-[10px] font-black" style={{ background: 'rgba(44,130,181,0.12)', color: '#2C82B5' }}>
+                  {fmtName(confirmApprove.candidate_name).split(' ').map(w => w[0]).join('').toUpperCase()}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[13px] font-black text-slate-900 leading-none truncate">
+                    {fmtName(confirmApprove.candidate_name)}
+                  </p>
+                  <p className="text-[11px] text-slate-400 mt-0.5 truncate">
+                    {confirmApprove.job_title ?? 'Vaga não identificada'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Note */}
+              <p className="text-[12px] text-slate-400 leading-relaxed">
+                Se confirmar, <span className="font-bold text-slate-500">Bento</span> irá notificar o candidato pelo WhatsApp sobre a aprovação.
+              </p>
             </div>
 
-            {/* Title */}
-            <h2 className="text-base font-black text-slate-900 leading-snug mb-1">
-              Aprovar candidato?
-            </h2>
-            <p className="text-sm text-slate-600 leading-relaxed mb-1">
-              Você deseja aprovar{' '}
-              <span className="font-black text-slate-900">{fmtName(confirmApprove.candidate_name)}</span>{' '}
-              para a vaga de{' '}
-              <span className="font-black text-slate-900">{confirmApprove.job_title ?? 'essa vaga'}</span>?
-            </p>
-            <p className="text-xs text-slate-400 mb-6">
-              Se sim, Bento irá comunicá-lo sobre a aprovação.
-            </p>
+            {/* Divider */}
+            <div className="h-px bg-slate-100 mx-7" />
 
             {/* Actions */}
-            <div className="flex gap-2.5">
+            <div className="px-7 py-5 flex gap-3">
               <button
                 onClick={() => setConfirmApprove(null)}
                 disabled={approving}
-                className="flex-1 h-10 rounded-xl border border-slate-200 text-sm font-black text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-50"
+                className="flex-1 h-11 rounded-xl border border-slate-200 text-[13px] font-black text-slate-500 hover:bg-slate-50 hover:border-slate-300 transition-all disabled:opacity-50"
               >
-                Não
+                Cancelar
               </button>
               <button
                 onClick={handleApproveConfirmed}
                 disabled={approving}
-                className="flex-1 h-10 rounded-xl bg-emerald-600 text-sm font-black text-white hover:bg-emerald-700 transition-colors disabled:opacity-70 flex items-center justify-center gap-2"
+                className="flex-1 h-11 rounded-xl text-[13px] font-black text-white shadow-lg transition-all disabled:opacity-70 flex items-center justify-center gap-2 hover:shadow-xl hover:brightness-105 active:scale-[0.98]"
+                style={{ background: 'linear-gradient(135deg, #2C82B5, #1e6a97)' }}
               >
                 {approving ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
