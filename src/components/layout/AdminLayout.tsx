@@ -35,7 +35,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
       {/* Logo */}
       <div className="px-5 py-4" style={{ borderBottom: '1px solid #e4e7ec' }}>
         <img
-          src="https://ik.imagekit.io/xsbrdnr0y/Logo%20sem%20fundo.png"
+          src="https://ik.imagekit.io/xsbrdnr0y/Elevva_logo_white_blue_202605221006.png"
           alt="Gestor"
           className="h-9 w-auto object-contain"
         />
@@ -105,7 +105,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
           >
             {open ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
           </button>
-          <img src="https://ik.imagekit.io/xsbrdnr0y/Logo%20sem%20fundo.png" alt="Gestor" className="h-7 w-auto object-contain" />
+          <img src="https://ik.imagekit.io/xsbrdnr0y/Elevva_logo_white_blue_202605221006.png" alt="Gestor" className="h-7 w-auto object-contain" />
         </header>
 
         <main className="flex-1 overflow-y-auto p-6 lg:p-8">

@@ -33,7 +33,7 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
       {/* Logo */}
       <div className="flex justify-center px-4 pt-6 pb-4 shrink-0">
         <img
-          src="https://ik.imagekit.io/xsbrdnr0y/Logo%20sem%20fundo.png"
+          src="https://ik.imagekit.io/xsbrdnr0y/Elevva_logo_white_blue_202605221006.png"
           alt="Gestor"
           className="h-28 w-auto object-contain"
         />
@@ -132,7 +132,7 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
             {mobileOpen ? <X className="w-4 h-4 text-white" /> : <Menu className="w-4 h-4 text-white" />}
           </button>
           <img
-            src="https://ik.imagekit.io/xsbrdnr0y/Logo%20sem%20fundo.png"
+            src="https://ik.imagekit.io/xsbrdnr0y/Elevva_logo_white_blue_202605221006.png"
             alt="Gestor"
             className="h-7 w-auto object-contain"
           />
