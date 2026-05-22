@@ -31,7 +31,7 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
   const SidebarContent = ({ onNavClick }: { onNavClick?: () => void }) => (
     <>
       {/* Logo */}
-      <div className="flex justify-center px-4 pt-5 pb-3 shrink-0">
+      <div className="flex justify-center px-4 pt-2 pb-1 shrink-0">
         <img
           src="https://ik.imagekit.io/xsbrdnr0y/Elevva_logo_white_blue_202605221006.png"
           alt="Gestor"
@@ -40,7 +40,7 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
       </div>
 
       {/* Divider */}
-      <div className="mx-5 h-px mb-3 shrink-0" style={{ background: 'rgba(255,255,255,0.07)' }} />
+      <div className="mx-5 h-px mb-2 shrink-0" style={{ background: 'rgba(255,255,255,0.07)' }} />
 
       {/* Nav label */}
       <p className="px-5 mb-2 text-[9px] font-black uppercase tracking-[0.18em] shrink-0" style={{ color: 'rgba(148,163,184,0.4)' }}>
