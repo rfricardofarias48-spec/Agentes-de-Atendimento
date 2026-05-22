@@ -56,10 +56,12 @@ const STATUS_STYLE: Record<InterviewStatus, string> = {
 function fmtSlot(date: string | null, time: string | null) {
   if (!date) return '—'
   const d = new Date(date + 'T00:00:00')
-  const weekday = d.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '')
-  const day = d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })
-  const t = time ? ` / ${time.slice(0, 5)}` : ''
-  return `${weekday}., ${day}${t}`
+  const day   = String(d.getDate()).padStart(2, '0')
+  const month = String(d.getMonth() + 1).padStart(2, '0')
+  if (!time) return `${day}/${month}`
+  const [h, m] = time.split(':').map(Number)
+  const timePart = m === 0 ? `${h}h` : `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+  return `${day}/${month} - ${timePart}`
 }
 
 export default function ClientEntrevistas({ onRegisterExport }: { onRegisterExport?: (fn: () => void) => void }) {
@@ -111,6 +113,14 @@ export default function ClientEntrevistas({ onRegisterExport }: { onRegisterExpo
   async function handleDelete(id: string) {
     await supabase.from('interviews').delete().eq('id', id)
     setInterviews(prev => prev.filter(i => i.id !== id))
+  }
+
+  async function handleViewResume(candidateId: string) {
+    const { data } = await supabase
+      .from('candidates').select('file_path').eq('id', candidateId).single()
+    if (!data?.file_path) return
+    const { data: url } = await supabase.storage.from('resumes').createSignedUrl(data.file_path, 300)
+    if (url?.signedUrl) window.open(url.signedUrl, '_blank')
   }
 
   useEffect(() => { onRegisterExport?.(exportCsv) }, [filtered]) // eslint-disable-line
@@ -216,9 +226,9 @@ export default function ClientEntrevistas({ onRegisterExport }: { onRegisterExpo
                   <th className="text-left px-5 py-3 text-[10px] font-black uppercase tracking-wider text-slate-400">Candidato</th>
                   <th className="text-left px-5 py-3 text-[10px] font-black uppercase tracking-wider text-slate-400">Vaga</th>
                   <th className="text-left px-5 py-3 text-[10px] font-black uppercase tracking-wider text-slate-400">Entrevistador</th>
-                  <th className="text-left px-5 py-3 text-[10px] font-black uppercase tracking-wider text-slate-400">Status</th>
-                  <th className="text-left px-5 py-3 text-[10px] font-black uppercase tracking-wider text-slate-400">Data &amp; Hora</th>
-                  <th className="text-left px-5 py-3 text-[10px] font-black uppercase tracking-wider text-slate-400">Link</th>
+                  <th className="text-center px-5 py-3 text-[10px] font-black uppercase tracking-wider text-slate-400">Status</th>
+                  <th className="text-center px-5 py-3 text-[10px] font-black uppercase tracking-wider text-slate-400">Data &amp; Hora</th>
+                  <th className="text-center px-5 py-3 text-[10px] font-black uppercase tracking-wider text-slate-400">Link</th>
                   <th className="text-right px-5 py-3 text-[10px] font-black uppercase tracking-wider text-slate-400">Ações</th>
                 </tr>
               </thead>
@@ -261,9 +271,9 @@ export default function ClientEntrevistas({ onRegisterExport }: { onRegisterExpo
                     </td>
 
                     {/* Status */}
-                    <td className="px-5 py-3.5">
+                    <td className="px-5 py-3.5 text-center">
                       <span className={cn(
-                        'text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full',
+                        'inline-block text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full',
                         STATUS_STYLE[interview.status] ?? 'bg-slate-100 text-slate-600 border border-slate-200',
                       )}>
                         {STATUS_LABEL[interview.status] ?? interview.status}
@@ -271,20 +281,20 @@ export default function ClientEntrevistas({ onRegisterExport }: { onRegisterExpo
                     </td>
 
                     {/* Data & Hora */}
-                    <td className="px-5 py-3.5">
-                      <span className="text-slate-600 text-[13px] whitespace-nowrap">
+                    <td className="px-5 py-3.5 text-center">
+                      <span className="text-slate-600 text-[13px] whitespace-nowrap font-medium">
                         {fmtSlot(interview.slot_date, interview.slot_time)}
                       </span>
                     </td>
 
                     {/* Link */}
-                    <td className="px-5 py-3.5">
+                    <td className="px-5 py-3.5 text-center">
                       {interview.meeting_link ? (
                         <a
                           href={interview.meeting_link}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 text-[11px] font-bold hover:bg-emerald-100 transition-colors w-fit"
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 text-[11px] font-bold hover:bg-emerald-100 transition-colors"
                         >
                           <Video className="w-3 h-3" />
                           Entrar
@@ -312,7 +322,8 @@ export default function ClientEntrevistas({ onRegisterExport }: { onRegisterExpo
                           <ThumbsDown className="w-3.5 h-3.5" />
                         </button>
                         <button
-                          title="Ver candidato"
+                          onClick={() => interview.candidate_id && handleViewResume(interview.candidate_id)}
+                          title="Ver currículo"
                           className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:bg-blue-50 hover:text-blue-600 transition-colors"
                         >
                           <Eye className="w-3.5 h-3.5" />
