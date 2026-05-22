@@ -66,9 +66,59 @@ function generateSlots(avail: Avail[], blocked: Block[], booked: Booked[], daysA
 // ── Handler ────────────────────────────────────────────────────────────────
 export default async function handler(req: VercelRequest, res: VercelResponse) {
 
-  // ── GET: return booking info + available slots (public) ─────────────────
+  // ── GET: chatwoot-link OR booking info + available slots ────────────────
   if (req.method === 'GET') {
-    const { token } = req.query as { token?: string }
+    const { token, action, phone, orgId: qOrgId } = req.query as {
+      token?: string; action?: string; phone?: string; orgId?: string
+    }
+
+    // ── GET ?action=chatwoot-link — resolve Chatwoot conversation URL by phone
+    if (action === 'chatwoot-link') {
+      if (!phone || !qOrgId) return res.status(400).json({ error: 'phone e orgId obrigatórios' })
+
+      const { data: org } = await supabaseAdmin
+        .from('organizations')
+        .select('chatwoot_url, chatwoot_account_id, chatwoot_token')
+        .eq('id', qOrgId)
+        .single()
+
+      if (!org?.chatwoot_account_id || !org?.chatwoot_token)
+        return res.status(404).json({ error: 'Chatwoot não configurado para esta organização' })
+
+      const cwBase = (org.chatwoot_url || process.env.CHATWOOT_URL || '').replace(/\/$/, '')
+      const cwToken = (org.chatwoot_token as string).trim().replace(/[\r\n\t"']/g, '')
+      const accountId = org.chatwoot_account_id
+      const digits = (phone as string).replace(/\D/g, '')
+
+      // Search contacts by phone
+      const searchRes = await fetch(
+        `${cwBase}/api/v1/accounts/${accountId}/contacts/search?q=${encodeURIComponent(digits)}&include_contacts=true`,
+        { headers: { api_access_token: cwToken } }
+      )
+      if (!searchRes.ok) return res.status(502).json({ error: 'Erro ao buscar contato no Chatwoot' })
+
+      const searchJson = await searchRes.json() as { payload?: { id: number }[] }
+      const contact = searchJson?.payload?.[0]
+      if (!contact) return res.status(404).json({ error: 'Contato não encontrado no Chatwoot' })
+
+      // Get most recent conversation for this contact
+      const convRes = await fetch(
+        `${cwBase}/api/v1/accounts/${accountId}/contacts/${contact.id}/conversations`,
+        { headers: { api_access_token: cwToken } }
+      )
+      if (!convRes.ok) return res.status(502).json({ error: 'Erro ao buscar conversas no Chatwoot' })
+
+      const convJson = await convRes.json() as { payload?: { id: number }[] }
+      const conversations = convJson?.payload ?? []
+      if (!conversations.length) return res.status(404).json({ error: 'Nenhuma conversa encontrada' })
+
+      // Most recent conversation (highest ID)
+      const latest = conversations.reduce((a, b) => (a.id > b.id ? a : b))
+      const url = `${cwBase}/app/accounts/${accountId}/conversations/${latest.id}`
+      return res.status(200).json({ url })
+    }
+
+    // ── GET ?token=TOKEN — booking info + available slots (public) ──────────
     if (!token) return res.status(400).json({ error: 'token obrigatório' })
 
     const { data: booking } = await supabaseAdmin

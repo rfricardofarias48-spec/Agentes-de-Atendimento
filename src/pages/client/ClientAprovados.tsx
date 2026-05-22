@@ -54,6 +54,7 @@ export default function ClientAprovados({ onRegisterExport }: { onRegisterExport
   const [org, setOrg] = useState<OrgInfo | null>(null)
   const [loading, setLoading] = useState(true)
   const [copied, setCopied] = useState<string | null>(null)
+  const [chatwootLoading, setChatwootLoading] = useState<string | null>(null)
 
   const [search, setSearch]     = useState('')
   const [vagaFilter, setVaga]   = useState('')
@@ -128,6 +129,30 @@ export default function ClientAprovados({ onRegisterExport }: { onRegisterExport
       setCopied(id)
       setTimeout(() => setCopied(null), 2000)
     })
+  }
+
+  async function handleOpenChatwoot(candidateId: string, rawPhone: string) {
+    if (!orgId || !rawPhone) return
+    setChatwootLoading(candidateId)
+    try {
+      const res = await fetch(
+        `/api/candidates/schedule-interviews?action=chatwoot-link&phone=${encodeURIComponent(rawPhone)}&orgId=${orgId}`
+      )
+      const json = await res.json() as { url?: string; error?: string }
+      if (json.url) {
+        window.open(json.url, '_blank')
+      } else {
+        // Fallback: open contacts search
+        const c = candidates.find(x => x.id === candidateId)
+        if (org?.chatwoot_url && org?.chatwoot_account_id) {
+          window.open(`${org.chatwoot_url}/app/accounts/${org.chatwoot_account_id}/contacts?q=${encodeURIComponent(rawPhone)}`, '_blank')
+        } else if (org?.chatwoot_url) {
+          window.open(org.chatwoot_url, '_blank')
+        }
+      }
+    } finally {
+      setChatwootLoading(null)
+    }
   }
 
   useEffect(() => { onRegisterExport?.(exportCsv) }, [filtered]) // eslint-disable-line
@@ -238,9 +263,7 @@ export default function ClientAprovados({ onRegisterExport }: { onRegisterExport
                   const phone    = fmtPhone(c.candidate_phone)
                   const rawPhone = (c.candidate_phone ?? '').replace(/\D/g, '')
                   const waPhone  = rawPhone.startsWith('55') ? rawPhone : `55${rawPhone}`
-                  const chatwootContactsUrl = org?.chatwoot_url && org?.chatwoot_account_id
-                    ? `${org.chatwoot_url}/app/accounts/${org.chatwoot_account_id}/contacts?q=${encodeURIComponent(rawPhone)}`
-                    : org?.chatwoot_url ?? null
+                  const hasChatwoot = !!(org?.chatwoot_url && org?.chatwoot_account_id)
 
                   return (
                     <tr key={c.id} className="hover:bg-slate-50/60 transition-colors">
@@ -325,16 +348,18 @@ export default function ClientAprovados({ onRegisterExport }: { onRegisterExport
                           )}
 
                           {/* Chatwoot conversation */}
-                          {chatwootContactsUrl ? (
-                            <a
-                              href={chatwootContactsUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              title="Ver conversa no Chatwoot"
-                              className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 transition-colors hover:bg-[#2C82B5]/10 hover:text-[#2C82B5]"
+                          {hasChatwoot ? (
+                            <button
+                              onClick={() => handleOpenChatwoot(c.id, rawPhone)}
+                              title="Abrir conversa no Chatwoot"
+                              disabled={chatwootLoading === c.id}
+                              className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 transition-colors hover:bg-[#2C82B5]/10 hover:text-[#2C82B5] disabled:opacity-50"
                             >
-                              <MessageCircle className="w-3.5 h-3.5" />
-                            </a>
+                              {chatwootLoading === c.id
+                                ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                : <MessageCircle className="w-3.5 h-3.5" />
+                              }
+                            </button>
                           ) : (
                             <span className="w-7 h-7" />
                           )}
