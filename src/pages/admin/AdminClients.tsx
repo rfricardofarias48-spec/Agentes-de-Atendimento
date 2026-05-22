@@ -90,7 +90,7 @@ function NewClientModal({ onClose, onCreated }: { onClose: () => void; onCreated
 
       // 2. Criar usuário e vincular à org
       const { data: { session } } = await supabase.auth.getSession()
-      const res = await fetch('/api/admin/create-user', {
+      const res = await fetch('/api/admin/users', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

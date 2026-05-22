@@ -201,7 +201,7 @@ export default function AdminClientDetail() {
     Promise.all([
       supabase.from('organizations').select('*').eq('id', id).single(),
       supabase.from('agent_settings').select('*').eq('org_id', id).single(),
-      fetch(`/api/admin/get-org-user?orgId=${id}`).then(r => r.json()),
+      fetch(`/api/admin/users?orgId=${id}`).then(r => r.json()),
     ]).then(([{ data: orgData }, { data: settings }, userInfo]) => {
       if (orgData) setOrg(orgData)
       if (settings) {
