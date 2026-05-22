@@ -295,6 +295,11 @@ export default function ClientEntrevistas({ onRegisterExport }: { onRegisterExpo
           <div className="relative bg-white rounded-[2rem] shadow-2xl w-full max-w-[380px] overflow-hidden animate-in zoom-in-95 fade-in duration-200">
 
             <div className="px-7 pt-7 pb-6">
+              {/* Icon */}
+              <div className="w-14 h-14 rounded-[1.25rem] flex items-center justify-center mb-5" style={{ background: 'rgba(44,130,181,0.1)' }}>
+                <ThumbsUp className="w-6 h-6" style={{ color: '#2C82B5' }} />
+              </div>
+
               {/* Title */}
               <p className="text-[10px] font-black uppercase tracking-widest mb-2" style={{ color: '#2C82B5' }}>
                 Confirmação
