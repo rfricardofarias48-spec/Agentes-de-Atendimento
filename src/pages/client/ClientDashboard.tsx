@@ -443,15 +443,15 @@ interface MetricCardProps {
 
 function MetricCard({ label, value, icon, accent, isText, subtitle }: MetricCardProps) {
   return (
-    <div className="relative bg-white rounded-2xl px-5 pt-4 pb-5 cursor-default transition-all duration-200 hover:-translate-y-[2px] hover:shadow-[0_6px_20px_rgba(0,0,0,0.08)]"
+    <div className="relative bg-white rounded-2xl px-4 pt-3 pb-4 cursor-default transition-all duration-200 hover:-translate-y-[2px] hover:shadow-[0_6px_20px_rgba(0,0,0,0.08)]"
       style={{ border: '1px solid #eef0f3', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
-      <div className="absolute top-0 left-5 right-5 h-[3px] rounded-b-full" style={{ background: accent.border }} />
-      <div className="flex items-center gap-2 mt-2 mb-4">
+      <div className="absolute top-0 left-4 right-4 h-[3px] rounded-b-full" style={{ background: accent.border }} />
+      <div className="flex items-center gap-2 mt-1.5 mb-2.5">
         <div style={{ color: accent.border }}>{icon}</div>
         <p className="text-[11px] font-semibold text-slate-400 tracking-wide">{label}</p>
       </div>
-      <p className={cn('font-black leading-none tabular-nums text-gray-900', isText ? 'text-[1.9rem]' : 'text-[2.4rem]')}>{value}</p>
-      {subtitle && <p className="text-[10px] text-slate-400 mt-1.5">{subtitle}</p>}
+      <p className={cn('font-black leading-none tabular-nums text-gray-900', isText ? 'text-[1.6rem]' : 'text-[2rem]')}>{value}</p>
+      {subtitle && <p className="text-[10px] text-slate-400 mt-1">{subtitle}</p>}
     </div>
   )
 }
