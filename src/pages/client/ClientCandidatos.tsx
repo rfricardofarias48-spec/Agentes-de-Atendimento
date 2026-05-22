@@ -161,6 +161,12 @@ export default function ClientCandidatos() {
     setScheduling(false)
   }
 
+  const handleViewPdf = async (c: Candidate) => {
+    if (!c.file_path) return
+    const { data } = await supabase.storage.from('resumes').createSignedUrl(c.file_path, 300)
+    if (data?.signedUrl) window.open(data.signedUrl, '_blank')
+  }
+
   const getName  = (c: Candidate) => c.analysis_result?.candidateName || c.candidate_name || 'Nome não identificado'
   const getScore = (c: Candidate) => c.analysis_result?.matchScore ?? 0
   const sorted   = [...candidates].sort((a, b) => getScore(b) - getScore(a))
@@ -308,11 +314,12 @@ export default function ClientCandidatos() {
 
                   {/* Actions */}
                   <div className="flex items-center gap-2 shrink-0">
-                    {/* View */}
+                    {/* View PDF */}
                     <button
-                      onClick={() => setExpandedId(isOpen ? null : c.id)}
-                      className="w-8 h-8 rounded-xl flex items-center justify-center bg-slate-50 border border-slate-200 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-all"
-                      title="Ver detalhes"
+                      onClick={() => handleViewPdf(c)}
+                      disabled={!c.file_path}
+                      className="w-8 h-8 rounded-xl flex items-center justify-center bg-slate-50 border border-slate-200 text-slate-400 hover:text-[#2C82B5] hover:bg-blue-50 hover:border-blue-200 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                      title="Ver PDF original"
                     >
                       <Eye className="w-3.5 h-3.5" />
                     </button>
