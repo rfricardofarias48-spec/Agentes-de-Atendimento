@@ -76,11 +76,11 @@ export default function Login() {
           }}
         >
           {/* Logo area inside card */}
-          <div className="flex justify-center pt-8 pb-6">
+          <div className="flex justify-center pt-6 pb-4">
             <img
               src="https://ik.imagekit.io/xsbrdnr0y/Elevva_logo_white_blue_202605221006.png"
               alt="Gestor"
-              className="h-28 w-auto object-contain"
+              className="h-40 w-auto object-contain"
             />
           </div>
 
