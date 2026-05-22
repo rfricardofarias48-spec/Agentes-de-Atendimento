@@ -126,6 +126,13 @@ function useNowLine(startHour: number) {
   return pct
 }
 
+function fmtName(full: string): string {
+  const parts = full.trim().split(/\s+/).filter(Boolean)
+  const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1).toLowerCase()
+  if (parts.length === 1) return cap(parts[0])
+  return `${cap(parts[0])} ${cap(parts[parts.length - 1])}`
+}
+
 function fmtBlockDate(dateStr: string) {
   return new Date(dateStr + 'T12:00:00').toLocaleDateString('pt-BR', { timeZone: TZ, weekday: 'short', day: '2-digit', month: 'short' })
 }
@@ -740,7 +747,7 @@ export default function ClientAppointments() {
                               style={{ top: top + 2, minHeight: HOUR_HEIGHT / 2 - 4 }}>
                               <div className={cn('absolute left-0 top-0 bottom-0 w-[3px] rounded-l-xl', pal.bar)} />
                               <div className="pl-3 pr-2 py-1.5">
-                                <p className={cn('text-[11px] font-bold truncate leading-tight', pal.text)}>{appt.patient_name}</p>
+                                <p className={cn('text-[11px] font-bold truncate leading-tight', pal.text)}>{fmtName(appt.patient_name)}</p>
                                 <p className={cn('text-[10px] truncate leading-tight mt-0.5 font-medium', pal.sub)}>{time} · {appt.specialty}</p>
                               </div>
                             </div>
@@ -779,7 +786,7 @@ export default function ClientAppointments() {
                   <div className="flex items-center gap-2.5 min-w-0">
                     <div className={cn('w-1.5 h-1.5 rounded-full shrink-0', { 'bg-blue-400': appt.status === 'scheduled' || appt.status === 'confirmed', 'bg-emerald-400': appt.status === 'completed', 'bg-rose-400': appt.status === 'cancelled' })} />
                     <p className="text-[13px] font-semibold text-gray-900 truncate leading-none">
-                      {appt.patient_name}
+                      {fmtName(appt.patient_name)}
                       {appt.specialty && <span className="font-normal text-slate-400"> ({appt.specialty.charAt(0).toUpperCase() + appt.specialty.slice(1).toLowerCase()})</span>}
                     </p>
                   </div>
@@ -1039,7 +1046,7 @@ export default function ClientAppointments() {
                   <div className="flex items-start gap-3 px-5 pb-3">
                     <div className={cn('w-3 h-3 rounded-sm mt-1.5 shrink-0', pal.bar)} />
                     <div>
-                      <p className="text-[17px] font-semibold text-gray-900 leading-snug">{detailAppt.patient_name}</p>
+                      <p className="text-[17px] font-semibold text-gray-900 leading-snug">{fmtName(detailAppt.patient_name)}</p>
                       <p className="text-[13px] text-slate-500 mt-0.5 capitalize">{dateStr} · {timeStr}</p>
                       <div className="mt-2"><Badge variant={statusColors[detailAppt.status] ?? 'outline'} className="text-[10px]">{statusLabel(detailAppt.status)}</Badge></div>
                     </div>

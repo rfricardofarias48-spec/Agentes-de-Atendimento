@@ -6,6 +6,14 @@ import { type Organization } from '../../types'
 import { toBRT } from '../../lib/date'
 import { cn } from '../../lib/utils'
 
+function fmtName(full: string | null | undefined): string {
+  if (!full) return 'Candidato'
+  const parts = full.trim().split(/\s+/).filter(Boolean)
+  const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1).toLowerCase()
+  if (parts.length === 1) return cap(parts[0])
+  return `${cap(parts[0])} ${cap(parts[parts.length - 1])}`
+}
+
 type Period = 'day' | 'week' | 'month'
 
 const PERIODS: { key: Period; label: string }[] = [
@@ -261,7 +269,7 @@ export default function ClientDashboard() {
                       {/* Info */}
                       <div className="flex-1 min-w-0">
                         <p className="text-[13px] font-bold text-gray-900 truncate leading-none">
-                          {iv.candidate_name || 'Candidato'}
+                          {fmtName(iv.candidate_name)}
                         </p>
                         <p className="text-[11px] text-slate-400 mt-0.5 truncate">
                           {(iv.jobs as { title?: string } | null)?.title ?? '—'} · {iv.format}
