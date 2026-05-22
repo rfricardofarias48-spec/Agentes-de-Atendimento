@@ -286,7 +286,7 @@ export default function ClientVagas() {
                   onToggle={() => handleToggleCollapse(niche.id)} onPin={handlePinNiche}
                   onDelete={handleDeleteNiche} onMoveUp={id => handleMoveNiche(id, 'up')}
                   onMoveDown={id => handleMoveNiche(id, 'down')} isFirst={idx === 0}
-                  isLast={idx === niches.length - 1} onJobClick={() => {}}
+                  isLast={idx === niches.length - 1} onJobClick={(job) => navigate(`/dashboard/vagas/${job.id}/candidatos`)}
                   onJobDelete={handleDeleteJob} onJobPin={handlePinJob}
                   onJobEdit={openEditJobModal} onMoveJob={handleMoveJob} deletingJobId={deletingJobId}
                 />

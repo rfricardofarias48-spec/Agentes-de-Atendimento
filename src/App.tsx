@@ -18,6 +18,7 @@ import ClientAppointments from './pages/client/ClientAppointments'
 import ClientVagas from './pages/client/ClientVagas'
 import ClientPayments from './pages/client/ClientPayments'
 import ClientSettings from './pages/client/ClientSettings'
+import ClientCandidatos from './pages/client/ClientCandidatos'
 
 function RootRedirect() {
   const { session, role, loading } = useAuth()
@@ -79,6 +80,11 @@ export default function App() {
           <Route path="/dashboard/vagas" element={
             <ProtectedRoute requiredRole="client">
               <ClientLayout><ClientVagas /></ClientLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/dashboard/vagas/:jobId/candidatos" element={
+            <ProtectedRoute requiredRole="client">
+              <ClientLayout><ClientCandidatos /></ClientLayout>
             </ProtectedRoute>
           } />
           <Route path="/dashboard/payments" element={

@@ -11,6 +11,7 @@
   "functions": {
     "api/admin/auto-setup.ts": { "maxDuration": 60 },
     "api/admin/finalize-setup.ts": { "maxDuration": 60 },
+    "api/candidates/schedule-interviews.ts": { "maxDuration": 30 },
     "api/webhook/evolution.ts": { "maxDuration": 30, "includeFiles": "node_modules/pdf-parse/**" },
     "api/webhooks/chatwoot.ts": { "maxDuration": 30, "includeFiles": "node_modules/pdf-parse/**" }
   }
