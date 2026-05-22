@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from 'react'
-import { Briefcase, Eye, Loader2, Search, UserCheck, MessageCircle, Phone } from 'lucide-react'
+import { Briefcase, Eye, Loader2, Search, UserCheck, MessageCircle, Phone, Trash2, AlertTriangle } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 
@@ -55,6 +55,8 @@ export default function ClientAprovados({ onRegisterExport }: { onRegisterExport
   const [loading, setLoading] = useState(true)
   const [copied, setCopied] = useState<string | null>(null)
   const [chatwootLoading, setChatwootLoading] = useState<string | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState<ApprovedCandidate | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   const [search, setSearch]     = useState('')
   const [vagaFilter, setVaga]   = useState('')
@@ -152,6 +154,29 @@ export default function ClientAprovados({ onRegisterExport }: { onRegisterExport
       }
     } finally {
       setChatwootLoading(null)
+    }
+  }
+
+  async function handleDeleteConfirmed() {
+    if (!confirmDelete) return
+    setDeleting(true)
+    const { id, file_path, candidate_phone } = confirmDelete
+    try {
+      await Promise.all([
+        supabase.from('interviews').delete().eq('candidate_id', id),
+        supabase.from('interview_bookings').delete().eq('candidate_id', id),
+        ...(candidate_phone
+          ? [supabase.from('appointments').delete().eq('patient_phone', candidate_phone)]
+          : []),
+      ])
+      if (file_path) {
+        await supabase.storage.from('resumes').remove([file_path])
+      }
+      await supabase.from('candidates').delete().eq('id', id)
+      setCandidates(prev => prev.filter(c => c.id !== id))
+      setConfirmDelete(null)
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -255,6 +280,7 @@ export default function ClientAprovados({ onRegisterExport }: { onRegisterExport
                   <th className="text-center px-4 py-2.5 text-[10px] font-black uppercase tracking-wider text-slate-400">Aprovado em</th>
                   <th className="text-center px-4 py-2.5 text-[10px] font-black uppercase tracking-wider text-slate-400">CV</th>
                   <th className="text-center px-4 py-2.5 text-[10px] font-black uppercase tracking-wider text-slate-400">Contato</th>
+                  <th className="px-4 py-2.5" />
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
@@ -367,6 +393,17 @@ export default function ClientAprovados({ onRegisterExport }: { onRegisterExport
                         </div>
                       </td>
 
+                      {/* Finalizar / deletar */}
+                      <td className="px-4 py-2 text-center">
+                        <button
+                          onClick={() => setConfirmDelete(c)}
+                          title="Finalizar e remover candidato"
+                          className="w-7 h-7 rounded-lg flex items-center justify-center mx-auto text-slate-300 hover:bg-red-50 hover:text-red-400 transition-colors"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </td>
+
                     </tr>
                   )
                 })}
@@ -382,6 +419,62 @@ export default function ClientAprovados({ onRegisterExport }: { onRegisterExport
           </div>
         )}
       </div>
+      {/* Delete confirmation modal */}
+      {confirmDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-slate-900/50 backdrop-blur-[2px]"
+            onClick={() => !deleting && setConfirmDelete(null)}
+          />
+          <div className="relative bg-white rounded-[2rem] shadow-2xl w-full max-w-[380px] overflow-hidden animate-in zoom-in-95 fade-in duration-200">
+            <div className="px-7 pt-7 pb-6">
+              {/* Icon */}
+              <div className="w-14 h-14 rounded-[1.25rem] flex items-center justify-center mb-5 bg-red-50">
+                <AlertTriangle className="w-6 h-6 text-red-500" />
+              </div>
+
+              <p className="text-[10px] font-black uppercase tracking-widest mb-2 text-red-400">
+                Ação irreversível
+              </p>
+              <h2 className="text-xl font-black text-slate-900 leading-tight mb-4">
+                Finalizar candidato?
+              </h2>
+              <p className="text-[13px] text-slate-600 leading-relaxed">
+                Você está prestes a remover permanentemente{' '}
+                <span className="font-black text-slate-900">{fmtName(confirmDelete.candidate_name)}</span>{' '}
+                e todo o seu histórico — entrevistas, agendamentos e currículo.{' '}
+                <span className="font-bold text-slate-700">Essa ação não pode ser desfeita.</span>
+              </p>
+            </div>
+
+            <div className="h-px bg-slate-100 mx-7" />
+
+            <div className="px-7 py-5 flex gap-3">
+              <button
+                onClick={() => setConfirmDelete(null)}
+                disabled={deleting}
+                className="flex-1 h-11 rounded-xl border border-slate-200 text-[13px] font-black text-slate-500 hover:bg-slate-50 transition-all disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleDeleteConfirmed}
+                disabled={deleting}
+                className="flex-1 h-11 rounded-xl bg-red-500 hover:bg-red-600 text-[13px] font-black text-white shadow-lg transition-all disabled:opacity-70 flex items-center justify-center gap-2 active:scale-[0.98]"
+              >
+                {deleting ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <>
+                    <Trash2 className="w-3.5 h-3.5" />
+                    Sim, remover
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
