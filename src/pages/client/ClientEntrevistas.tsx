@@ -294,39 +294,22 @@ export default function ClientEntrevistas({ onRegisterExport }: { onRegisterExpo
           />
           <div className="relative bg-white rounded-[2rem] shadow-2xl w-full max-w-[380px] overflow-hidden animate-in zoom-in-95 fade-in duration-200">
 
-            {/* Header band */}
             <div className="px-7 pt-7 pb-6">
-              {/* Icon */}
-              <div className="w-14 h-14 rounded-[1.25rem] flex items-center justify-center mb-5" style={{ background: 'rgba(44,130,181,0.1)' }}>
-                <ThumbsUp className="w-6 h-6" style={{ color: '#2C82B5' }} />
-              </div>
-
               {/* Title */}
-              <p className="text-[10px] font-black uppercase tracking-widest mb-1" style={{ color: '#2C82B5' }}>
+              <p className="text-[10px] font-black uppercase tracking-widest mb-2" style={{ color: '#2C82B5' }}>
                 Confirmação
               </p>
               <h2 className="text-xl font-black text-slate-900 leading-tight mb-4">
                 Aprovar para a vaga?
               </h2>
 
-              {/* Candidate chip */}
-              <div className="flex items-center gap-3 bg-slate-50 border border-slate-100 rounded-2xl px-4 py-3 mb-4">
-                <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 text-[10px] font-black" style={{ background: 'rgba(44,130,181,0.12)', color: '#2C82B5' }}>
-                  {fmtName(confirmApprove.candidate_name).split(' ').map(w => w[0]).join('').toUpperCase()}
-                </div>
-                <div className="min-w-0">
-                  <p className="text-[13px] font-black text-slate-900 leading-none truncate">
-                    {fmtName(confirmApprove.candidate_name)}
-                  </p>
-                  <p className="text-[11px] text-slate-400 mt-0.5 truncate">
-                    {confirmApprove.job_title ?? 'Vaga não identificada'}
-                  </p>
-                </div>
-              </div>
-
-              {/* Note */}
-              <p className="text-[12px] text-slate-400 leading-relaxed">
-                Se confirmar, <span className="font-bold text-slate-500">Bento</span> irá notificar o candidato pelo WhatsApp sobre a aprovação.
+              {/* Body */}
+              <p className="text-[13px] text-slate-600 leading-relaxed">
+                Você deseja aprovar o candidato{' '}
+                <span className="font-black text-slate-900">{fmtName(confirmApprove.candidate_name)}</span>{' '}
+                para a vaga de{' '}
+                <span className="font-black text-slate-900">{confirmApprove.job_title ?? 'essa vaga'}</span>?
+                {' '}Se confirmar, <span className="font-bold text-slate-700">Bento</span> irá notificar o candidato pelo WhatsApp sobre a aprovação.
               </p>
             </div>
 
