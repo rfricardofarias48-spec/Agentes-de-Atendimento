@@ -140,7 +140,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         format: booking.format,
         meeting_link: booking.meeting_link,
         interviewer_name: booking.interviewer_name,
-        status: 'AGUARDANDO_CONFIRMACAO',
+        status: 'CONFIRMADA',
         candidate_name: booking.candidate_name,
         candidate_phone: booking.candidate_phone,
       }),

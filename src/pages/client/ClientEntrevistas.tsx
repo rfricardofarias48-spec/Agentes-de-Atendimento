@@ -20,6 +20,7 @@ interface Interview {
   id: string
   job_id: string
   candidate_id: string
+  org_id: string
   slot_date: string | null
   slot_time: string | null
   meeting_link: string | null
@@ -27,8 +28,8 @@ interface Interview {
   interviewer_name: string | null
   status: InterviewStatus
   created_at: string
-  candidate_name?: string
-  candidate_phone?: string
+  candidate_name: string | null
+  candidate_phone: string | null
   job_title?: string
 }
 
@@ -77,21 +78,16 @@ export default function ClientEntrevistas({ onRegisterExport }: { onRegisterExpo
     setLoading(true)
     supabase
       .from('interviews')
-      .select(`*, candidates ( id, status, analysis_result ), jobs ( id, title, org_id )`)
-      .eq('jobs.org_id', orgId)
+      .select('*, jobs ( id, title )')
+      .eq('org_id', orgId)
+      .order('slot_date', { ascending: true })
       .order('created_at', { ascending: false })
       .then(({ data }) => {
         if (data) {
-          setInterviews(data.map((row: Record<string, unknown>) => {
-            const cand = row.candidates as Record<string, unknown> | null
-            const ar = cand?.analysis_result as { candidateName?: string; phoneNumbers?: string[] } | null
-            return {
-              ...row,
-              job_title:      (row.jobs as { title?: string } | null)?.title ?? '—',
-              candidate_name: ar?.candidateName ?? 'Candidato',
-              candidate_phone: (ar?.phoneNumbers ?? [])[0] ?? null,
-            }
-          }) as Interview[])
+          setInterviews(data.map((row: Record<string, unknown>) => ({
+            ...row,
+            job_title: (row.jobs as { title?: string } | null)?.title ?? '—',
+          })) as Interview[])
         }
         setLoading(false)
       })
@@ -238,7 +234,7 @@ export default function ClientEntrevistas({ onRegisterExport }: { onRegisterExpo
                         </div>
                         <div>
                           <p className="font-bold text-slate-900 leading-none text-[13px]">
-                            {interview.candidate_name ?? 'Candidato'}
+                            {interview.candidate_name || 'Candidato'}
                           </p>
                           {interview.candidate_phone && (
                             <p className="text-[10px] text-slate-400 mt-0.5">{interview.candidate_phone}</p>
