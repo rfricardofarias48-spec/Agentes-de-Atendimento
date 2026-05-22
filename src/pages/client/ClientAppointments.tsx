@@ -640,12 +640,14 @@ export default function ClientAppointments() {
                     const isToday = dayKey(day) === todayKey
                     const isWeekend = day.getDay() === 0 || day.getDay() === 6
                     const hasBlock = (blocksByDay[dayKey(day)] ?? []).length > 0
+                    const isAvailOff = availability.some(a => a.day_of_week === day.getDay() && !a.enabled)
+                    const isBlocked = hasBlock || isAvailOff
                     return (
                       <div key={i} className={cn('flex-1 border-l border-slate-100 py-3 text-center min-w-0',
-                        isWeekend && !isToday ? 'bg-slate-50/60' : '', hasBlock ? 'bg-slate-50/80' : '')}>
+                        isWeekend && !isToday ? 'bg-slate-50/60' : '', isBlocked ? 'bg-slate-50/80' : '')}>
                         <p className={cn('text-[10px] font-bold uppercase tracking-[0.12em]',
-                          isToday ? 'text-brand-500' : hasBlock ? 'text-slate-500' : 'text-slate-400')}>
-                          {DAY_PT[day.getDay()]}{hasBlock && <span className="ml-1 inline-block w-2 h-2 rounded-sm bg-slate-400 align-middle" />}
+                          isToday ? 'text-brand-500' : isBlocked ? 'text-slate-500' : 'text-slate-400')}>
+                          {DAY_PT[day.getDay()]}{isBlocked && <span className="ml-1 inline-block w-2 h-2 rounded-sm bg-slate-400 align-middle" />}
                         </p>
                         <div className={cn('mt-1.5 mx-auto w-8 h-8 flex items-center justify-center rounded-full text-[13px] font-bold transition-all duration-200',
                           isToday ? 'text-white shadow-[0_4px_10px_rgba(44,130,181,0.35)]' : 'text-slate-600 hover:bg-slate-100')}
@@ -671,6 +673,7 @@ export default function ClientAppointments() {
                     const isWeekend = day.getDay() === 0 || day.getDay() === 6
                     const dayAppts = apptsByDay[dayKey(day)] ?? []
                     const dayBlocks = blocksByDay[dayKey(day)] ?? []
+                    const isAvailOff = availability.some(a => a.day_of_week === day.getDay() && !a.enabled)
                     return (
                       <div key={i} className={cn('relative flex-1 min-w-0 border-l border-slate-100',
                         isToday ? 'bg-brand-50/20' : isWeekend ? 'bg-slate-50/40' : '')}
@@ -681,6 +684,18 @@ export default function ClientAppointments() {
                             <div className="absolute left-0 right-0 border-t border-dashed border-slate-50" style={{ top: (h - startHour) * HOUR_HEIGHT + HOUR_HEIGHT / 2 }} />
                           </div>
                         ))}
+
+                        {/* Availability-off overlay (same style as manual all-day block) */}
+                        {isAvailOff && !dayBlocks.some(b => b.all_day) && (
+                          <div className="absolute inset-0 pointer-events-none" style={{ borderLeft: '3px solid #94a3b8' }}>
+                            <div className="absolute inset-0" style={{ background: 'repeating-linear-gradient(-45deg,rgba(100,116,139,0.06) 0px,rgba(100,116,139,0.06) 4px,transparent 4px,transparent 12px)' }} />
+                            <div className="absolute inset-x-0 top-3 flex justify-center">
+                              <span className="text-[11px] font-semibold text-slate-500 tracking-wide px-2 py-0.5 rounded-md text-center" style={{ background: 'rgba(255,255,255,0.75)' }}>
+                                Indisponível
+                              </span>
+                            </div>
+                          </div>
+                        )}
 
                         {dayBlocks.map(b => (
                           b.all_day ? (
