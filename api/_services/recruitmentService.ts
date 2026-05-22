@@ -148,13 +148,14 @@ async function extractPdfText(buffer: Buffer): Promise<string | null> {
   try {
     const { createRequire } = await import('module');
     const req = createRequire(import.meta.url);
-    const pdfParse = req('pdf-parse') as (buf: Buffer) => Promise<{ text: string }>;
+    // Importa lib diretamente — index.js tem bug isDebugMode que trava em serverless
+    const pdfParse = req('pdf-parse/lib/pdf-parse.js') as (buf: Buffer, opts?: object) => Promise<{ text: string }>;
     const parsed = await pdfParse(buffer);
     const text = parsed.text?.trim() || '';
     console.log('[Recruitment] PDF extraído, caracteres:', text.length);
     return text.length >= 50 ? text : null;
   } catch (err) {
-    console.error('[Recruitment] extractPdfText error:', err);
+    console.error('[Recruitment] extractPdfText error:', (err as Error).message ?? err);
     return null;
   }
 }
