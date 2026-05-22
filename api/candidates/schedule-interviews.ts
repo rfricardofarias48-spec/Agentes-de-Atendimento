@@ -216,7 +216,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     ])
 
     await Promise.all([
-      supabaseAdmin.from('interviews').update({ status: 'REALIZADA' }).eq('id', interviewId),
+      supabaseAdmin.from('interviews').update({
+        status: outcome === 'approved' ? 'APROVADO' : 'CANCELADA',
+      }).eq('id', interviewId),
       supabaseAdmin.from('candidates').update({
         status: outcome === 'approved' ? 'HIRED' : 'REJECTED',
         is_selected: outcome === 'approved',

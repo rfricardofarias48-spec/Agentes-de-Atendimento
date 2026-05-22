@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from 'react'
 import {
   Video, Loader2, ThumbsUp, ThumbsDown, Eye, Trash2,
-  Search, Calendar,
+  Search, Calendar, CheckCircle, X,
 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
@@ -77,6 +77,11 @@ export default function ClientEntrevistas({ onRegisterExport }: { onRegisterExpo
   const [interviews, setInterviews] = useState<Interview[]>([])
   const [loading, setLoading] = useState(true)
 
+  // approval confirmation modal
+  const [confirmApprove, setConfirmApprove] = useState<Interview | null>(null)
+  const [approving, setApproving] = useState(false)
+  const [successMsg, setSuccessMsg] = useState(false)
+
   // filters
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo]     = useState('')
@@ -148,6 +153,31 @@ export default function ClientEntrevistas({ onRegisterExport }: { onRegisterExpo
     if (!data?.file_path) return
     const { data: url } = await supabase.storage.from('resumes').createSignedUrl(data.file_path, 300)
     if (url?.signedUrl) window.open(url.signedUrl, '_blank')
+  }
+
+  async function handleApproveConfirmed() {
+    if (!confirmApprove) return
+    setApproving(true)
+    try {
+      await fetch('/api/candidates/schedule-interviews', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          interviewId: confirmApprove.id,
+          candidateId: confirmApprove.candidate_id,
+          orgId: confirmApprove.org_id,
+          outcome: 'approved',
+        }),
+      })
+      setInterviews(prev => prev.map(i =>
+        i.id === confirmApprove.id ? { ...i, status: 'APROVADO' } : i
+      ))
+      setConfirmApprove(null)
+      setSuccessMsg(true)
+      setTimeout(() => setSuccessMsg(false), 7000)
+    } finally {
+      setApproving(false)
+    }
   }
 
   useEffect(() => { onRegisterExport?.(exportCsv) }, [filtered]) // eslint-disable-line
@@ -228,6 +258,84 @@ export default function ClientEntrevistas({ onRegisterExport }: { onRegisterExpo
           </button>
         )}
       </div>
+
+      {/* Success toast */}
+      {successMsg && (
+        <div className="fixed bottom-6 right-6 z-50 max-w-sm w-full animate-in slide-in-from-bottom-4 fade-in duration-300">
+          <div className="bg-white border border-emerald-200 rounded-2xl shadow-xl px-5 py-4 flex items-start gap-3">
+            <div className="w-8 h-8 bg-emerald-50 rounded-xl flex items-center justify-center shrink-0 mt-0.5">
+              <CheckCircle className="w-4 h-4 text-emerald-600" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-black text-slate-900 leading-snug">Candidato aprovado!</p>
+              <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">
+                Bento acabou de comunicar o candidato da aprovação, ele foi instruído a aguardar os próximos passos.
+              </p>
+            </div>
+            <button
+              onClick={() => setSuccessMsg(false)}
+              className="w-6 h-6 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors shrink-0"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation modal */}
+      {confirmApprove && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+            onClick={() => !approving && setConfirmApprove(null)}
+          />
+          <div className="relative bg-white rounded-2xl shadow-2xl border border-slate-100 w-full max-w-sm p-6 animate-in zoom-in-95 fade-in duration-200">
+            {/* Icon */}
+            <div className="w-12 h-12 bg-emerald-50 rounded-2xl flex items-center justify-center mb-4">
+              <ThumbsUp className="w-5 h-5 text-emerald-600" />
+            </div>
+
+            {/* Title */}
+            <h2 className="text-base font-black text-slate-900 leading-snug mb-1">
+              Aprovar candidato?
+            </h2>
+            <p className="text-sm text-slate-600 leading-relaxed mb-1">
+              Você deseja aprovar{' '}
+              <span className="font-black text-slate-900">{fmtName(confirmApprove.candidate_name)}</span>{' '}
+              para a vaga de{' '}
+              <span className="font-black text-slate-900">{confirmApprove.job_title ?? 'essa vaga'}</span>?
+            </p>
+            <p className="text-xs text-slate-400 mb-6">
+              Se sim, Bento irá comunicá-lo sobre a aprovação.
+            </p>
+
+            {/* Actions */}
+            <div className="flex gap-2.5">
+              <button
+                onClick={() => setConfirmApprove(null)}
+                disabled={approving}
+                className="flex-1 h-10 rounded-xl border border-slate-200 text-sm font-black text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-50"
+              >
+                Não
+              </button>
+              <button
+                onClick={handleApproveConfirmed}
+                disabled={approving}
+                className="flex-1 h-10 rounded-xl bg-emerald-600 text-sm font-black text-white hover:bg-emerald-700 transition-colors disabled:opacity-70 flex items-center justify-center gap-2"
+              >
+                {approving ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <>
+                    <ThumbsUp className="w-3.5 h-3.5" />
+                    Sim, aprovar
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Table */}
       <div className="bg-white border border-slate-100 rounded-2xl shadow-sm overflow-hidden">
@@ -322,9 +430,14 @@ export default function ClientEntrevistas({ onRegisterExport }: { onRegisterExpo
                     <td className="px-4 py-2">
                       <div className="flex items-center justify-center gap-1">
                         <button
-                          onClick={() => handleUpdateStatus(interview.id, 'APROVADO')}
+                          onClick={() => setConfirmApprove(interview)}
                           title="Aprovar"
-                          className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:bg-emerald-50 hover:text-emerald-600 transition-colors"
+                          className={cn(
+                            "w-7 h-7 rounded-lg flex items-center justify-center transition-colors",
+                            interview.status === 'APROVADO'
+                              ? "bg-emerald-50 text-emerald-600"
+                              : "text-slate-400 hover:bg-emerald-50 hover:text-emerald-600"
+                          )}
                         >
                           <ThumbsUp className="w-3.5 h-3.5" />
                         </button>
