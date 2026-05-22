@@ -35,7 +35,7 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
         <img
           src="https://ik.imagekit.io/xsbrdnr0y/Elevva_logo_white_blue_202605221006.png"
           alt="Gestor"
-          className="h-40 w-auto object-contain"
+          className="h-24 w-auto object-contain"
         />
       </div>
 
