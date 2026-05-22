@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { Clock, User, CheckCircle2, AlertCircle, ChevronRight, MapPin, Video } from 'lucide-react'
+import { Clock, CheckCircle2, AlertCircle, ChevronRight, Video } from 'lucide-react'
 
 interface Slot { date: string; time: string }
 interface BookingInfo {
