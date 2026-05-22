@@ -259,15 +259,20 @@ export default function ClientCandidatos() {
               <div
                 key={c.id}
                 className={cn(
-                  'rounded-2xl border transition-all duration-200 overflow-hidden',
-                  isApproved && isOpen
-                    ? 'border-emerald-300 bg-emerald-50/60 shadow-[0_4px_24px_rgba(16,185,129,0.12)]'
+                  'relative rounded-2xl border bg-white transition-all duration-200 overflow-hidden',
+                  isApproved
+                    ? 'border-emerald-200 shadow-sm'
                     : isOpen
-                    ? 'border-slate-200 bg-white shadow-[0_4px_20px_rgba(0,0,0,0.07)]'
-                    : 'border-slate-100 bg-white shadow-sm hover:border-slate-200 hover:shadow',
+                    ? 'border-slate-200 shadow-[0_4px_20px_rgba(0,0,0,0.07)]'
+                    : 'border-slate-100 shadow-sm hover:border-slate-200 hover:shadow',
                 )}
                 onMouseLeave={() => confirmDeleteId === c.id && setConfirmDeleteId(null)}
               >
+                {/* Accent bar esquerda para aprovados */}
+                {isApproved && (
+                  <div className="absolute left-0 top-0 bottom-0 w-1 bg-emerald-400 rounded-l-2xl" />
+                )}
+
                 {/* ── Row ── */}
                 <div className="flex items-center gap-4 px-5 py-3.5">
 
@@ -371,10 +376,7 @@ export default function ClientCandidatos() {
 
                 {/* ── Expanded detail ── */}
                 {isOpen && (
-                  <div className={cn(
-                    'border-t px-6 pb-6 pt-5 space-y-5',
-                    isApproved ? 'border-emerald-200' : 'border-slate-100',
-                  )}>
+                  <div className="border-t border-slate-100 px-6 pb-6 pt-5 space-y-5">
 
                     {/* Badge selecionado (só quando aprovado) */}
                     {isApproved && (
