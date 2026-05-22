@@ -277,7 +277,7 @@ export default function ClientAprovados({ onRegisterExport }: { onRegisterExport
                   <th className="text-center px-4 py-2.5 text-[10px] font-black uppercase tracking-wider text-slate-400">Vaga</th>
                   <th className="text-center px-4 py-2.5 text-[10px] font-black uppercase tracking-wider text-slate-400">Entrevistador</th>
                   <th className="text-center px-4 py-2.5 text-[10px] font-black uppercase tracking-wider text-slate-400">Aprovado em</th>
-                  <th className="text-center px-4 py-2.5 text-[10px] font-black uppercase tracking-wider text-slate-400">CV</th>
+                  <th className="text-center px-4 py-2.5 text-[10px] font-black uppercase tracking-wider text-slate-400">Currículo</th>
                   <th className="text-center px-4 py-2.5 text-[10px] font-black uppercase tracking-wider text-slate-400">Contato</th>
                   <th className="px-4 py-2.5" />
                 </tr>
