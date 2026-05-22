@@ -1,8 +1,7 @@
-import { useEffect, useState, useMemo, useRef } from 'react'
-import { Briefcase, FileText, Loader2, Download, Search, Star, UserCheck, MessageCircle, Phone, X } from 'lucide-react'
+import { useEffect, useState, useMemo } from 'react'
+import { Briefcase, Eye, Loader2, Search, UserCheck, MessageCircle, Phone } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
-import { cn } from '../../lib/utils'
 
 interface ApprovedCandidate {
   id: string
@@ -54,8 +53,7 @@ export default function ClientAprovados({ onRegisterExport }: { onRegisterExport
   const [candidates, setCandidates] = useState<ApprovedCandidate[]>([])
   const [org, setOrg] = useState<OrgInfo | null>(null)
   const [loading, setLoading] = useState(true)
-  const [contactOpen, setContactOpen] = useState<string | null>(null)
-  const contactRef = useRef<HTMLDivElement | null>(null)
+  const [copied, setCopied] = useState<string | null>(null)
 
   const [search, setSearch]     = useState('')
   const [vagaFilter, setVaga]   = useState('')
@@ -108,17 +106,6 @@ export default function ClientAprovados({ onRegisterExport }: { onRegisterExport
     })
   }, [orgId])
 
-  // Close contact popover on outside click
-  useEffect(() => {
-    function onClickOutside(e: MouseEvent) {
-      if (contactRef.current && !contactRef.current.contains(e.target as Node)) {
-        setContactOpen(null)
-      }
-    }
-    document.addEventListener('mousedown', onClickOutside)
-    return () => document.removeEventListener('mousedown', onClickOutside)
-  }, [])
-
   const jobTitles = useMemo(() => [...new Set(candidates.map(c => c.job_title ?? '').filter(Boolean))], [candidates])
 
   const filtered = useMemo(() => candidates.filter(c => {
@@ -131,29 +118,30 @@ export default function ClientAprovados({ onRegisterExport }: { onRegisterExport
     return true
   }), [candidates, search, vagaFilter, dateFrom, dateTo])
 
-  async function handleDownload(filePath: string, name: string) {
-    const { data } = await supabase.storage.from('resumes').createSignedUrl(filePath, 60)
-    if (data?.signedUrl) {
-      const a = document.createElement('a')
-      a.href = data.signedUrl
-      a.download = `${name}.pdf`
-      a.click()
-    }
+  async function handleViewResume(filePath: string) {
+    const { data } = await supabase.storage.from('resumes').createSignedUrl(filePath, 300)
+    if (data?.signedUrl) window.open(data.signedUrl, '_blank')
+  }
+
+  function handleCopyPhone(id: string, phone: string) {
+    navigator.clipboard.writeText(phone).then(() => {
+      setCopied(id)
+      setTimeout(() => setCopied(null), 2000)
+    })
   }
 
   useEffect(() => { onRegisterExport?.(exportCsv) }, [filtered]) // eslint-disable-line
 
   function exportCsv() {
     const rows = [
-      ['Candidato', 'Telefone', 'Vaga', 'Entrevistador', 'Score', 'Experiência', 'Cidade', 'Aprovado em'].join(','),
-      ...filtered.map(c => {
-        const name  = fmtName(c.candidate_name)
-        const phone = fmtPhone(c.candidate_phone)
-        const score = c.analysis_result?.matchScore?.toFixed(1) ?? ''
-        const exp   = c.analysis_result?.yearsExperience ?? ''
-        const city  = c.analysis_result?.city ?? ''
-        return [name, phone, c.job_title ?? '', c.interviewer_name ?? '', score, exp, city, fmtDate(c.updated_at ?? c.created_at)].join(',')
-      }),
+      ['Candidato', 'Telefone', 'Vaga', 'Entrevistador', 'Aprovado em'].join(','),
+      ...filtered.map(c => [
+        fmtName(c.candidate_name),
+        fmtPhone(c.candidate_phone),
+        c.job_title ?? '',
+        c.interviewer_name ?? '',
+        fmtDate(c.updated_at ?? c.created_at),
+      ].join(',')),
     ]
     const blob = new Blob([rows.join('\n')], { type: 'text/csv' })
     const a = document.createElement('a')
@@ -192,21 +180,13 @@ export default function ClientAprovados({ onRegisterExport }: { onRegisterExport
 
         <div className="flex flex-col gap-1">
           <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">Data Inicial</label>
-          <input
-            type="date"
-            value={dateFrom}
-            onChange={e => setDateFrom(e.target.value)}
-            className="h-9 px-3 rounded-xl border border-slate-200 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-brand-400"
-          />
+          <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
+            className="h-9 px-3 rounded-xl border border-slate-200 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-brand-400" />
         </div>
         <div className="flex flex-col gap-1">
           <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">Data Final</label>
-          <input
-            type="date"
-            value={dateTo}
-            onChange={e => setDateTo(e.target.value)}
-            className="h-9 px-3 rounded-xl border border-slate-200 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-brand-400"
-          />
+          <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
+            className="h-9 px-3 rounded-xl border border-slate-200 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-brand-400" />
         </div>
 
         {(search || vagaFilter || dateFrom || dateTo) && (
@@ -246,11 +226,10 @@ export default function ClientAprovados({ onRegisterExport }: { onRegisterExport
                 <tr className="border-b border-slate-100">
                   <th className="text-center px-4 py-2.5 text-[10px] font-black uppercase tracking-wider text-slate-400">Nome</th>
                   <th className="text-center px-4 py-2.5 text-[10px] font-black uppercase tracking-wider text-slate-400">Vaga</th>
-                  <th className="text-center px-4 py-2.5 text-[10px] font-black uppercase tracking-wider text-slate-400">Score</th>
                   <th className="text-center px-4 py-2.5 text-[10px] font-black uppercase tracking-wider text-slate-400">Entrevistador</th>
                   <th className="text-center px-4 py-2.5 text-[10px] font-black uppercase tracking-wider text-slate-400">Aprovado em</th>
                   <th className="text-center px-4 py-2.5 text-[10px] font-black uppercase tracking-wider text-slate-400">CV</th>
-                  <th className="text-center px-4 py-2.5 text-[10px] font-black uppercase tracking-wider text-slate-400">Fazer contato</th>
+                  <th className="text-center px-4 py-2.5 text-[10px] font-black uppercase tracking-wider text-slate-400">Contato</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
@@ -259,24 +238,16 @@ export default function ClientAprovados({ onRegisterExport }: { onRegisterExport
                   const phone    = fmtPhone(c.candidate_phone)
                   const rawPhone = (c.candidate_phone ?? '').replace(/\D/g, '')
                   const waPhone  = rawPhone.startsWith('55') ? rawPhone : `55${rawPhone}`
-                  const score    = c.analysis_result?.matchScore
-                  const scoreColor =
-                    score == null ? ''
-                    : score >= 7  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                    : score >= 4  ? 'bg-amber-50 text-amber-700 border border-amber-200'
-                    :               'bg-red-50 text-red-600 border border-red-200'
+                  const chatwootContactsUrl = org?.chatwoot_url && org?.chatwoot_account_id
+                    ? `${org.chatwoot_url}/app/accounts/${org.chatwoot_account_id}/contacts?q=${encodeURIComponent(rawPhone)}`
+                    : org?.chatwoot_url ?? null
 
                   return (
                     <tr key={c.id} className="hover:bg-slate-50/60 transition-colors">
 
-                      {/* Nome + contato */}
+                      {/* Nome */}
                       <td className="px-4 py-2 text-center">
-                        <p className="font-bold text-slate-900 text-[13px] leading-none">
-                          {name}
-                          {phone && (
-                            <span className="ml-1.5 text-[11px] font-normal text-slate-400">({phone})</span>
-                          )}
-                        </p>
+                        <p className="font-bold text-slate-900 text-[13px]">{name}</p>
                       </td>
 
                       {/* Vaga */}
@@ -285,18 +256,6 @@ export default function ClientAprovados({ onRegisterExport }: { onRegisterExport
                           <Briefcase className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                           <span className="font-semibold text-slate-600 text-[13px] truncate max-w-[130px]">{c.job_title}</span>
                         </div>
-                      </td>
-
-                      {/* Score */}
-                      <td className="px-4 py-2 text-center">
-                        {score != null ? (
-                          <span className={cn('inline-flex items-center gap-1 text-[10px] font-black px-2.5 py-1 rounded-full', scoreColor)}>
-                            <Star className="w-2.5 h-2.5" />
-                            {score.toFixed(1)} / 10
-                          </span>
-                        ) : (
-                          <span className="text-slate-300 text-[13px]">—</span>
-                        )}
                       </td>
 
                       {/* Entrevistador */}
@@ -313,97 +272,73 @@ export default function ClientAprovados({ onRegisterExport }: { onRegisterExport
                         </span>
                       </td>
 
-                      {/* CV */}
+                      {/* CV — eye icon opens in new tab */}
                       <td className="px-4 py-2 text-center">
                         {c.file_path ? (
                           <button
-                            onClick={() => handleDownload(c.file_path!, name)}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-50 border border-slate-200 text-[11px] font-bold text-slate-600 hover:bg-slate-100 transition-colors"
+                            onClick={() => handleViewResume(c.file_path!)}
+                            title="Ver currículo"
+                            className="w-7 h-7 rounded-lg flex items-center justify-center mx-auto text-slate-400 hover:bg-blue-50 hover:text-blue-600 transition-colors"
                           >
-                            <FileText className="w-3 h-3" />
-                            CV
-                            <Download className="w-3 h-3" />
+                            <Eye className="w-3.5 h-3.5" />
                           </button>
                         ) : (
                           <span className="text-slate-300 text-[13px]">—</span>
                         )}
                       </td>
 
-                      {/* Fazer contato */}
+                      {/* Contato — 3 inline icon buttons */}
                       <td className="px-4 py-2 text-center">
-                        <div className="relative inline-block" ref={contactOpen === c.id ? contactRef : null}>
-                          <button
-                            onClick={() => setContactOpen(contactOpen === c.id ? null : c.id)}
-                            className={cn(
-                              'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-colors border',
-                              contactOpen === c.id
-                                ? 'text-white border-transparent'
-                                : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
-                            )}
-                            style={contactOpen === c.id ? { background: '#2C82B5', borderColor: '#2C82B5' } : {}}
-                          >
-                            <MessageCircle className="w-3 h-3" />
-                            Contato
-                          </button>
+                        <div className="flex items-center justify-center gap-1">
 
-                          {contactOpen === c.id && (
-                            <div className="absolute right-0 top-full mt-2 z-30 w-52 bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden">
-                              {/* Phone header */}
-                              <div className="px-4 py-3 border-b border-slate-50 flex items-center justify-between">
-                                <div className="flex items-center gap-1.5">
-                                  <Phone className="w-3 h-3 text-slate-400" />
-                                  <span className="text-[12px] font-black text-slate-700">
-                                    {phone || 'Sem telefone'}
-                                  </span>
-                                </div>
-                                <button
-                                  onClick={() => setContactOpen(null)}
-                                  className="w-5 h-5 flex items-center justify-center text-slate-300 hover:text-slate-500 rounded transition-colors"
-                                >
-                                  <X className="w-3 h-3" />
-                                </button>
-                              </div>
-
-                              {/* Buttons */}
-                              <div className="p-2 flex flex-col gap-1">
-                                {rawPhone && (
-                                  <a
-                                    href={`https://wa.me/${waPhone}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl hover:bg-slate-50 transition-colors"
-                                  >
-                                    <div className="w-7 h-7 rounded-lg bg-emerald-50 flex items-center justify-center shrink-0">
-                                      <svg className="w-3.5 h-3.5 text-emerald-600" viewBox="0 0 24 24" fill="currentColor">
-                                        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
-                                      </svg>
-                                    </div>
-                                    <div>
-                                      <p className="text-[12px] font-black text-slate-800 leading-none">WhatsApp</p>
-                                      <p className="text-[10px] text-slate-400 mt-0.5">Abrir conversa</p>
-                                    </div>
-                                  </a>
-                                )}
-
-                                {org?.chatwoot_url && (
-                                  <a
-                                    href={org.chatwoot_url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl hover:bg-slate-50 transition-colors"
-                                  >
-                                    <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'rgba(44,130,181,0.1)' }}>
-                                      <MessageCircle className="w-3.5 h-3.5" style={{ color: '#2C82B5' }} />
-                                    </div>
-                                    <div>
-                                      <p className="text-[12px] font-black text-slate-800 leading-none">Chatwoot</p>
-                                      <p className="text-[10px] text-slate-400 mt-0.5">Ver conversa</p>
-                                    </div>
-                                  </a>
-                                )}
-                              </div>
-                            </div>
+                          {/* WhatsApp */}
+                          {rawPhone ? (
+                            <a
+                              href={`https://wa.me/${waPhone}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              title="Abrir WhatsApp"
+                              className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:bg-emerald-50 hover:text-emerald-600 transition-colors"
+                            >
+                              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                              </svg>
+                            </a>
+                          ) : (
+                            <span className="w-7 h-7" />
                           )}
+
+                          {/* Copy phone */}
+                          {phone ? (
+                            <button
+                              onClick={() => handleCopyPhone(c.id, phone)}
+                              title={copied === c.id ? 'Copiado!' : `Copiar número: ${phone}`}
+                              className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                            >
+                              {copied === c.id
+                                ? <span className="text-[9px] font-black text-emerald-600">OK</span>
+                                : <Phone className="w-3.5 h-3.5" />
+                              }
+                            </button>
+                          ) : (
+                            <span className="w-7 h-7" />
+                          )}
+
+                          {/* Chatwoot conversation */}
+                          {chatwootContactsUrl ? (
+                            <a
+                              href={chatwootContactsUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              title="Ver conversa no Chatwoot"
+                              className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 transition-colors hover:bg-[#2C82B5]/10 hover:text-[#2C82B5]"
+                            >
+                              <MessageCircle className="w-3.5 h-3.5" />
+                            </a>
+                          ) : (
+                            <span className="w-7 h-7" />
+                          )}
+
                         </div>
                       </td>
 
