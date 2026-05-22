@@ -383,29 +383,28 @@ export async function handleCvMessage(opts: {
     );
   }
 
-  // 4. Upload no Storage (em paralelo com a análise)
-  const filePathPromise = uploadCv(orgId, job.id, phone, buffer, mimeType);
-
-  // 5. Analisa com GPT
+  // 4. Analisa com GPT
   const analysis = await analyzeCv(buffer, job.title, job.criteria || '', phone);
 
-  // 6. Aguarda upload e salva candidato
-  const filePath = await filePathPromise;
-  await saveCandidate(orgId, job.id, phone, analysis, filePath);
-
-  // 7. Limpa sessão
-  await clearSession(phone, orgId);
-
-  // 8. Resposta ao candidato
   const isError = analysis.candidateName === 'Erro na Análise' || analysis.candidateName === 'Erro de Configuração';
 
+  // 5. Se erro na análise: NÃO salva, NÃO limpa sessão → candidato pode reenviar
   if (isError) {
+    console.warn(`[Recruitment] Análise falhou para phone=${phone} — sessão mantida em awaiting_cv`);
     return reply(
-      'Ocorreu um erro ao analisar o currículo do candidato. Informe com empatia e peça que tente novamente.',
-      '⚠️ Ocorreu um erro ao analisar seu currículo. Por favor, tente enviar novamente em alguns instantes.',
+      'Ocorreu um erro ao processar o PDF do candidato (arquivo pode estar corrompido ou ser uma imagem escaneada). Informe com empatia e peça que tente enviar novamente o mesmo arquivo PDF.',
+      '⚠️ Não consegui ler seu currículo. Por favor, envie o arquivo *PDF* novamente.\n\nCertifique-se de que o PDF tem texto selecionável (não é uma foto escaneada).',
     );
   }
 
+  // 6. Upload no Storage + salva candidato (apenas para análises bem-sucedidas)
+  const filePath = await uploadCv(orgId, job.id, phone, buffer, mimeType);
+  await saveCandidate(orgId, job.id, phone, analysis, filePath);
+
+  // 7. Limpa sessão apenas após sucesso
+  await clearSession(phone, orgId);
+
+  // 8. Resposta de sucesso
   return reply(
     `O candidato "${analysis.candidateName}" acabou de enviar o currículo para a vaga "${job.title}" e a análise foi concluída com sucesso. Confirme o recebimento, agradeça o interesse e informe que entrarão em contato caso o perfil avance no processo seletivo.`,
     `✅ *Currículo recebido com sucesso!*\n\nOlá, *${analysis.candidateName}*! Seu currículo para a vaga *${job.title}* foi recebido e analisado.\n\nFicamos felizes com seu interesse e entraremos em contato caso seu perfil avance no processo seletivo.`,
