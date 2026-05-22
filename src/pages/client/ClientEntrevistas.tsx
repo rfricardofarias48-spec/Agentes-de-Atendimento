@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from 'react'
 import {
   Video, Loader2, ThumbsUp, ThumbsDown, Eye, Trash2,
-  User, Briefcase, Search, Calendar,
+  Search, Calendar,
 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
@@ -231,13 +231,13 @@ export default function ClientEntrevistas({ onRegisterExport }: { onRegisterExpo
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-slate-100">
-                  <th className="text-left px-5 py-3 text-[10px] font-black uppercase tracking-wider text-slate-400">Candidato</th>
-                  <th className="text-left px-5 py-3 text-[10px] font-black uppercase tracking-wider text-slate-400">Vaga</th>
-                  <th className="text-left px-5 py-3 text-[10px] font-black uppercase tracking-wider text-slate-400">Entrevistador</th>
-                  <th className="text-center px-5 py-3 text-[10px] font-black uppercase tracking-wider text-slate-400">Status</th>
-                  <th className="text-center px-5 py-3 text-[10px] font-black uppercase tracking-wider text-slate-400">Data &amp; Hora</th>
-                  <th className="text-center px-5 py-3 text-[10px] font-black uppercase tracking-wider text-slate-400">Link</th>
-                  <th className="text-right px-5 py-3 text-[10px] font-black uppercase tracking-wider text-slate-400">Ações</th>
+                  <th className="text-center px-4 py-2.5 text-[10px] font-black uppercase tracking-wider text-slate-400">Candidato</th>
+                  <th className="text-center px-4 py-2.5 text-[10px] font-black uppercase tracking-wider text-slate-400">Vaga</th>
+                  <th className="text-center px-4 py-2.5 text-[10px] font-black uppercase tracking-wider text-slate-400">Entrevistador</th>
+                  <th className="text-center px-4 py-2.5 text-[10px] font-black uppercase tracking-wider text-slate-400">Status</th>
+                  <th className="text-center px-4 py-2.5 text-[10px] font-black uppercase tracking-wider text-slate-400">Data &amp; Hora</th>
+                  <th className="text-center px-4 py-2.5 text-[10px] font-black uppercase tracking-wider text-slate-400">Link</th>
+                  <th className="text-center px-4 py-2.5 text-[10px] font-black uppercase tracking-wider text-slate-400">Ações</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
@@ -245,41 +245,28 @@ export default function ClientEntrevistas({ onRegisterExport }: { onRegisterExpo
                   <tr key={interview.id} className="hover:bg-slate-50/60 transition-colors group">
 
                     {/* Candidato */}
-                    <td className="px-5 py-3.5">
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center shrink-0">
-                          <User className="w-3.5 h-3.5 text-slate-500" />
-                        </div>
-                        <div>
-                          <p className="font-bold text-slate-900 leading-none text-[13px]">
-                            {fmtName(interview.candidate_name)}
-                          </p>
-                          {interview.candidate_phone && (
-                            <p className="text-[10px] text-slate-400 mt-0.5">{interview.candidate_phone}</p>
-                          )}
-                        </div>
-                      </div>
+                    <td className="px-4 py-2 text-center">
+                      <p className="font-bold text-slate-900 text-[13px]">
+                        {fmtName(interview.candidate_name)}
+                      </p>
                     </td>
 
                     {/* Vaga */}
-                    <td className="px-5 py-3.5">
-                      <div className="flex items-center gap-1.5">
-                        <Briefcase className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                        <span className="font-semibold text-slate-600 text-[13px] truncate max-w-[140px]">
-                          {interview.job_title}
-                        </span>
-                      </div>
+                    <td className="px-4 py-2 text-center">
+                      <span className="font-semibold text-slate-600 text-[13px] truncate max-w-[140px] inline-block">
+                        {interview.job_title}
+                      </span>
                     </td>
 
                     {/* Entrevistador */}
-                    <td className="px-5 py-3.5">
+                    <td className="px-4 py-2 text-center">
                       <span className="text-slate-600 text-[13px]">
                         {interview.interviewer_name ?? <span className="text-slate-300">—</span>}
                       </span>
                     </td>
 
                     {/* Status */}
-                    <td className="px-5 py-3.5 text-center">
+                    <td className="px-4 py-2 text-center">
                       <span className={cn(
                         'inline-block text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full',
                         STATUS_STYLE[interview.status] ?? 'bg-slate-100 text-slate-600 border border-slate-200',
@@ -289,14 +276,14 @@ export default function ClientEntrevistas({ onRegisterExport }: { onRegisterExpo
                     </td>
 
                     {/* Data & Hora */}
-                    <td className="px-5 py-3.5 text-center">
+                    <td className="px-4 py-2 text-center">
                       <span className="text-slate-600 text-[13px] whitespace-nowrap font-medium">
                         {fmtSlot(interview.slot_date, interview.slot_time)}
                       </span>
                     </td>
 
                     {/* Link */}
-                    <td className="px-5 py-3.5 text-center">
+                    <td className="px-4 py-2 text-center">
                       {interview.meeting_link ? (
                         <a
                           href={interview.meeting_link}
@@ -313,8 +300,8 @@ export default function ClientEntrevistas({ onRegisterExport }: { onRegisterExpo
                     </td>
 
                     {/* Ações */}
-                    <td className="px-5 py-3.5">
-                      <div className="flex items-center justify-end gap-1">
+                    <td className="px-4 py-2">
+                      <div className="flex items-center justify-center gap-1">
                         <button
                           onClick={() => handleUpdateStatus(interview.id, 'APROVADO')}
                           title="Aprovar"
