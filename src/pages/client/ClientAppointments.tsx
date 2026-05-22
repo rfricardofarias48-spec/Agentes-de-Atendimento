@@ -93,7 +93,22 @@ const EMPTY: FormData = {
   doctor_name: '', date: '', time: '', notes: '', status: 'scheduled',
 }
 
-type ViewMode = 'calendar' | 'list'
+type ViewMode = 'calendar' | 'list' | 'availability'
+
+interface AvailabilityRow {
+  day_of_week: number
+  enabled: boolean
+  start_time: string
+  end_time: string
+}
+
+const DAY_LABELS = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado']
+const DEFAULT_AVAIL: AvailabilityRow[] = [0,1,2,3,4,5,6].map(d => ({
+  day_of_week: d,
+  enabled: d >= 1 && d <= 5,
+  start_time: '09:00',
+  end_time: '18:00',
+}))
 
 function useNowLine(startHour: number) {
   const [pct, setPct] = useState<number | null>(null)
@@ -255,6 +270,11 @@ export default function ClientAppointments() {
   const [savingBlock, setSavingBlock] = useState(false)
   const [blockError, setBlockError] = useState('')
 
+  // Availability
+  const [availability, setAvailability] = useState<AvailabilityRow[]>(DEFAULT_AVAIL)
+  const [savingAvail, setSavingAvail] = useState(false)
+  const [availSaved, setAvailSaved] = useState(false)
+
   // Dropdown
   const [showMenu, setShowMenu] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
@@ -284,7 +304,18 @@ export default function ClientAppointments() {
     setBlockedSlots(data ?? [])
   }
 
-  useEffect(() => { fetchAppointments(); fetchBlockedSlots() }, [orgId])
+  async function fetchAvailability() {
+    if (!orgId) return
+    const { data } = await supabase.from('recruiter_availability').select('*').eq('org_id', orgId)
+    if (data && data.length > 0) {
+      setAvailability(DEFAULT_AVAIL.map(row => {
+        const saved = data.find(d => d.day_of_week === row.day_of_week)
+        return saved ? { ...row, enabled: true, start_time: saved.start_time.slice(0, 5), end_time: saved.end_time.slice(0, 5) } : row
+      }))
+    }
+  }
+
+  useEffect(() => { fetchAppointments(); fetchBlockedSlots(); fetchAvailability() }, [orgId])
 
   const days = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(startDate, i)), [startDate])
 
@@ -334,6 +365,22 @@ export default function ClientAppointments() {
 
   function openModal() { setForm(EMPTY); setFormError(''); setShowModal(true); setShowMenu(false) }
   function closeModal() { setShowModal(false) }
+
+  async function handleSaveAvailability() {
+    if (!orgId) return
+    setSavingAvail(true)
+    const enabled = availability.filter(r => r.enabled)
+    // Delete all existing, then insert active days
+    await supabase.from('recruiter_availability').delete().eq('org_id', orgId)
+    if (enabled.length > 0) {
+      await supabase.from('recruiter_availability').insert(
+        enabled.map(r => ({ org_id: orgId, day_of_week: r.day_of_week, start_time: r.start_time, end_time: r.end_time }))
+      )
+    }
+    setSavingAvail(false)
+    setAvailSaved(true)
+    setTimeout(() => setAvailSaved(false), 3000)
+  }
 
   function openBlockModal() {
     setBlockForm(EMPTY_BLOCK)
@@ -504,13 +551,13 @@ export default function ClientAppointments() {
       {/* ── Top bar ───────────────────────────────────────────── */}
       <div className="flex items-center gap-2 flex-wrap">
         <div className="flex items-center bg-white border border-slate-200 rounded-2xl p-1 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
-          {(['calendar', 'list'] as ViewMode[]).map((v) => (
+          {(['calendar', 'list', 'availability'] as ViewMode[]).map((v) => (
             <button key={v} onClick={() => setView(v)}
               className={cn('flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-[13px] font-semibold transition-all duration-200',
                 view === v ? 'text-white shadow-[0_2px_8px_rgba(37,112,160,0.28)]' : 'text-slate-400 hover:text-slate-600')}
               style={view === v ? { background: 'linear-gradient(135deg, #2C82B5, #2570a0)' } : {}}>
-              {v === 'calendar' ? <Calendar className="w-3.5 h-3.5" /> : <List className="w-3.5 h-3.5" />}
-              {v === 'calendar' ? 'Calendário' : 'Lista'}
+              {v === 'calendar' ? <Calendar className="w-3.5 h-3.5" /> : v === 'list' ? <List className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
+              {v === 'calendar' ? 'Calendário' : v === 'list' ? 'Lista' : 'Disponibilidade'}
             </button>
           ))}
         </div>
@@ -730,6 +777,53 @@ export default function ClientAppointments() {
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {/* ── Availability tab ────────────────────────────────────── */}
+      {view === 'availability' && (
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-[0_2px_16px_rgba(0,0,0,0.04)] overflow-hidden">
+          <div className="px-6 py-4 border-b border-slate-50">
+            <h2 className="text-[15px] font-bold text-slate-800">Horários disponíveis para entrevistas</h2>
+            <p className="text-[12px] text-slate-500 mt-0.5">
+              O candidato verá apenas esses horários ao escolher sua entrevista. Use "Bloquear Agenda" para exceções pontuais.
+            </p>
+          </div>
+          <div className="p-6 space-y-2">
+            {availability.map((row, i) => (
+              <div key={row.day_of_week} className={cn('flex items-center gap-4 px-4 py-3 rounded-xl transition-colors', row.enabled ? 'bg-white border border-slate-100' : 'bg-slate-50/60 border border-transparent')}>
+                {/* Toggle */}
+                <button type="button"
+                  onClick={() => setAvailability(prev => prev.map((r, j) => j === i ? { ...r, enabled: !r.enabled } : r))}
+                  className={cn('w-9 h-5 rounded-full transition-all duration-200 relative shrink-0', row.enabled ? 'bg-[#2C82B5]' : 'bg-slate-200')}>
+                  <span className={cn('absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all duration-200', row.enabled ? 'left-4' : 'left-0.5')} />
+                </button>
+                {/* Day label */}
+                <p className={cn('text-[13px] font-semibold w-20 shrink-0', row.enabled ? 'text-slate-700' : 'text-slate-400')}>{DAY_LABELS[row.day_of_week]}</p>
+                {/* Times */}
+                {row.enabled ? (
+                  <div className="flex items-center gap-2 flex-1">
+                    <input type="time" value={row.start_time}
+                      onChange={e => setAvailability(prev => prev.map((r, j) => j === i ? { ...r, start_time: e.target.value } : r))}
+                      className="border border-slate-200 rounded-lg px-2.5 py-1.5 text-[13px] focus:outline-none focus:ring-1 focus:ring-[#2C82B5] w-28" />
+                    <span className="text-[12px] text-slate-400">até</span>
+                    <input type="time" value={row.end_time}
+                      onChange={e => setAvailability(prev => prev.map((r, j) => j === i ? { ...r, end_time: e.target.value } : r))}
+                      className="border border-slate-200 rounded-lg px-2.5 py-1.5 text-[13px] focus:outline-none focus:ring-1 focus:ring-[#2C82B5] w-28" />
+                  </div>
+                ) : (
+                  <p className="text-[12px] text-slate-400 flex-1">Indisponível</p>
+                )}
+              </div>
+            ))}
+          </div>
+          <div className="px-6 pb-6">
+            <button onClick={handleSaveAvailability} disabled={savingAvail}
+              className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold text-white disabled:opacity-60 transition-all hover:-translate-y-[1px]"
+              style={{ background: 'linear-gradient(135deg, #2C82B5, #2570a0)' }}>
+              {savingAvail ? 'Salvando...' : availSaved ? '✓ Salvo!' : 'Salvar disponibilidade'}
+            </button>
+          </div>
         </div>
       )}
 

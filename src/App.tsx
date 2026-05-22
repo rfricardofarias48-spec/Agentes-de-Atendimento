@@ -13,6 +13,7 @@ import AdminClientDetail from './pages/admin/AdminClientDetail'
 import AdminBilling from './pages/admin/AdminBilling'
 import AdminSales from './pages/admin/AdminSales'
 
+import BookingPage from './pages/BookingPage'
 import ClientDashboard from './pages/client/ClientDashboard'
 import ClientAppointments from './pages/client/ClientAppointments'
 import ClientVagas from './pages/client/ClientVagas'
@@ -37,6 +38,7 @@ export default function App() {
           <Route path="/" element={<RootRedirect />} />
           <Route path="/login" element={<Login />} />
           <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/b/:token" element={<BookingPage />} />
 
           {/* Admin */}
           <Route path="/admin" element={

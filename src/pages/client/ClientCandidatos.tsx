@@ -102,8 +102,9 @@ export default function ClientCandidatos() {
   const [showScheduleModal, setShowScheduleModal] = useState(false)
   const [scheduling, setScheduling] = useState(false)
   const [scheduleForm, setScheduleForm] = useState({
-    date: '', time: '', format: 'Online', meetingLink: '', interviewer: '',
+    format: 'Online', meetingLink: '', interviewer: '',
   })
+  const [showCandidateList, setShowCandidateList] = useState(false)
 
   const fetchData = useCallback(async () => {
     if (!jobId || !orgId) return
@@ -137,7 +138,7 @@ export default function ClientCandidatos() {
   }
 
   const handleSchedule = async () => {
-    if (!scheduleForm.date || !scheduleForm.time || !scheduleForm.interviewer.trim()) return
+    if (!scheduleForm.interviewer.trim()) return
     setScheduling(true)
     try {
       const approved = candidates.filter(c => c.status === 'APPROVED')
@@ -147,17 +148,15 @@ export default function ClientCandidatos() {
         body: JSON.stringify({
           jobId, orgId,
           candidateIds: approved.map(c => c.id),
-          slotDate: scheduleForm.date,
-          slotTime: scheduleForm.time,
           format: scheduleForm.format,
           meetingLink: scheduleForm.meetingLink,
           interviewer: scheduleForm.interviewer,
         }),
       })
       setShowScheduleModal(false)
-      alert(`Entrevistas agendadas e notificações enviadas para ${approved.length} candidato(s)!`)
+      alert(`Links de agendamento enviados para ${approved.length} candidato(s) via WhatsApp!`)
       fetchData()
-    } catch { alert('Erro ao agendar. Tente novamente.') }
+    } catch { alert('Erro ao enviar links. Tente novamente.') }
     setScheduling(false)
   }
 
@@ -516,33 +515,44 @@ export default function ClientCandidatos() {
             <button onClick={() => setShowScheduleModal(false)} className="absolute top-5 right-5 w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200">
               <X className="w-4 h-4" />
             </button>
+
             <div className="w-14 h-14 bg-slate-900 rounded-[1.25rem] flex items-center justify-center mb-4">
               <Calendar className="w-6 h-6 text-[#2C82B5]" />
             </div>
             <h2 className="text-2xl font-black text-slate-900 mb-1">Agendar Entrevistas</h2>
             <p className="text-sm text-slate-500 mb-4">
-              Notificar <span className="font-black text-slate-800">{approved.length} candidato(s)</span> via WhatsApp.
+              O candidato receberá um link via WhatsApp para escolher o melhor horário disponível na sua agenda.
             </p>
-            <div className="flex flex-wrap gap-1.5 mb-5">
-              {approved.map(c => (
-                <span key={c.id} className="px-2.5 py-1 rounded-xl bg-emerald-50 text-emerald-700 text-[11px] font-bold border border-emerald-200">
-                  {getName(c)}
-                </span>
-              ))}
-            </div>
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5">Data <span className="text-red-500">*</span></label>
-                  <input type="date" value={scheduleForm.date} onChange={e => setScheduleForm(f => ({ ...f, date: e.target.value }))}
-                    className="w-full border border-slate-200 rounded-2xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900 bg-slate-50" />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5">Horário <span className="text-red-500">*</span></label>
-                  <input type="time" value={scheduleForm.time} onChange={e => setScheduleForm(f => ({ ...f, time: e.target.value }))}
-                    className="w-full border border-slate-200 rounded-2xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900 bg-slate-50" />
-                </div>
+
+            {/* Candidate list — collapsible */}
+            <button
+              type="button"
+              onClick={() => setShowCandidateList(v => !v)}
+              className="flex items-center justify-between w-full px-4 py-2.5 rounded-2xl border border-slate-200 bg-slate-50 text-sm mb-5 hover:bg-slate-100 transition-colors"
+            >
+              <span className="font-semibold text-slate-700">
+                {approved.length} candidato{approved.length !== 1 ? 's' : ''} aprovado{approved.length !== 1 ? 's' : ''}
+              </span>
+              {showCandidateList
+                ? <ChevronUp className="w-4 h-4 text-slate-400" />
+                : <ChevronDown className="w-4 h-4 text-slate-400" />
+              }
+            </button>
+            {showCandidateList && (
+              <div className="mb-5 space-y-1.5">
+                {approved.map(c => (
+                  <div key={c.id} className="flex items-center gap-2.5 px-3.5 py-2 rounded-xl bg-white border border-slate-100">
+                    <div className="w-6 h-6 rounded-full bg-[#2C82B5]/10 flex items-center justify-center shrink-0">
+                      <span className="text-[10px] font-black text-[#2C82B5]">{getName(c).charAt(0)}</span>
+                    </div>
+                    <p className="text-[13px] font-semibold text-slate-700 truncate">{getName(c)}</p>
+                  </div>
+                ))}
               </div>
+            )}
+
+            <div className="space-y-4">
+              {/* Formato */}
               <div>
                 <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5">Formato</label>
                 <div className="flex gap-2">
@@ -555,6 +565,7 @@ export default function ClientCandidatos() {
                   ))}
                 </div>
               </div>
+
               {scheduleForm.format === 'Online' && (
                 <div>
                   <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5">Link da Reunião</label>
@@ -562,15 +573,18 @@ export default function ClientCandidatos() {
                     placeholder="https://meet.google.com/..." className="w-full border border-slate-200 rounded-2xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900 bg-slate-50 placeholder:text-slate-300" />
                 </div>
               )}
+
+              {/* Entrevistador */}
               <div>
                 <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5">Entrevistador <span className="text-red-500">*</span></label>
                 <input type="text" value={scheduleForm.interviewer} onChange={e => setScheduleForm(f => ({ ...f, interviewer: e.target.value }))}
                   placeholder="Nome do responsável" className="w-full border border-slate-200 rounded-2xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900 bg-slate-50 placeholder:text-slate-300" />
               </div>
-              <button onClick={handleSchedule} disabled={scheduling || !scheduleForm.date || !scheduleForm.time || !scheduleForm.interviewer.trim()}
+
+              <button onClick={handleSchedule} disabled={scheduling || !scheduleForm.interviewer.trim() || approved.length === 0}
                 className="w-full py-3.5 rounded-2xl text-white font-black text-sm disabled:opacity-50 flex items-center justify-center gap-2 transition-all"
                 style={{ background: 'linear-gradient(135deg, #2C82B5 0%, #2570a0 100%)' }}>
-                {scheduling ? <><Loader2 className="w-4 h-4 animate-spin" /> Enviando...</> : <><Send className="w-4 h-4" /> Confirmar e Notificar</>}
+                {scheduling ? <><Loader2 className="w-4 h-4 animate-spin" /> Enviando links...</> : <><Send className="w-4 h-4" /> Enviar links de agendamento</>}
               </button>
             </div>
           </div>
