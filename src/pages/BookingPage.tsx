@@ -160,9 +160,9 @@ export default function BookingPage() {
         <div className="px-5 py-6 space-y-6">
 
           {/* Date strip */}
-          <div>
-            <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400 mb-3">Selecione uma data</p>
-            <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
+          <div className="-mx-5">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400 mb-3 mx-5">Selecione uma data</p>
+            <div className="flex gap-2 overflow-x-auto pb-1 px-5" style={{ scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' }}>
               {availableDates.map(date => {
                 const d = new Date(date + 'T12:00:00')
                 const active = date === selectedDate
@@ -275,29 +275,39 @@ function Shell({ booking, children }: { booking?: BookingInfo; children: React.R
 
   return (
     <div className="min-h-screen flex flex-col" style={{ background: '#f8f9fb' }}>
-      <div className="flex-1 flex flex-col items-center justify-center px-4 py-10">
+
+      {/* Dark header */}
+      <div style={{ background: '#0f172a' }} className="w-full px-6 py-4 flex items-center justify-center">
+        <img
+          src="https://ik.imagekit.io/xsbrdnr0y/Elevva_logo_white_blue_202605221006.png"
+          alt="Elevva"
+          className="h-6 w-auto object-contain"
+        />
+      </div>
+
+      <div className="flex-1 flex flex-col items-center px-4 py-8">
         <div className="w-full max-w-sm">
 
-          {/* Info header */}
+          {/* 2×2 info grid */}
           {booking && (
-            <div className="mb-4 px-1">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">{orgName}</p>
-              <h1 className="text-xl font-bold text-slate-900 mt-0.5">{jobTitle}</h1>
-              <div className="flex items-center gap-3 mt-2">
-                {interviewer && (
-                  <span className="flex items-center gap-1 text-[12px] text-slate-500">
-                    <User className="w-3 h-3" />{interviewer}
-                  </span>
-                )}
-                <span className="flex items-center gap-1 text-[12px] text-slate-500">
-                  {isOnline
-                    ? <><Video className="w-3 h-3" />Online</>
-                    : <><MapPin className="w-3 h-3" />Presencial</>
-                  }
-                </span>
-                <span className="flex items-center gap-1 text-[12px] text-slate-500">
-                  <Clock className="w-3 h-3" />60 min
-                </span>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-3 mb-5 px-1">
+              <div>
+                <p className="text-[9px] font-bold uppercase tracking-[0.14em] text-slate-400 mb-0.5">Empresa</p>
+                <p className="text-[13px] font-semibold text-slate-800 leading-tight truncate">{orgName || '—'}</p>
+              </div>
+              <div>
+                <p className="text-[9px] font-bold uppercase tracking-[0.14em] text-slate-400 mb-0.5">Vaga</p>
+                <p className="text-[13px] font-semibold text-slate-800 leading-tight truncate">{jobTitle || '—'}</p>
+              </div>
+              <div>
+                <p className="text-[9px] font-bold uppercase tracking-[0.14em] text-slate-400 mb-0.5">Entrevistador</p>
+                <p className="text-[13px] font-semibold text-slate-800 leading-tight truncate">{interviewer || '—'}</p>
+              </div>
+              <div>
+                <p className="text-[9px] font-bold uppercase tracking-[0.14em] text-slate-400 mb-0.5">Duração</p>
+                <p className="text-[13px] font-semibold text-slate-800 leading-tight">
+                  {isOnline ? '60 min · Online' : '60 min · Presencial'}
+                </p>
               </div>
             </div>
           )}
