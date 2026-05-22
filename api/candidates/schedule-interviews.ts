@@ -7,6 +7,42 @@ import { supabaseAdmin } from '../_lib/supabaseAdmin.js'
 import { sendText } from '../_services/evolutionService.js'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+
+  // ── PATCH: confirmar entrevista realizada + aprovar/reprovar candidato ──────
+  if (req.method === 'PATCH') {
+    const { interviewId, candidateId, orgId, outcome } = req.body as {
+      interviewId: string; candidateId: string; orgId: string; outcome: 'approved' | 'rejected'
+    }
+    if (!interviewId || !candidateId || !orgId || !outcome)
+      return res.status(400).json({ error: 'Campos obrigatórios ausentes' })
+
+    const [{ data: candidate }, { data: org }] = await Promise.all([
+      supabaseAdmin.from('candidates').select('candidate_name, candidate_phone, analysis_result').eq('id', candidateId).single(),
+      supabaseAdmin.from('organizations').select('evolution_instance, evolution_token').eq('id', orgId).single(),
+    ])
+
+    await Promise.all([
+      supabaseAdmin.from('interviews').update({ status: 'REALIZADA' }).eq('id', interviewId),
+      supabaseAdmin.from('candidates').update({
+        status: outcome === 'approved' ? 'HIRED' : 'REJECTED',
+        is_selected: outcome === 'approved',
+      }).eq('id', candidateId),
+    ])
+
+    if (org?.evolution_instance && candidate?.candidate_phone) {
+      const name  = candidate.candidate_name || (candidate.analysis_result as Record<string,unknown>)?.candidateName as string || 'Candidato'
+      const phone = candidate.candidate_phone.replace(/\D/g, '')
+
+      const msg = outcome === 'approved'
+        ? `🎊 *Parabéns, ${name}!*\n\nTemos uma ótima notícia: você foi *aprovado(a)* na entrevista! Em breve nossa equipe entrará em contato com mais detalhes sobre os próximos passos.\n\nFicamos muito felizes em ter você no nosso time! 🚀`
+        : `Olá, *${name}*! Agradecemos muito sua participação no nosso processo seletivo e o tempo que dedicou à entrevista.\n\nInfelizmente desta vez seguiremos com outro perfil, mas guardaremos seu currículo para futuras oportunidades. Obrigado! 🙏`
+
+      await sendText(org.evolution_instance, phone, msg, org.evolution_token)
+    }
+
+    return res.status(200).json({ ok: true })
+  }
+
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
 
   const { jobId, orgId, candidateIds, slotDate, slotTime, format, meetingLink, interviewer } =
