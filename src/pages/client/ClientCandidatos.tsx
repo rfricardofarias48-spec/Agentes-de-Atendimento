@@ -385,15 +385,6 @@ export default function ClientCandidatos() {
                 {isOpen && (
                   <div className="border-t border-slate-100 px-6 pb-6 pt-5 space-y-5">
 
-                    {/* Badge selecionado (só quando aprovado) */}
-                    {isApproved && (
-                      <div>
-                        <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-black border border-emerald-300 uppercase tracking-wide">
-                          Selecionado
-                        </span>
-                      </div>
-                    )}
-
                     {/* Analysis summary */}
                     {ar?.summary && (
                       <div>
