@@ -31,11 +31,11 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
   const SidebarContent = ({ onNavClick }: { onNavClick?: () => void }) => (
     <>
       {/* Logo */}
-      <div className="flex justify-center px-4 pt-6 pb-4 shrink-0">
+      <div className="flex justify-center px-4 pt-5 pb-3 shrink-0">
         <img
           src="https://ik.imagekit.io/xsbrdnr0y/Elevva_logo_white_blue_202605221006.png"
           alt="Gestor"
-          className="h-28 w-auto object-contain"
+          className="h-40 w-auto object-contain"
         />
       </div>
 
