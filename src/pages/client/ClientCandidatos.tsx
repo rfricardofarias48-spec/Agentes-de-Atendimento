@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft, FileText, Calendar, MapPin, Briefcase,
-  CheckCircle, XCircle, ChevronDown, ChevronUp,
+  CheckCircle, ChevronDown, ChevronUp,
   ThumbsUp, Loader2, Clock, Building2, Phone,
   AlertCircle, X, Send, Eye, Trash2, Check,
 } from 'lucide-react'
