@@ -2,7 +2,7 @@ import { type ReactNode, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, Calendar, CreditCard, Settings, LogOut,
-  Briefcase, Menu, X,
+  Bot, Menu, X,
 } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { cn } from '../../lib/utils'
@@ -11,8 +11,8 @@ const SIDEBAR_BG = '#0f172a'
 
 const navItems = [
   { href: '/dashboard',               label: 'Visão Geral',      icon: LayoutDashboard },
-  { href: '/dashboard/vagas',         label: 'Minhas Vagas',     icon: Briefcase },
   { href: '/dashboard/appointments',  label: 'Agenda',           icon: Calendar },
+  { href: '/dashboard/training',      label: 'Bento',            icon: Bot },
   { href: '/dashboard/payments',      label: 'Minha Assinatura', icon: CreditCard },
   { href: '/dashboard/settings',      label: 'Configurações',    icon: Settings },
 ]

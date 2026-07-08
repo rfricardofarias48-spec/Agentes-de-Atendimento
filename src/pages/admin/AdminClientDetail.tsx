@@ -21,10 +21,10 @@ interface Service {
   pdf_name: string | null
 }
 
-const plans: OrgPlan[] = ['starter', 'pro', 'max', 'ultra']
+const plans: OrgPlan[] = ['starter', 'pro', 'clinic']
 const statuses: OrgStatus[] = ['active', 'trial', 'inactive', 'suspended']
-const maxConvByPlan: Record<OrgPlan, number> = { starter: 3, pro: 10, max: 25, ultra: 50 }
-const PLAN_PRICES: Record<OrgPlan, number> = { starter: 399, pro: 749, max: 1699, ultra: 2999 }
+const maxConvByPlan: Record<OrgPlan, number> = { starter: 600, pro: 2000, clinic: 999999 }
+const PLAN_PRICES: Record<OrgPlan, number> = { starter: 299.90, pro: 449.90, clinic: 849.90 }
 
 const CARD_STYLE: React.CSSProperties = {
   background: '#ffffff',

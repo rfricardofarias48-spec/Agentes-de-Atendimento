@@ -4,7 +4,7 @@ import { supabase } from '../../lib/supabase'
 import { type Organization } from '../../types'
 import { TZ, toBRT } from '../../lib/date'
 
-const PLAN_PRICES: Record<string, number> = { starter: 399, pro: 749, max: 1699, ultra: 2999 }
+const PLAN_PRICES: Record<string, number> = { starter: 299.90, pro: 449.90, clinic: 849.90 }
 const MONTHS = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez']
 
 type FinanceTab = 'geral' | 'historico'
@@ -63,8 +63,7 @@ export default function AdminBilling() {
 
   const starterCount = activeOrgs.filter(o => o.plan === 'starter').length
   const proCount     = activeOrgs.filter(o => o.plan === 'pro').length
-  const maxCount     = activeOrgs.filter(o => o.plan === 'max').length
-  const ultraCount   = activeOrgs.filter(o => o.plan === 'ultra').length
+  const clinicCount  = activeOrgs.filter(o => o.plan === 'clinic').length
 
   const monthlyData = MONTHS.map((label, idx) => {
     const inMonth = sales.filter(s => {
@@ -233,8 +232,7 @@ export default function AdminBilling() {
                 {[
                   { label: 'Essencial', count: starterCount, color: '#94a3b8' },
                   { label: 'Pro',      count: proCount,     color: '#3b82f6' },
-                  { label: 'Max',      count: maxCount,     color: '#2C82B5' },
-                  { label: 'Ultra',    count: ultraCount,   color: '#7c3aed' },
+                  { label: 'Max',      count: clinicCount,  color: '#2C82B5' },
                 ].map(p => (
                   <div key={p.label} className="flex items-center gap-3">
                     <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: p.color }} />
@@ -397,10 +395,9 @@ export default function AdminBilling() {
               </h3>
               <div className="space-y-5">
                 {[
-                  { label: 'Essencial', price: 'R$ 399,00/mês',   count: histSales.filter(s => s.plan === 'starter').length, color: '#94a3b8' },
-                  { label: 'Pro',       price: 'R$ 749,00/mês',   count: histSales.filter(s => s.plan === 'pro').length,     color: '#3b82f6' },
-                  { label: 'Max',       price: 'R$ 1.699,00/mês', count: histSales.filter(s => s.plan === 'max').length,     color: '#2C82B5' },
-                  { label: 'Ultra',     price: 'R$ 2.999,00/mês', count: histSales.filter(s => s.plan === 'ultra').length,   color: '#7c3aed' },
+                  { label: 'Essencial', price: 'R$ 299,90/mês', count: histSales.filter(s => s.plan === 'starter').length, color: '#94a3b8' },
+                  { label: 'Pro',       price: 'R$ 449,90/mês', count: histSales.filter(s => s.plan === 'pro').length,     color: '#3b82f6' },
+                  { label: 'Max',       price: 'R$ 849,90/mês', count: histSales.filter(s => s.plan === 'clinic').length,  color: '#2C82B5' },
                 ].map(p => (
                   <div key={p.label}>
                     <div className="flex justify-between items-end mb-2">

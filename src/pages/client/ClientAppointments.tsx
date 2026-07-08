@@ -93,22 +93,7 @@ const EMPTY: FormData = {
   doctor_name: '', date: '', time: '', notes: '', status: 'scheduled',
 }
 
-type ViewMode = 'calendar' | 'list' | 'availability'
-
-interface AvailabilityRow {
-  day_of_week: number
-  enabled: boolean
-  start_time: string
-  end_time: string
-}
-
-const DAY_LABELS = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado']
-const DEFAULT_AVAIL: AvailabilityRow[] = [0,1,2,3,4,5,6].map(d => ({
-  day_of_week: d,
-  enabled: d >= 1 && d <= 5,
-  start_time: '09:00',
-  end_time: '18:00',
-}))
+type ViewMode = 'calendar' | 'list'
 
 function useNowLine(startHour: number) {
   const [pct, setPct] = useState<number | null>(null)
@@ -124,13 +109,6 @@ function useNowLine(startHour: number) {
     return () => clearInterval(id)
   }, [startHour])
   return pct
-}
-
-function fmtName(full: string): string {
-  const parts = full.trim().split(/\s+/).filter(Boolean)
-  const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1).toLowerCase()
-  if (parts.length === 1) return cap(parts[0])
-  return `${cap(parts[0])} ${cap(parts[parts.length - 1])}`
 }
 
 function fmtBlockDate(dateStr: string) {
@@ -277,11 +255,6 @@ export default function ClientAppointments() {
   const [savingBlock, setSavingBlock] = useState(false)
   const [blockError, setBlockError] = useState('')
 
-  // Availability
-  const [availability, setAvailability] = useState<AvailabilityRow[]>(DEFAULT_AVAIL)
-  const [savingAvail, setSavingAvail] = useState(false)
-  const [availSaved, setAvailSaved] = useState(false)
-
   // Dropdown
   const [showMenu, setShowMenu] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
@@ -311,18 +284,7 @@ export default function ClientAppointments() {
     setBlockedSlots(data ?? [])
   }
 
-  async function fetchAvailability() {
-    if (!orgId) return
-    const { data } = await supabase.from('recruiter_availability').select('*').eq('org_id', orgId)
-    if (data && data.length > 0) {
-      setAvailability(DEFAULT_AVAIL.map(row => {
-        const saved = data.find(d => d.day_of_week === row.day_of_week)
-        return saved ? { ...row, enabled: true, start_time: saved.start_time.slice(0, 5), end_time: saved.end_time.slice(0, 5) } : row
-      }))
-    }
-  }
-
-  useEffect(() => { fetchAppointments(); fetchBlockedSlots(); fetchAvailability() }, [orgId])
+  useEffect(() => { fetchAppointments(); fetchBlockedSlots() }, [orgId])
 
   const days = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(startDate, i)), [startDate])
 
@@ -372,22 +334,6 @@ export default function ClientAppointments() {
 
   function openModal() { setForm(EMPTY); setFormError(''); setShowModal(true); setShowMenu(false) }
   function closeModal() { setShowModal(false) }
-
-  async function handleSaveAvailability() {
-    if (!orgId) return
-    setSavingAvail(true)
-    const enabled = availability.filter(r => r.enabled)
-    // Delete all existing, then insert active days
-    await supabase.from('recruiter_availability').delete().eq('org_id', orgId)
-    if (enabled.length > 0) {
-      await supabase.from('recruiter_availability').insert(
-        enabled.map(r => ({ org_id: orgId, day_of_week: r.day_of_week, start_time: r.start_time, end_time: r.end_time }))
-      )
-    }
-    setSavingAvail(false)
-    setAvailSaved(true)
-    setTimeout(() => setAvailSaved(false), 3000)
-  }
 
   function openBlockModal() {
     setBlockForm(EMPTY_BLOCK)
@@ -558,13 +504,13 @@ export default function ClientAppointments() {
       {/* ── Top bar ───────────────────────────────────────────── */}
       <div className="flex items-center gap-2 flex-wrap">
         <div className="flex items-center bg-white border border-slate-200 rounded-2xl p-1 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
-          {(['calendar', 'list', 'availability'] as ViewMode[]).map((v) => (
+          {(['calendar', 'list'] as ViewMode[]).map((v) => (
             <button key={v} onClick={() => setView(v)}
               className={cn('flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-[13px] font-semibold transition-all duration-200',
                 view === v ? 'text-white shadow-[0_2px_8px_rgba(37,112,160,0.28)]' : 'text-slate-400 hover:text-slate-600')}
               style={view === v ? { background: 'linear-gradient(135deg, #2C82B5, #2570a0)' } : {}}>
-              {v === 'calendar' ? <Calendar className="w-3.5 h-3.5" /> : v === 'list' ? <List className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
-              {v === 'calendar' ? 'Calendário' : v === 'list' ? 'Lista' : 'Disponibilidade'}
+              {v === 'calendar' ? <Calendar className="w-3.5 h-3.5" /> : <List className="w-3.5 h-3.5" />}
+              {v === 'calendar' ? 'Calendário' : 'Lista'}
             </button>
           ))}
         </div>
@@ -647,14 +593,12 @@ export default function ClientAppointments() {
                     const isToday = dayKey(day) === todayKey
                     const isWeekend = day.getDay() === 0 || day.getDay() === 6
                     const hasBlock = (blocksByDay[dayKey(day)] ?? []).length > 0
-                    const isAvailOff = availability.some(a => a.day_of_week === day.getDay() && !a.enabled)
-                    const isBlocked = hasBlock || isAvailOff
                     return (
                       <div key={i} className={cn('flex-1 border-l border-slate-100 py-3 text-center min-w-0',
-                        isWeekend && !isToday ? 'bg-slate-50/60' : '', isBlocked ? 'bg-slate-50/80' : '')}>
+                        isWeekend && !isToday ? 'bg-slate-50/60' : '', hasBlock ? 'bg-slate-50/80' : '')}>
                         <p className={cn('text-[10px] font-bold uppercase tracking-[0.12em]',
-                          isToday ? 'text-brand-500' : isBlocked ? 'text-slate-500' : 'text-slate-400')}>
-                          {DAY_PT[day.getDay()]}{isBlocked && <span className="ml-1 inline-block w-2 h-2 rounded-sm bg-slate-400 align-middle" />}
+                          isToday ? 'text-brand-500' : hasBlock ? 'text-slate-500' : 'text-slate-400')}>
+                          {DAY_PT[day.getDay()]}{hasBlock && <span className="ml-1 inline-block w-2 h-2 rounded-sm bg-slate-400 align-middle" />}
                         </p>
                         <div className={cn('mt-1.5 mx-auto w-8 h-8 flex items-center justify-center rounded-full text-[13px] font-bold transition-all duration-200',
                           isToday ? 'text-white shadow-[0_4px_10px_rgba(44,130,181,0.35)]' : 'text-slate-600 hover:bg-slate-100')}
@@ -680,7 +624,6 @@ export default function ClientAppointments() {
                     const isWeekend = day.getDay() === 0 || day.getDay() === 6
                     const dayAppts = apptsByDay[dayKey(day)] ?? []
                     const dayBlocks = blocksByDay[dayKey(day)] ?? []
-                    const isAvailOff = availability.some(a => a.day_of_week === day.getDay() && !a.enabled)
                     return (
                       <div key={i} className={cn('relative flex-1 min-w-0 border-l border-slate-100',
                         isToday ? 'bg-brand-50/20' : isWeekend ? 'bg-slate-50/40' : '')}
@@ -691,18 +634,6 @@ export default function ClientAppointments() {
                             <div className="absolute left-0 right-0 border-t border-dashed border-slate-50" style={{ top: (h - startHour) * HOUR_HEIGHT + HOUR_HEIGHT / 2 }} />
                           </div>
                         ))}
-
-                        {/* Availability-off overlay (same style as manual all-day block) */}
-                        {isAvailOff && !dayBlocks.some(b => b.all_day) && (
-                          <div className="absolute inset-0 pointer-events-none" style={{ borderLeft: '3px solid #94a3b8' }}>
-                            <div className="absolute inset-0" style={{ background: 'repeating-linear-gradient(-45deg,rgba(100,116,139,0.06) 0px,rgba(100,116,139,0.06) 4px,transparent 4px,transparent 12px)' }} />
-                            <div className="absolute inset-x-0 top-3 flex justify-center">
-                              <span className="text-[11px] font-semibold text-slate-500 tracking-wide px-2 py-0.5 rounded-md text-center" style={{ background: 'rgba(255,255,255,0.75)' }}>
-                                Indisponível
-                              </span>
-                            </div>
-                          </div>
-                        )}
 
                         {dayBlocks.map(b => (
                           b.all_day ? (
@@ -747,7 +678,7 @@ export default function ClientAppointments() {
                               style={{ top: top + 2, minHeight: HOUR_HEIGHT / 2 - 4 }}>
                               <div className={cn('absolute left-0 top-0 bottom-0 w-[3px] rounded-l-xl', pal.bar)} />
                               <div className="pl-3 pr-2 py-1.5">
-                                <p className={cn('text-[11px] font-bold truncate leading-tight', pal.text)}>{fmtName(appt.patient_name)}</p>
+                                <p className={cn('text-[11px] font-bold truncate leading-tight', pal.text)}>{appt.patient_name}</p>
                                 <p className={cn('text-[10px] truncate leading-tight mt-0.5 font-medium', pal.sub)}>{time} · {appt.specialty}</p>
                               </div>
                             </div>
@@ -786,7 +717,7 @@ export default function ClientAppointments() {
                   <div className="flex items-center gap-2.5 min-w-0">
                     <div className={cn('w-1.5 h-1.5 rounded-full shrink-0', { 'bg-blue-400': appt.status === 'scheduled' || appt.status === 'confirmed', 'bg-emerald-400': appt.status === 'completed', 'bg-rose-400': appt.status === 'cancelled' })} />
                     <p className="text-[13px] font-semibold text-gray-900 truncate leading-none">
-                      {fmtName(appt.patient_name)}
+                      {appt.patient_name}
                       {appt.specialty && <span className="font-normal text-slate-400"> ({appt.specialty.charAt(0).toUpperCase() + appt.specialty.slice(1).toLowerCase()})</span>}
                     </p>
                   </div>
@@ -799,53 +730,6 @@ export default function ClientAppointments() {
               ))}
             </div>
           )}
-        </div>
-      )}
-
-      {/* ── Availability tab ────────────────────────────────────── */}
-      {view === 'availability' && (
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-[0_2px_16px_rgba(0,0,0,0.04)] overflow-hidden">
-          <div className="px-6 py-4 border-b border-slate-50">
-            <h2 className="text-[15px] font-bold text-slate-800">Horários disponíveis para entrevistas</h2>
-            <p className="text-[12px] text-slate-500 mt-0.5">
-              O candidato verá apenas esses horários ao escolher sua entrevista. Use "Bloquear Agenda" para exceções pontuais.
-            </p>
-          </div>
-          <div className="p-6 space-y-2">
-            {availability.map((row, i) => (
-              <div key={row.day_of_week} className={cn('flex items-center gap-4 px-4 py-3 rounded-xl transition-colors', row.enabled ? 'bg-white border border-slate-100' : 'bg-slate-50/60 border border-transparent')}>
-                {/* Toggle */}
-                <button type="button"
-                  onClick={() => setAvailability(prev => prev.map((r, j) => j === i ? { ...r, enabled: !r.enabled } : r))}
-                  className={cn('w-9 h-5 rounded-full transition-all duration-200 relative shrink-0', row.enabled ? 'bg-[#2C82B5]' : 'bg-slate-200')}>
-                  <span className={cn('absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all duration-200', row.enabled ? 'left-4' : 'left-0.5')} />
-                </button>
-                {/* Day label */}
-                <p className={cn('text-[13px] font-semibold w-20 shrink-0', row.enabled ? 'text-slate-700' : 'text-slate-400')}>{DAY_LABELS[row.day_of_week]}</p>
-                {/* Times */}
-                {row.enabled ? (
-                  <div className="flex items-center gap-2 flex-1">
-                    <input type="time" value={row.start_time}
-                      onChange={e => setAvailability(prev => prev.map((r, j) => j === i ? { ...r, start_time: e.target.value } : r))}
-                      className="border border-slate-200 rounded-lg px-2.5 py-1.5 text-[13px] focus:outline-none focus:ring-1 focus:ring-[#2C82B5] w-28" />
-                    <span className="text-[12px] text-slate-400">até</span>
-                    <input type="time" value={row.end_time}
-                      onChange={e => setAvailability(prev => prev.map((r, j) => j === i ? { ...r, end_time: e.target.value } : r))}
-                      className="border border-slate-200 rounded-lg px-2.5 py-1.5 text-[13px] focus:outline-none focus:ring-1 focus:ring-[#2C82B5] w-28" />
-                  </div>
-                ) : (
-                  <p className="text-[12px] text-slate-400 flex-1">Indisponível</p>
-                )}
-              </div>
-            ))}
-          </div>
-          <div className="px-6 pb-6">
-            <button onClick={handleSaveAvailability} disabled={savingAvail}
-              className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold text-white disabled:opacity-60 transition-all hover:-translate-y-[1px]"
-              style={{ background: 'linear-gradient(135deg, #2C82B5, #2570a0)' }}>
-              {savingAvail ? 'Salvando...' : availSaved ? '✓ Salvo!' : 'Salvar disponibilidade'}
-            </button>
-          </div>
         </div>
       )}
 
@@ -1046,7 +930,7 @@ export default function ClientAppointments() {
                   <div className="flex items-start gap-3 px-5 pb-3">
                     <div className={cn('w-3 h-3 rounded-sm mt-1.5 shrink-0', pal.bar)} />
                     <div>
-                      <p className="text-[17px] font-semibold text-gray-900 leading-snug">{fmtName(detailAppt.patient_name)}</p>
+                      <p className="text-[17px] font-semibold text-gray-900 leading-snug">{detailAppt.patient_name}</p>
                       <p className="text-[13px] text-slate-500 mt-0.5 capitalize">{dateStr} · {timeStr}</p>
                       <div className="mt-2"><Badge variant={statusColors[detailAppt.status] ?? 'outline'} className="text-[10px]">{statusLabel(detailAppt.status)}</Badge></div>
                     </div>

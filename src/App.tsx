@@ -13,13 +13,11 @@ import AdminClientDetail from './pages/admin/AdminClientDetail'
 import AdminBilling from './pages/admin/AdminBilling'
 import AdminSales from './pages/admin/AdminSales'
 
-import BookingPage from './pages/BookingPage'
 import ClientDashboard from './pages/client/ClientDashboard'
 import ClientAppointments from './pages/client/ClientAppointments'
-import ClientVagas from './pages/client/ClientVagas'
+import ClientTraining from './pages/client/ClientTraining'
 import ClientPayments from './pages/client/ClientPayments'
 import ClientSettings from './pages/client/ClientSettings'
-import ClientCandidatos from './pages/client/ClientCandidatos'
 
 function RootRedirect() {
   const { session, role, loading } = useAuth()
@@ -38,7 +36,6 @@ export default function App() {
           <Route path="/" element={<RootRedirect />} />
           <Route path="/login" element={<Login />} />
           <Route path="/reset-password" element={<ResetPassword />} />
-          <Route path="/b/:token" element={<BookingPage />} />
 
           {/* Admin */}
           <Route path="/admin" element={
@@ -79,14 +76,9 @@ export default function App() {
               <ClientLayout><ClientAppointments /></ClientLayout>
             </ProtectedRoute>
           } />
-          <Route path="/dashboard/vagas" element={
+          <Route path="/dashboard/training" element={
             <ProtectedRoute requiredRole="client">
-              <ClientLayout><ClientVagas /></ClientLayout>
-            </ProtectedRoute>
-          } />
-          <Route path="/dashboard/vagas/:jobId/candidatos" element={
-            <ProtectedRoute requiredRole="client">
-              <ClientLayout><ClientCandidatos /></ClientLayout>
+              <ClientLayout><ClientTraining /></ClientLayout>
             </ProtectedRoute>
           } />
           <Route path="/dashboard/payments" element={

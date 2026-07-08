@@ -27,8 +27,7 @@ export function planLabel(plan: string) {
   const labels: Record<string, string> = {
     starter: 'Essencial',
     pro: 'Pro',
-    max: 'Max',
-    ultra: 'Ultra',
+    clinic: 'Max',
   }
   return labels[plan] ?? plan
 }

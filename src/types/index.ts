@@ -1,6 +1,6 @@
 export type UserRole = 'admin' | 'client'
 
-export type OrgPlan = 'starter' | 'pro' | 'max' | 'ultra'
+export type OrgPlan = 'starter' | 'pro' | 'clinic'
 export type OrgStatus = 'active' | 'inactive' | 'trial' | 'suspended'
 
 export interface Organization {
@@ -100,36 +100,4 @@ export interface DashboardStats {
   escalations: number
   conversion_rate: number
   period: '7d' | '30d' | '90d'
-}
-
-// ── Módulo de Vagas ───────────────────────────────────────────
-
-export interface Niche {
-  id: string
-  org_id: string
-  name: string
-  order_pos: number
-  is_pinned: boolean
-  created_at: string
-}
-
-export interface JobCandidate {
-  id: string
-  job_id: string
-  status: string
-  created_at: string
-}
-
-export interface Job {
-  id: string
-  org_id: string
-  title: string
-  description: string
-  criteria: string
-  niche_id: string | null
-  is_pinned: boolean
-  short_code: string
-  auto_analyze: boolean
-  created_at: string
-  candidates: JobCandidate[]
 }
