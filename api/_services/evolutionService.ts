@@ -165,6 +165,29 @@ export async function sendDocument(
   return ok;
 }
 
+/**
+ * Busca o base64 de uma mensagem de mídia direto na Evolution (fallback
+ * para quando o webhook não veio com a mídia embutida — ex.: instância
+ * antiga sem webhookBase64 habilitado). Usa o endpoint de conversão da
+ * v2, passando a key da mensagem original.
+ */
+export async function getMediaBase64(
+  instance: string,
+  messageKey: Record<string, unknown>,
+  instanceToken?: string | null,
+): Promise<{ base64: string; mimetype: string } | null> {
+  const apiKey = getApiKey(instanceToken);
+  const { ok, data } = await post(
+    `/chat/getBase64FromMediaMessage/${instance}`,
+    { message: { key: messageKey } },
+    apiKey,
+  );
+  if (!ok || !data) return null;
+  const result = data as { base64?: string; mimetype?: string };
+  if (!result.base64) return null;
+  return { base64: result.base64, mimetype: result.mimetype || 'audio/ogg' };
+}
+
 /** Configura webhook da instância */
 export async function configureWebhook(
   instance: string,
