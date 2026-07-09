@@ -46,6 +46,7 @@ interface Service {
   price: string;
   pdf_url: string | null;
   pdf_name: string | null;
+  duration_minutes?: number | null;
 }
 
 interface WorkingDay {
@@ -64,6 +65,39 @@ interface AgentSettings {
   services: Service[] | null;
   appointment_duration: number;
   notification_phone: string | null;
+}
+
+interface Professional {
+  id: string;
+  name: string;
+  active: boolean;
+  working_hours: Record<string, WorkingDay> | null;
+}
+
+/** Resolve a duração certa: serviço casado por nome > duração global da clínica. */
+function resolveDuration(settings: AgentSettings, specialty?: string): number {
+  if (specialty) {
+    const svc = settings.services?.find(s => s.name.toLowerCase() === specialty.toLowerCase());
+    if (svc?.duration_minutes) return svc.duration_minutes;
+  }
+  return settings.appointment_duration || 60;
+}
+
+/**
+ * Resolve o profissional pelo nome (case-insensitive, aceita correspondência parcial).
+ * Se não vier nome e só existe 1 profissional ativo, resolve sozinho (rede de segurança
+ * pra clínicas com agenda única não precisarem lidar com esse conceito).
+ */
+function resolveProfessional(professionals: Professional[], name?: string): Professional | undefined {
+  const active = professionals.filter(p => p.active);
+  if (name) {
+    const norm = name.trim().toLowerCase();
+    return (
+      active.find(p => p.name.toLowerCase() === norm) ||
+      active.find(p => p.name.toLowerCase().includes(norm) || norm.includes(p.name.toLowerCase()))
+    );
+  }
+  return active.length === 1 ? active[0] : undefined;
 }
 
 interface Conversation {
@@ -91,6 +125,7 @@ const TOOLS: OpenAI.Chat.ChatCompletionTool[] = [
           preferred_date: { type: 'string', description: 'Data preferida no formato YYYY-MM-DD' },
           preferred_time: { type: 'string', description: 'Horário preferido no formato HH:MM' },
           notes: { type: 'string', description: 'Observações adicionais' },
+          professional_name: { type: 'string', description: 'Nome do profissional escolhido. Obrigatório se houver mais de um profissional cadastrado.' },
         },
         required: ['patient_name', 'specialty'],
       },
@@ -139,6 +174,7 @@ const TOOLS: OpenAI.Chat.ChatCompletionTool[] = [
           new_date:       { type: 'string', description: 'Nova data no formato YYYY-MM-DD' },
           new_time:       { type: 'string', description: 'Novo horário no formato HH:MM' },
           notes:          { type: 'string', description: 'Observações' },
+          professional_name: { type: 'string', description: 'Nome do profissional escolhido. Obrigatório se houver mais de um profissional cadastrado.' },
         },
         required: ['appointment_id', 'patient_name', 'specialty', 'new_date', 'new_time'],
       },
@@ -172,6 +208,14 @@ const TOOLS: OpenAI.Chat.ChatCompletionTool[] = [
             type: 'number',
             description: 'Semanas a partir de hoje: 0 = esta semana, 1 = próxima semana. Padrão: 0. Usado quando o paciente quer saber dias disponíveis na semana.',
           },
+          specialty: {
+            type: 'string',
+            description: 'Serviço desejado, se já souber. Usado para calcular a duração correta do horário.',
+          },
+          professional_name: {
+            type: 'string',
+            description: 'Nome do profissional, se houver mais de um cadastrado e o cliente já tiver escolhido.',
+          },
         },
         required: [],
       },
@@ -203,6 +247,7 @@ async function executeTool(
   conversation: Conversation,
   org: Organization,
   settings: AgentSettings,
+  professionals: Professional[],
 ): Promise<string> {
   switch (toolName) {
     case 'get_patient_info': {
@@ -213,8 +258,16 @@ async function executeTool(
     }
 
     case 'get_available_slots': {
-      const duration = settings.appointment_duration || 60;
+      const duration = resolveDuration(settings, args.specialty as string | undefined);
       const weekOffset = typeof args.week_offset === 'number' ? args.week_offset : 0;
+
+      // Se há mais de 1 profissional e nenhum foi especificado (nem dá pra resolver sozinho),
+      // pede pro agente perguntar antes de calcular qualquer disponibilidade.
+      const activeProfessionals = professionals.filter(p => p.active);
+      const professional = resolveProfessional(professionals, args.professional_name as string | undefined);
+      if (activeProfessionals.length > 1 && !professional) {
+        return `Há mais de um profissional disponível: ${activeProfessionals.map(p => p.name).join(', ')}. Pergunte ao cliente com qual profissional ele prefere ser atendido e chame get_available_slots novamente informando professional_name.`;
+      }
 
       // ── Trabalha com datas em BRT ──────────────────────────────
       // brtFromStr / brtToStr são strings YYYY-MM-DD no fuso de Brasília
@@ -240,14 +293,16 @@ async function executeTool(
       const fromStr = new Date(`${brtFromStr}T00:00:00-03:00`).toISOString();
       const toStr   = new Date(`${brtToStr}T23:59:59-03:00`).toISOString();
 
-      // Busca agendamentos existentes no período
-      const { data: existingAppts } = await supabase
+      // Busca agendamentos existentes no período (filtra por profissional, se aplicável)
+      let apptsQuery = supabase
         .from('appointments')
         .select('scheduled_at, duration_minutes')
         .eq('org_id', orgId)
         .in('status', ['scheduled', 'confirmed'])
         .gte('scheduled_at', fromStr)
         .lte('scheduled_at', toStr);
+      if (professional) apptsQuery = apptsQuery.eq('professional_id', professional.id);
+      const { data: existingAppts } = await apptsQuery;
 
       // Busca bloqueios (coluna `date` armazena data em BRT)
       const { data: blockedSlots } = await supabase
@@ -268,8 +323,9 @@ async function executeTool(
       };
 
       function getWorkDay(dow: number): WorkingDay {
-        if (settings.working_hours) {
-          return (settings.working_hours[String(dow)] as WorkingDay) || { active: false, start: '09:00', end: '18:00' };
+        const wh = professional?.working_hours ?? settings.working_hours;
+        if (wh) {
+          return (wh[String(dow)] as WorkingDay) || { active: false, start: '09:00', end: '18:00' };
         }
         return DEFAULT_HOURS[dow] || { active: false, start: '09:00', end: '18:00' };
       }
@@ -339,16 +395,23 @@ async function executeTool(
         cursor.setDate(cursor.getDate() + 1);
       }
 
+      const profLabel = professional ? ` com ${professional.name}` : '';
+
       if (resultLines.length === 0) {
         const labelFrom = new Date(`${brtFromStr}T12:00:00-03:00`).toLocaleDateString('pt-BR', { timeZone: TZ });
         const labelTo   = new Date(`${brtToStr}T12:00:00-03:00`).toLocaleDateString('pt-BR', { timeZone: TZ });
-        return `Nenhum horário disponível no período solicitado (${labelFrom} a ${labelTo}). Cada atendimento tem duração de ${duration} minutos.`;
+        return `Nenhum horário disponível${profLabel} no período solicitado (${labelFrom} a ${labelTo}). Cada atendimento tem duração de ${duration} minutos.`;
       }
 
-      return `Horários disponíveis (atendimento de ${duration} min cada):\n${resultLines.join('\n')}`;
+      return `Horários disponíveis${profLabel} (atendimento de ${duration} min cada):\n${resultLines.join('\n')}`;
     }
 
     case 'schedule_appointment': {
+      const professional = resolveProfessional(professionals, args.professional_name as string | undefined);
+      if (professionals.filter(p => p.active).length > 1 && !professional) {
+        return `Há mais de um profissional disponível: ${professionals.filter(p => p.active).map(p => p.name).join(', ')}. Confirme com qual profissional o cliente quer agendar antes de chamar schedule_appointment novamente informando professional_name.`;
+      }
+
       const { data, error } = await supabase
         .from('appointments')
         .insert({
@@ -356,10 +419,12 @@ async function executeTool(
           patient_name: args.patient_name,
           patient_phone: phone,
           specialty: args.specialty,
+          doctor_name: professional?.name ?? null,
+          professional_id: professional?.id ?? null,
           scheduled_at: args.preferred_date && args.preferred_time
             ? `${args.preferred_date}T${args.preferred_time}:00`
             : null,
-          duration_minutes: settings.appointment_duration || 60,
+          duration_minutes: resolveDuration(settings, args.specialty as string | undefined),
           notes: args.notes || null,
           status: 'scheduled',
         })
@@ -395,6 +460,7 @@ async function executeTool(
         appointment_id: data.id,
         patient_name: args.patient_name,
         specialty: args.specialty,
+        professional: professional?.name ?? null,
         date: dateStr,
         time: timeStr,
         pdf_sent: !!svcEntry?.pdf_url,
@@ -432,6 +498,11 @@ async function executeTool(
     }
 
     case 'reschedule_appointment': {
+      const professional = resolveProfessional(professionals, args.professional_name as string | undefined);
+      if (professionals.filter(p => p.active).length > 1 && !professional) {
+        return `Há mais de um profissional disponível: ${professionals.filter(p => p.active).map(p => p.name).join(', ')}. Confirme com qual profissional o cliente quer reagendar antes de chamar reschedule_appointment novamente informando professional_name.`;
+      }
+
       // 1. Cancela o agendamento atual
       const { error: cancelErr } = await supabase
         .from('appointments')
@@ -449,8 +520,10 @@ async function executeTool(
           patient_name: args.patient_name,
           patient_phone: phone,
           specialty: args.specialty,
+          doctor_name: professional?.name ?? null,
+          professional_id: professional?.id ?? null,
           scheduled_at: `${args.new_date}T${args.new_time}:00`,
-          duration_minutes: settings.appointment_duration || 60,
+          duration_minutes: resolveDuration(settings, args.specialty as string | undefined),
           notes: args.notes || null,
           status: 'scheduled',
         })
@@ -481,6 +554,7 @@ async function executeTool(
         appointment_id: data.id,
         patient_name: args.patient_name,
         specialty: args.specialty,
+        professional: professional?.name ?? null,
         date: dateStr,
         time: args.new_time,
         pdf_sent: !!svcEntry?.pdf_url,
@@ -533,6 +607,7 @@ export async function processMessage(
   phone: string,
   text: string,
   patientName: string,
+  professionals: Professional[] = [],
 ): Promise<void> {
   // 1. Busca/cria conversa
   let { data: conv } = await supabase
@@ -595,6 +670,11 @@ export async function processMessage(
       ? `Serviços: ${settings.specialties.join(', ')}.`
       : '';
 
+  const activeProfessionals = professionals.filter(p => p.active);
+  const professionalsBlock = activeProfessionals.length > 1
+    ? `\nPROFISSIONAIS DISPONÍVEIS:\n${activeProfessionals.map(p => `• ${p.name}`).join('\n')}\nHá mais de um profissional. Pergunte com qual profissional o ${clientWord} prefere ser atendido ANTES de checar disponibilidade, e informe o nome escolhido em professional_name ao chamar get_available_slots e schedule_appointment/reschedule_appointment.`
+    : '';
+
   const memoriesStr = memories.length
     ? `\nO QUE VOCÊ JÁ SABE SOBRE ESTE ${clientWord.toUpperCase()}:\n${memories.map(m => `• ${m}`).join('\n')}`
     : '';
@@ -607,6 +687,7 @@ export async function processMessage(
 Você atua como uma secretária experiente: recebe contatos pelo WhatsApp, tira dúvidas e gerencia a agenda do ${providerWord}.
 
 ${servicesBlock}
+${professionalsBlock}
 
 SUAS RESPONSABILIDADES:
 1. Responder dúvidas sobre serviços, preços, horários, formas de pagamento, convênios e qualquer informação relevante
@@ -671,7 +752,7 @@ REGRAS IMPORTANTES:
       if (tc.type !== 'function') continue;
       const fn = (tc as { type: 'function'; function: { name: string; arguments: string } }).function;
       const args = JSON.parse(fn.arguments) as Record<string, unknown>;
-      const result = await executeTool(fn.name, args, org.id, phone, conv as Conversation, org, settings);
+      const result = await executeTool(fn.name, args, org.id, phone, conv as Conversation, org, settings, professionals);
 
       messages.push({
         role: 'tool',
@@ -812,6 +893,7 @@ export async function processProMessage(
 export async function getOrgByInstance(instanceName: string): Promise<{
   org: Organization;
   settings: AgentSettings;
+  professionals: Professional[];
 } | null> {
   const { data: org } = await supabase
     .from('organizations')
@@ -828,6 +910,12 @@ export async function getOrgByInstance(instanceName: string): Promise<{
     .eq('org_id', org.id)
     .single();
 
+  const { data: professionals } = await supabase
+    .from('professionals')
+    .select('id, name, active, working_hours')
+    .eq('org_id', org.id)
+    .eq('active', true);
+
   return {
     org,
     settings: settings || {
@@ -841,5 +929,6 @@ export async function getOrgByInstance(instanceName: string): Promise<{
       appointment_duration: 60,
       notification_phone: null,
     },
+    professionals: professionals || [],
   };
 }

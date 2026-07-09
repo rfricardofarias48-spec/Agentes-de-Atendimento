@@ -1,10 +1,22 @@
 import { useEffect, useRef, useState } from 'react'
 import {
   Save, Plus, Trash2, FileText, ChevronDown, Upload, X, Loader2, CheckCircle2, XCircle,
+  Clock, Users, UserRound,
 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { cn } from '../../lib/utils'
+import WeeklyHoursEditor, {
+  type WeeklyHours, DEFAULT_WEEKLY_HOURS, normalizeWeeklyHours,
+} from '../../components/agent/WeeklyHoursEditor'
+
+const DURATION_OPTIONS = [
+  { value: 30,  label: '30 min' },
+  { value: 45,  label: '45 min' },
+  { value: 60,  label: '1 hora' },
+  { value: 90,  label: '1h30' },
+  { value: 120, label: '2 horas' },
+]
 
 interface Service {
   id: string
@@ -13,6 +25,16 @@ interface Service {
   price: string
   pdf_url: string | null
   pdf_name: string | null
+  duration_minutes?: number | null
+}
+
+interface Professional {
+  id: string
+  name: string
+  active: boolean
+  useCustomHours: boolean
+  workingHours: WeeklyHours
+  saving?: boolean
 }
 
 export default function ClientBento() {
@@ -23,18 +45,26 @@ export default function ClientBento() {
   const [agentInstructions, setAgentInstructions] = useState('')
   const [appointmentDuration, setAppointmentDuration] = useState(60)
   const [services, setServices]             = useState<Service[]>([])
+  const [workingHours, setWorkingHours]     = useState<WeeklyHours>(DEFAULT_WEEKLY_HOURS)
 
   const [loading, setLoading]               = useState(true)
   const [saving, setSaving]                 = useState(false)
   const [msg, setMsg]                       = useState<{ ok: boolean; text: string } | null>(null)
 
   const [showAddService, setShowAddService] = useState(false)
-  const [newService, setNewService]         = useState({ name: '', description: '', price: '' })
+  const [newService, setNewService]         = useState({ name: '', description: '', price: '', duration_minutes: null as number | null })
   const [newServicePdf, setNewServicePdf]   = useState<File | null>(null)
   const newServicePdfRef = useRef<HTMLInputElement>(null)
   const [expandedService, setExpandedService] = useState<string | null>(null)
   const [uploadingPdf, setUploadingPdf]     = useState<string | null>(null)
   const [uploadTarget, setUploadTarget]     = useState<string | null>(null)
+
+  // Profissionais
+  const [professionals, setProfessionals]         = useState<Professional[]>([])
+  const [showAddProfessional, setShowAddProfessional] = useState(false)
+  const [newProfessionalName, setNewProfessionalName] = useState('')
+  const [addingProfessional, setAddingProfessional]   = useState(false)
+  const [expandedProfessional, setExpandedProfessional] = useState<string | null>(null)
 
   useEffect(() => {
     if (!orgId) return
@@ -45,8 +75,21 @@ export default function ClientBento() {
           setAgentInstructions(data.custom_instructions || '')
           setAppointmentDuration(data.appointment_duration ?? 60)
           setServices(data.services || [])
+          setWorkingHours(normalizeWeeklyHours(data.working_hours))
         }
         setLoading(false)
+      })
+    supabase.from('professionals').select('*').eq('org_id', orgId).order('created_at', { ascending: true })
+      .then(({ data }) => {
+        if (data) {
+          setProfessionals(data.map(p => ({
+            id: p.id,
+            name: p.name,
+            active: p.active,
+            useCustomHours: p.working_hours != null,
+            workingHours: normalizeWeeklyHours(p.working_hours),
+          })))
+        }
       })
   }, [orgId])
 
@@ -62,6 +105,7 @@ export default function ClientBento() {
       appointment_duration: appointmentDuration,
       specialties: services.map(s => s.name),
       services,
+      working_hours: workingHours,
     }
     const { error } = agentId
       ? await supabase.from('agent_settings').update(payload).eq('id', agentId)
@@ -77,6 +121,55 @@ export default function ClientBento() {
       }
     }
     setSaving(false)
+  }
+
+  // ── Profissionais ────────────────────────────────────────────
+  async function addProfessional() {
+    if (!newProfessionalName.trim() || !orgId) return
+    setAddingProfessional(true)
+    const { data, error } = await supabase
+      .from('professionals')
+      .insert({ org_id: orgId, name: newProfessionalName.trim(), active: true })
+      .select('*')
+      .single()
+    setAddingProfessional(false)
+    if (error || !data) { alert('Erro ao adicionar profissional: ' + (error?.message ?? '')); return }
+    setProfessionals(prev => [...prev, {
+      id: data.id, name: data.name, active: data.active,
+      useCustomHours: false, workingHours: DEFAULT_WEEKLY_HOURS,
+    }])
+    setNewProfessionalName('')
+    setShowAddProfessional(false)
+  }
+
+  async function toggleProfessionalActive(prof: Professional) {
+    const nextActive = !prof.active
+    setProfessionals(prev => prev.map(p => p.id === prof.id ? { ...p, active: nextActive } : p))
+    await supabase.from('professionals').update({ active: nextActive }).eq('id', prof.id)
+  }
+
+  function toggleCustomHours(profId: string) {
+    setProfessionals(prev => prev.map(p => p.id === profId ? { ...p, useCustomHours: !p.useCustomHours } : p))
+  }
+
+  function updateProfessionalHours(profId: string, hours: WeeklyHours) {
+    setProfessionals(prev => prev.map(p => p.id === profId ? { ...p, workingHours: hours } : p))
+  }
+
+  async function saveProfessionalHours(prof: Professional) {
+    setProfessionals(prev => prev.map(p => p.id === prof.id ? { ...p, saving: true } : p))
+    const { error } = await supabase
+      .from('professionals')
+      .update({ working_hours: prof.useCustomHours ? prof.workingHours : null })
+      .eq('id', prof.id)
+    setProfessionals(prev => prev.map(p => p.id === prof.id ? { ...p, saving: false } : p))
+    if (error) alert('Erro ao salvar horário: ' + error.message)
+  }
+
+  async function removeProfessional(profId: string) {
+    if (!window.confirm('Remover este profissional? Agendamentos já feitos não serão afetados.')) return
+    setProfessionals(prev => prev.filter(p => p.id !== profId))
+    await supabase.from('professionals').delete().eq('id', profId)
   }
 
   async function addService() {
@@ -106,14 +199,19 @@ export default function ClientBento() {
       price: newService.price.trim(),
       pdf_url,
       pdf_name,
+      duration_minutes: newService.duration_minutes,
     }])
-    setNewService({ name: '', description: '', price: '' })
+    setNewService({ name: '', description: '', price: '', duration_minutes: null })
     setNewServicePdf(null)
     setShowAddService(false)
   }
 
   function removeService(serviceId: string) {
     setServices(prev => prev.filter(s => s.id !== serviceId))
+  }
+
+  function setServiceDuration(serviceId: string, duration: number | null) {
+    setServices(prev => prev.map(s => s.id === serviceId ? { ...s, duration_minutes: duration } : s))
   }
 
   function triggerPdfUpload(serviceId: string) {
@@ -180,13 +278,7 @@ export default function ClientBento() {
               <label className="block text-sm font-medium text-slate-700">Duração do Atendimento</label>
               <p className="text-xs text-slate-400">Tempo padrão de cada consulta/serviço. Aplicado apenas em novos agendamentos.</p>
               <div className="flex flex-wrap gap-2">
-                {[
-                  { value: 30,  label: '30 min' },
-                  { value: 45,  label: '45 min' },
-                  { value: 60,  label: '1 hora' },
-                  { value: 90,  label: '1h30' },
-                  { value: 120, label: '2 horas' },
-                ].map(opt => (
+                {DURATION_OPTIONS.map(opt => (
                   <button
                     key={opt.value}
                     type="button"
@@ -206,6 +298,18 @@ export default function ClientBento() {
 
           </div>
 
+          {/* Horário de Funcionamento */}
+          <div className="bg-white rounded-[2rem] border border-slate-100 shadow-[0px_4px_20px_rgba(0,0,0,0.02)] p-6 space-y-4">
+            <div className="flex items-center gap-2">
+              <Clock className="w-4 h-4 text-slate-400" />
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">Horário de Funcionamento</p>
+                <p className="text-xs text-slate-400 mt-0.5">O agente só oferece horários dentro desses dias/horas.</p>
+              </div>
+            </div>
+            <WeeklyHoursEditor value={workingHours} onChange={setWorkingHours} />
+          </div>
+
           {/* Instruções Personalizadas */}
           <div className="bg-white rounded-[2rem] border border-slate-100 shadow-[0px_4px_20px_rgba(0,0,0,0.02)] p-6 space-y-4">
             <div>
@@ -223,7 +327,10 @@ export default function ClientBento() {
 
         </div>
 
-        {/* Coluna direita — Serviços */}
+        {/* Coluna direita */}
+        <div className="space-y-5">
+
+        {/* Serviços */}
         <div className="bg-white rounded-[2rem] border border-slate-100 shadow-[0px_4px_20px_rgba(0,0,0,0.02)] overflow-hidden">
           <div className={cn(
             'flex items-center justify-between px-6 pt-6 pb-4',
@@ -234,7 +341,7 @@ export default function ClientBento() {
               <p className="text-xs text-slate-400 mt-0.5">PDF enviado automaticamente ao confirmar agendamento</p>
             </div>
             <button
-              onClick={() => { setShowAddService(v => !v); setNewService({ name: '', description: '', price: '' }) }}
+              onClick={() => { setShowAddService(v => !v); setNewService({ name: '', description: '', price: '', duration_minutes: null }) }}
               className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold text-white bg-brand-500 hover:bg-brand-600 transition-colors shrink-0"
             >
               <Plus className="w-3.5 h-3.5" />
@@ -280,6 +387,38 @@ export default function ClientBento() {
                   placeholder="Detalhes para o agente informar ao paciente"
                   className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent"
                 />
+              </div>
+              <div>
+                <label className="block text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Duração</label>
+                <div className="flex flex-wrap gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setNewService(s => ({ ...s, duration_minutes: null }))}
+                    className={cn(
+                      'px-3 py-1.5 rounded-lg text-xs font-medium border transition-all',
+                      newService.duration_minutes === null
+                        ? 'border-brand-400 text-brand-700 bg-white shadow-sm'
+                        : 'border-slate-200 text-slate-500 bg-white hover:border-slate-300'
+                    )}
+                  >
+                    Padrão da clínica
+                  </button>
+                  {DURATION_OPTIONS.map(opt => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setNewService(s => ({ ...s, duration_minutes: opt.value }))}
+                      className={cn(
+                        'px-3 py-1.5 rounded-lg text-xs font-medium border transition-all',
+                        newService.duration_minutes === opt.value
+                          ? 'border-brand-400 text-brand-700 bg-white shadow-sm'
+                          : 'border-slate-200 text-slate-500 bg-white hover:border-slate-300'
+                      )}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
               </div>
               {/* PDF field */}
               <div>
@@ -336,6 +475,12 @@ export default function ClientBento() {
                         )}
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
+                        {svc.duration_minutes && (
+                          <span className="flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full bg-slate-100 text-slate-500">
+                            <Clock className="w-3 h-3" />
+                            {DURATION_OPTIONS.find(o => o.value === svc.duration_minutes)?.label ?? `${svc.duration_minutes} min`}
+                          </span>
+                        )}
                         <span className={cn(
                           'flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full',
                           svc.pdf_url ? 'bg-brand-50 text-brand-600' : 'bg-slate-100 text-slate-500'
@@ -352,6 +497,38 @@ export default function ClientBento() {
                         {svc.description && (
                           <p className="text-xs text-slate-500 mb-4">{svc.description}</p>
                         )}
+                        <div className="mb-4">
+                          <label className="block text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Duração</label>
+                          <div className="flex flex-wrap gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => setServiceDuration(svc.id, null)}
+                              className={cn(
+                                'px-3 py-1.5 rounded-lg text-xs font-medium border transition-all',
+                                !svc.duration_minutes
+                                  ? 'border-brand-400 text-brand-700 bg-white shadow-sm'
+                                  : 'border-slate-200 text-slate-500 bg-white hover:border-slate-300'
+                              )}
+                            >
+                              Padrão da clínica
+                            </button>
+                            {DURATION_OPTIONS.map(opt => (
+                              <button
+                                key={opt.value}
+                                type="button"
+                                onClick={() => setServiceDuration(svc.id, opt.value)}
+                                className={cn(
+                                  'px-3 py-1.5 rounded-lg text-xs font-medium border transition-all',
+                                  svc.duration_minutes === opt.value
+                                    ? 'border-brand-400 text-brand-700 bg-white shadow-sm'
+                                    : 'border-slate-200 text-slate-500 bg-white hover:border-slate-300'
+                                )}
+                              >
+                                {opt.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
                         <div className="flex items-center gap-2 flex-wrap">
                           <button
                             onClick={() => triggerPdfUpload(svc.id)}
@@ -394,6 +571,154 @@ export default function ClientBento() {
               <p className="text-xs text-slate-300 mt-1">Adicione os serviços oferecidos pela clínica</p>
             </div>
           )}
+        </div>
+
+        {/* Profissionais */}
+        <div className="bg-white rounded-[2rem] border border-slate-100 shadow-[0px_4px_20px_rgba(0,0,0,0.02)] overflow-hidden">
+          <div className={cn(
+            'flex items-center justify-between px-6 pt-6 pb-4',
+            (professionals.length > 0 || showAddProfessional) && 'border-b border-slate-100'
+          )}>
+            <div className="flex items-center gap-2">
+              <Users className="w-4 h-4 text-slate-400" />
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">Profissionais</p>
+                <p className="text-xs text-slate-400 mt-0.5">Deixe vazio se só há 1 agenda. Cada um pode ter horário próprio.</p>
+              </div>
+            </div>
+            <button
+              onClick={() => { setShowAddProfessional(v => !v); setNewProfessionalName('') }}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold text-white bg-brand-500 hover:bg-brand-600 transition-colors shrink-0"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Adicionar
+            </button>
+          </div>
+
+          {showAddProfessional && (
+            <div className="mx-5 my-4 rounded-2xl p-4 space-y-3 bg-slate-50 border border-slate-100">
+              <div>
+                <label className="block text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Nome *</label>
+                <input
+                  type="text"
+                  value={newProfessionalName}
+                  onChange={e => setNewProfessionalName(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && addProfessional()}
+                  placeholder="Dra. Fulana de Tal"
+                  autoFocus
+                  className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent"
+                />
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={addProfessional}
+                  disabled={!newProfessionalName.trim() || addingProfessional}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold text-white bg-gray-900 hover:bg-gray-800 transition-colors disabled:opacity-40"
+                >
+                  {addingProfessional ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
+                  {addingProfessional ? 'Adicionando…' : 'Adicionar'}
+                </button>
+                <button
+                  onClick={() => setShowAddProfessional(false)}
+                  className="px-4 py-2 rounded-xl text-sm font-medium text-slate-500 hover:text-slate-700 transition-colors"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          )}
+
+          {professionals.length > 0 ? (
+            <div>
+              {professionals.map(prof => {
+                const isOpen = expandedProfessional === prof.id
+                return (
+                  <div key={prof.id} className="border-b border-slate-100 last:border-b-0">
+                    <button
+                      onClick={() => setExpandedProfessional(isOpen ? null : prof.id)}
+                      className="w-full flex items-center gap-4 px-6 py-4 hover:bg-slate-50 transition-colors text-left"
+                    >
+                      <div className="flex-1 min-w-0 flex items-center gap-3">
+                        <UserRound className="w-4 h-4 text-slate-300 shrink-0" />
+                        <span className={cn('text-sm font-semibold truncate', prof.active ? 'text-slate-700' : 'text-slate-400')}>
+                          {prof.name}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className={cn(
+                          'text-[11px] font-semibold px-2.5 py-1 rounded-full',
+                          prof.active ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-500'
+                        )}>
+                          {prof.active ? 'Ativo' : 'Inativo'}
+                        </span>
+                        <ChevronDown className={cn('w-4 h-4 text-slate-300 transition-transform duration-200', isOpen && 'rotate-180')} />
+                      </div>
+                    </button>
+
+                    {isOpen && (
+                      <div className="px-6 pb-5 pt-3 bg-slate-50 border-t border-slate-100 space-y-4">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-medium text-slate-600">Profissional ativo (aparece pro agente)</span>
+                          <button
+                            type="button"
+                            onClick={() => toggleProfessionalActive(prof)}
+                            className={cn('w-9 h-5 rounded-full transition-all duration-200 relative shrink-0', prof.active ? 'bg-brand-500' : 'bg-slate-200')}
+                          >
+                            <span className={cn('absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all duration-200', prof.active ? 'left-4' : 'left-0.5')} />
+                          </button>
+                        </div>
+
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-medium text-slate-600">Usar horário próprio (senão usa o horário padrão da clínica)</span>
+                          <button
+                            type="button"
+                            onClick={() => toggleCustomHours(prof.id)}
+                            className={cn('w-9 h-5 rounded-full transition-all duration-200 relative shrink-0', prof.useCustomHours ? 'bg-brand-500' : 'bg-slate-200')}
+                          >
+                            <span className={cn('absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all duration-200', prof.useCustomHours ? 'left-4' : 'left-0.5')} />
+                          </button>
+                        </div>
+
+                        {prof.useCustomHours && (
+                          <WeeklyHoursEditor
+                            value={prof.workingHours}
+                            onChange={hours => updateProfessionalHours(prof.id, hours)}
+                          />
+                        )}
+
+                        <div className="flex items-center gap-2 pt-1">
+                          <button
+                            onClick={() => saveProfessionalHours(prof)}
+                            disabled={prof.saving}
+                            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold text-white bg-gray-900 hover:bg-gray-800 transition-colors disabled:opacity-50"
+                          >
+                            {prof.saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                            {prof.saving ? 'Salvando…' : 'Salvar horário'}
+                          </button>
+                          <button
+                            onClick={() => removeProfessional(prof.id)}
+                            className="ml-auto flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-red-500 hover:bg-red-50 transition-colors"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" /> Remover
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          ) : !showAddProfessional && (
+            <div className="text-center py-12 px-6">
+              <div className="w-12 h-12 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center mx-auto mb-3">
+                <Users className="w-5 h-5 text-slate-300" />
+              </div>
+              <p className="text-sm font-medium text-slate-400">Agenda única (sem profissionais cadastrados)</p>
+              <p className="text-xs text-slate-300 mt-1">Só adicione se a clínica tiver mais de 1 profissional</p>
+            </div>
+          )}
+        </div>
+
         </div>
       </div>
 

@@ -78,7 +78,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return;
     }
 
-    await processMessage(ctx.org, ctx.settings, phone, text.trim(), pushName);
+    await processMessage(ctx.org, ctx.settings, phone, text.trim(), pushName, ctx.professionals);
   } catch (err) {
     console.error('[Webhook/Evolution] Error:', err);
   }
