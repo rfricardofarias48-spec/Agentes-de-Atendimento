@@ -65,6 +65,7 @@ interface AgentSettings {
   services: Service[] | null;
   appointment_duration: number;
   notification_phone: string | null;
+  auto_send_pdf: boolean;
 }
 
 interface Professional {
@@ -431,20 +432,21 @@ async function executeTool(
 
       if (error) return 'Não foi possível registrar o agendamento. Tente novamente.';
 
-      // Envia PDF do serviço correspondente (fire-and-forget)
+      // Envia PDF do serviço correspondente (fire-and-forget), se a org não desativou o envio automático
       const specialty = String(args.specialty || '');
       const svcEntry = settings.services?.find(
         s => s.name.toLowerCase() === specialty.toLowerCase(),
       );
-      if (svcEntry?.pdf_url) {
+      const shouldSendPdf = !!svcEntry?.pdf_url && settings.auto_send_pdf !== false;
+      if (shouldSendPdf) {
         sendDocument(
           org.evolution_instance,
           phone,
-          svcEntry.pdf_url,
-          svcEntry.pdf_name || 'orientacoes.pdf',
-          `📋 Orientações — ${svcEntry.name}`,
+          svcEntry!.pdf_url!,
+          svcEntry!.pdf_name || 'orientacoes.pdf',
+          `📋 Orientações — ${svcEntry!.name}`,
           org.evolution_token,
-        ).catch(() => { /* best-effort */ });
+        ).catch(err => console.error('[Bento] Falha ao enviar PDF do serviço:', err));
       }
 
       const dateStr = args.preferred_date
@@ -461,7 +463,7 @@ async function executeTool(
         professional: professional?.name ?? null,
         date: dateStr,
         time: timeStr,
-        pdf_sent: !!svcEntry?.pdf_url,
+        pdf_sent: shouldSendPdf,
         action: 'scheduled',
       });
     }
@@ -534,18 +536,19 @@ async function executeTool(
 
       if (insertErr) return 'O horário anterior foi removido da agenda, mas não foi possível criar o novo agendamento. Chame escalate_to_human imediatamente para que a equipe resolva manualmente com o cliente — ele ficou sem consulta marcada.';
 
-      // 3. Envia PDF se disponível
+      // 3. Envia PDF se disponível e a org não desativou o envio automático
       const specialty = String(args.specialty || '');
       const svcEntry = settings.services?.find(s => s.name.toLowerCase() === specialty.toLowerCase());
-      if (svcEntry?.pdf_url) {
+      const shouldSendPdf = !!svcEntry?.pdf_url && settings.auto_send_pdf !== false;
+      if (shouldSendPdf) {
         sendDocument(
           org.evolution_instance,
           phone,
-          svcEntry.pdf_url,
-          svcEntry.pdf_name || 'orientacoes.pdf',
-          `📋 Orientações — ${svcEntry.name}`,
+          svcEntry!.pdf_url!,
+          svcEntry!.pdf_name || 'orientacoes.pdf',
+          `📋 Orientações — ${svcEntry!.name}`,
           org.evolution_token,
-        ).catch(() => { /* best-effort */ });
+        ).catch(err => console.error('[Bento] Falha ao enviar PDF do serviço:', err));
       }
 
       const dateStr = new Date(`${args.new_date}T${args.new_time}:00-03:00`)
@@ -559,7 +562,7 @@ async function executeTool(
         professional: professional?.name ?? null,
         date: dateStr,
         time: args.new_time,
-        pdf_sent: !!svcEntry?.pdf_url,
+        pdf_sent: shouldSendPdf,
         action: 'rescheduled',
       });
     }
@@ -590,7 +593,7 @@ async function executeTool(
           settings.notification_phone,
           alertMsg,
           org.evolution_token,
-        ).catch(() => { /* best-effort */ });
+        ).catch(err => console.error('[Bento] Falha ao enviar alerta de escalonamento:', err));
       }
 
       return JSON.stringify({ escalated: true, reason: args.reason });
@@ -939,7 +942,7 @@ export async function getOrgByInstance(instanceName: string): Promise<{
 
   const { data: settings } = await supabase
     .from('agent_settings')
-    .select('agent_name, greeting_message, tone, specialties, working_hours, custom_instructions, services, appointment_duration, notification_phone')
+    .select('agent_name, greeting_message, tone, specialties, working_hours, custom_instructions, services, appointment_duration, notification_phone, auto_send_pdf')
     .eq('org_id', org.id)
     .single();
 
@@ -961,6 +964,7 @@ export async function getOrgByInstance(instanceName: string): Promise<{
       services: null,
       appointment_duration: 60,
       notification_phone: null,
+      auto_send_pdf: true,
     },
     professionals: professionals || [],
   };
