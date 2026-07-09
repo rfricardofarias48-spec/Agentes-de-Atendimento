@@ -27,7 +27,6 @@ export default function ClientSettings() {
 
   // Notificações
   const [reminder24h, setReminder24h]         = useState(true)
-  const [reminder2h, setReminder2h]           = useState(true)
   const [autoSendPdf, setAutoSendPdf]         = useState(true)
   const [savingNotif, setSavingNotif]         = useState(false)
   const [notifMsg, setNotifMsg]               = useState<{ ok: boolean; text: string } | null>(null)
@@ -36,7 +35,7 @@ export default function ClientSettings() {
     if (!orgId) return
     Promise.all([
       supabase.from('organizations').select('*').eq('id', orgId).single(),
-      supabase.from('agent_settings').select('reminder_24h,reminder_2h,auto_send_pdf').eq('org_id', orgId).single(),
+      supabase.from('agent_settings').select('reminder_24h,auto_send_pdf').eq('org_id', orgId).single(),
     ]).then(([{ data: orgData }, { data: notifData }]) => {
       if (orgData) {
         setOrg(orgData)
@@ -45,7 +44,6 @@ export default function ClientSettings() {
       }
       if (notifData) {
         setReminder24h(notifData.reminder_24h ?? true)
-        setReminder2h(notifData.reminder_2h ?? true)
         setAutoSendPdf(notifData.auto_send_pdf ?? true)
       }
       setLoading(false)
@@ -96,7 +94,6 @@ export default function ClientSettings() {
       .from('agent_settings').select('id').eq('org_id', orgId).single()
     const payload = {
       reminder_24h: reminder24h,
-      reminder_2h: reminder2h,
       auto_send_pdf: autoSendPdf,
     }
     const { error } = existing
@@ -218,10 +215,9 @@ export default function ClientSettings() {
           <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">Notificações Automáticas</p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {([
             [reminder24h,  setReminder24h,  'Lembrete 24h antes da consulta'],
-            [reminder2h,   setReminder2h,   'Lembrete 2h antes da consulta'],
             [autoSendPdf,  setAutoSendPdf,  'Enviar PDF de orientações ao confirmar agendamento'],
           ] as [boolean, (v: boolean) => void, string][]).map(([val, setter, label]) => (
             <label key={label} className="flex items-center gap-3 cursor-pointer group p-4 rounded-2xl border border-slate-100 hover:bg-slate-50 transition-colors">
