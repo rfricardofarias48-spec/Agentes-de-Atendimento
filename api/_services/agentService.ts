@@ -135,13 +135,11 @@ const TOOLS: OpenAI.Chat.ChatCompletionTool[] = [
     type: 'function',
     function: {
       name: 'get_appointments',
-      description: 'Consulta os agendamentos do paciente. Use quando o paciente perguntar sobre suas consultas.',
+      description: 'Consulta as consultas ativas (agendadas/confirmadas) deste telefone, incluindo o appointment_id de cada uma. Use SEMPRE que o cliente perguntar sobre sua consulta, e OBRIGATORIAMENTE antes de chamar cancel_appointment ou reschedule_appointment — é a única forma de obter o appointment_id real, nunca invente um.',
       parameters: {
         type: 'object',
-        properties: {
-          patient_phone: { type: 'string', description: 'Telefone do paciente' },
-        },
-        required: ['patient_phone'],
+        properties: {},
+        required: [],
       },
     },
   },
@@ -149,11 +147,11 @@ const TOOLS: OpenAI.Chat.ChatCompletionTool[] = [
     type: 'function',
     function: {
       name: 'cancel_appointment',
-      description: 'Cancela um agendamento existente.',
+      description: 'Cancela e REMOVE uma consulta da agenda, liberando o horário imediatamente. Chame get_appointments antes para obter o appointment_id real — nunca invente um.',
       parameters: {
         type: 'object',
         properties: {
-          appointment_id: { type: 'string', description: 'ID do agendamento a cancelar' },
+          appointment_id: { type: 'string', description: 'ID exato retornado por get_appointments' },
           reason: { type: 'string', description: 'Motivo do cancelamento' },
         },
         required: ['appointment_id'],
@@ -164,7 +162,7 @@ const TOOLS: OpenAI.Chat.ChatCompletionTool[] = [
     type: 'function',
     function: {
       name: 'reschedule_appointment',
-      description: 'Reagenda um atendimento: cancela o agendamento atual e cria um novo horário. Use quando o cliente quiser mudar a data ou hora de um agendamento existente. Sempre chame get_available_slots antes para confirmar que o novo horário está livre.',
+      description: 'Reagenda uma consulta: remove o agendamento atual da agenda e cria um novo horário. Chame get_appointments antes para obter o appointment_id real (nunca invente um), e get_available_slots para confirmar que o novo horário está livre.',
       parameters: {
         type: 'object',
         properties: {
@@ -478,23 +476,25 @@ async function executeTool(
         .order('scheduled_at', { ascending: true })
         .limit(5);
 
-      if (!data?.length) return 'Nenhuma consulta agendada encontrada.';
+      if (!data?.length) return 'Nenhuma consulta agendada encontrada para este telefone.';
       const list = data.map(a => {
         const dt = a.scheduled_at ? new Date(a.scheduled_at).toLocaleString('pt-BR', { timeZone: TZ }) : 'a confirmar';
-        return `• ${a.specialty}${a.doctor_name ? ' com ' + a.doctor_name : ''} — ${dt} (${a.status})`;
+        return `• appointment_id="${a.id}" — ${a.specialty}${a.doctor_name ? ' com ' + a.doctor_name : ''} — ${dt} (${a.status})`;
       }).join('\n');
-      return `Suas consultas:\n${list}`;
+      return `Consultas encontradas (use o appointment_id exato ao cancelar ou reagendar — NUNCA invente ou peça esse ID ao cliente):\n${list}`;
     }
 
     case 'cancel_appointment': {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('appointments')
-        .update({ status: 'cancelled' })
+        .delete()
         .eq('id', args.appointment_id)
-        .eq('org_id', orgId);
+        .eq('org_id', orgId)
+        .select('id');
 
-      if (error) return 'Não foi possível cancelar. Verifique o ID ou entre em contato.';
-      return 'Agendamento cancelado com sucesso.';
+      if (error) return 'Não foi possível cancelar. Tente novamente em instantes.';
+      if (!data?.length) return 'Não encontrei essa consulta pelo ID informado. Chame get_appointments de novo para confirmar o appointment_id correto antes de tentar cancelar.';
+      return 'Consulta cancelada e removida da agenda com sucesso.';
     }
 
     case 'reschedule_appointment': {
@@ -503,14 +503,16 @@ async function executeTool(
         return `Há mais de um profissional disponível: ${professionals.filter(p => p.active).map(p => p.name).join(', ')}. Confirme com qual profissional o cliente quer reagendar antes de chamar reschedule_appointment novamente informando professional_name.`;
       }
 
-      // 1. Cancela o agendamento atual
-      const { error: cancelErr } = await supabase
+      // 1. Remove o agendamento atual da agenda
+      const { data: deletedOld, error: cancelErr } = await supabase
         .from('appointments')
-        .update({ status: 'cancelled' })
+        .delete()
         .eq('id', args.appointment_id)
-        .eq('org_id', orgId);
+        .eq('org_id', orgId)
+        .select('id');
 
-      if (cancelErr) return 'Não foi possível cancelar o agendamento atual. Tente novamente.';
+      if (cancelErr) return 'Não foi possível localizar o agendamento atual. Tente novamente.';
+      if (!deletedOld?.length) return 'Não encontrei essa consulta pelo ID informado. Chame get_appointments de novo para confirmar o appointment_id correto antes de reagendar.';
 
       // 2. Cria o novo agendamento
       const { data, error: insertErr } = await supabase
@@ -530,7 +532,7 @@ async function executeTool(
         .select('id')
         .single();
 
-      if (insertErr) return 'Agendamento anterior cancelado, mas não foi possível criar o novo. Entre em contato.';
+      if (insertErr) return 'O horário anterior foi removido da agenda, mas não foi possível criar o novo agendamento. Chame escalate_to_human imediatamente para que a equipe resolva manualmente com o cliente — ele ficou sem consulta marcada.';
 
       // 3. Envia PDF se disponível
       const specialty = String(args.specialty || '');
@@ -632,6 +634,9 @@ export async function processMessage(
 
   if (!conv) return;
 
+  // Detecta se é o primeiro contato desta pessoa (antes de incrementar o contador abaixo)
+  const isFirstMessage = !conv.message_count;
+
   // Atualiza contagem e nome se chegou
   await supabase
     .from('conversations')
@@ -679,12 +684,17 @@ export async function processMessage(
     ? `\nO QUE VOCÊ JÁ SABE SOBRE ESTE ${clientWord.toUpperCase()}:\n${memories.map(m => `• ${m}`).join('\n')}`
     : '';
 
+  const greetingBlock = isFirstMessage
+    ? `\nEsta é a PRIMEIRA mensagem desta pessoa nesta conversa. Comece se apresentando de forma calorosa e receptiva como ${settings.agent_name}, e pergunte como pode ajudar. Não presuma o motivo do contato.`
+    : '';
+
   const customInstructions = settings.custom_instructions?.trim()
     ? `\nINSTRUÇÕES DO ESTABELECIMENTO:\n${settings.custom_instructions.trim()}`
     : '';
 
-  const systemPrompt = `Você é ${settings.agent_name}, assistente virtual de atendimento. Seu tom é ${tone}.
-Você atua como uma secretária experiente: recebe contatos pelo WhatsApp, tira dúvidas e gerencia a agenda do ${providerWord}.
+  const systemPrompt = `Você é ${settings.agent_name}, assistente virtual de atendimento. Seu tom é ${tone} e SEMPRE receptivo e acolhedor — quem escreve pode estar ansioso, com dor, ou só querendo tirar uma dúvida rápida. Trate cada pessoa com atenção genuína.
+Você atua como uma secretária experiente: recebe contatos pelo WhatsApp, tira dúvidas e gerencia a agenda real do ${providerWord} — cada ação sua (agendar, reagendar, cancelar) reflete IMEDIATAMENTE na agenda que a equipe usa. Você é a única forma de a agenda ser atualizada por aqui, então NUNCA diga que algo foi feito sem antes ter chamado a ferramenta certa e recebido confirmação de sucesso.
+${greetingBlock}
 
 ${servicesBlock}
 ${professionalsBlock}
@@ -692,17 +702,33 @@ ${professionalsBlock}
 SUAS RESPONSABILIDADES:
 1. Responder dúvidas sobre serviços, preços, horários, formas de pagamento, convênios e qualquer informação relevante
 2. Agendar ${serviceWord}s verificando disponibilidade real na agenda antes de confirmar
-3. Reagendar quando solicitado: cancele o atual e agende no novo horário disponível
-4. Cancelar ${serviceWord}s quando o ${clientWord} pedir
-5. Enviar confirmação detalhada após qualquer agendamento
+3. Reagendar quando solicitado, sempre localizando a consulta certa primeiro
+4. Cancelar quando o ${clientWord} pedir — sempre confirmando qual consulta antes de cancelar
+5. Lembrar o ${clientWord} de consultas futuras sempre que ele perguntar ("quando é minha consulta?", "tenho algo marcado?", "confirma meu horário") — chame get_appointments para responder com dados reais, nunca com base em memória ou suposição
+6. Enviar confirmação clara e detalhada após qualquer agendamento, reagendamento ou cancelamento
 
 FLUXO DE AGENDAMENTO (siga esta ordem):
 Passo 1 — Pergunte o nome do ${clientWord} caso não saiba.
 Passo 2 — Confirme o serviço desejado.
-Passo 3 — Chame get_available_slots(week_offset:0) e informe os DIAS com disponibilidade nesta semana. Ex: "Esta semana tenho horários disponíveis na segunda, quarta e sexta. Qual dia fica melhor?"
-Passo 4 — Quando o ${clientWord} escolher o dia, chame get_available_slots(date:"YYYY-MM-DD") e informe os HORÁRIOS disponíveis naquele dia.
-Passo 5 — Quando o ${clientWord} escolher o horário, chame schedule_appointment e envie a confirmação.
-Passo 6 — Após schedule_appointment retornar sucesso, envie mensagem de confirmação com todos os detalhes.
+Passo 3 — Se houver mais de um profissional cadastrado (ver PROFISSIONAIS DISPONÍVEIS acima) e ainda não souber qual, pergunte com qual o ${clientWord} prefere.
+Passo 4 — Chame get_available_slots(week_offset:0, specialty:"...", professional_name:"...") e informe os DIAS com disponibilidade nesta semana. Ex: "Esta semana tenho horários disponíveis na segunda, quarta e sexta. Qual dia fica melhor?"
+Passo 5 — Quando o ${clientWord} escolher o dia, chame get_available_slots(date:"YYYY-MM-DD", ...) e informe os HORÁRIOS disponíveis naquele dia.
+Passo 6 — Quando o ${clientWord} escolher o horário, chame schedule_appointment e só então confirme — nunca antes.
+Passo 7 — Após schedule_appointment retornar sucesso, envie a mensagem de confirmação (formato abaixo).
+
+FLUXO DE REAGENDAMENTO (siga esta ordem):
+Passo 1 — Chame get_appointments para localizar a(s) consulta(s) ativa(s) desse telefone e obter o appointment_id real. NUNCA peça o ID ao cliente nem invente um.
+Passo 2 — Se houver mais de uma consulta ativa, descreva cada uma (serviço + data, nunca o ID) e pergunte qual ele quer mudar.
+Passo 3 — Pergunte o novo dia/horário desejado e chame get_available_slots para confirmar que está livre — nunca assuma que está.
+Passo 4 — Chame reschedule_appointment com o appointment_id correto, o novo dia/horário e (se aplicável) professional_name.
+Passo 5 — Após retornar sucesso, confirme o novo horário e deixe claro que o horário anterior foi liberado.
+
+FLUXO DE CANCELAMENTO (siga esta ordem):
+Passo 1 — Chame get_appointments para localizar a(s) consulta(s) ativa(s) desse telefone e obter o appointment_id real. NUNCA peça o ID ao cliente nem invente um.
+Passo 2 — Se houver mais de uma consulta ativa, descreva cada uma (serviço + data) e pergunte qual ele quer cancelar.
+Passo 3 — Confirme antes de cancelar: "Você quer cancelar sua [serviço] do dia [data]? Posso confirmar o cancelamento?" — só prossiga com uma resposta afirmativa clara.
+Passo 4 — Chame cancel_appointment com o appointment_id correto. Isso REMOVE a consulta da agenda e libera o horário na hora.
+Passo 5 — Confirme o cancelamento de forma simpática e pergunte se quer remarcar para outro dia.
 
 APÓS escalate_to_human retornar, envie ao cliente:
 "Não tenho essa informação aqui no momento, mas já avisei nossa equipe! Em breve alguém entrará em contato para te ajudar. 😊"
@@ -712,20 +738,27 @@ APÓS AGENDAR, envie uma mensagem de confirmação no formato:
 "✅ *${serviceWord.charAt(0).toUpperCase() + serviceWord.slice(1)} confirmado!*
 📋 Serviço: [serviço]
 👤 Nome: [nome]
-📅 Data: [dia da semana, dd/mm]
+${activeProfessionals.length > 1 ? '🧑‍⚕️ Profissional: [nome do profissional]\n' : ''}📅 Data: [dia da semana, dd/mm]
 ⏰ Horário: [HH:MM]
 [Se PDF foi enviado: "📄 As instruções foram enviadas nesta conversa."]
 Qualquer dúvida é só chamar! 😊"
 
+APÓS REAGENDAR, envie uma confirmação equivalente deixando claro o horário ANTIGO liberado e o NOVO confirmado.
+
+APÓS CANCELAR, envie algo como:
+"✅ Consulta cancelada! Seu horário foi liberado. Quer remarcar para outro dia? 😊"
+
 REGRAS IMPORTANTES:
-• NUNCA confirme um horário sem antes chamar get_available_slots — o horário pode estar ocupado
+• NUNCA confirme um agendamento ou reagendamento sem antes chamar get_available_slots — o horário pode estar ocupado
+• NUNCA cancele ou reagende sem antes chamar get_appointments para obter o appointment_id real — nunca invente um ID
+• NUNCA diga que agendou, reagendou ou cancelou algo sem ter chamado a ferramenta correspondente e recebido sucesso — se a ferramenta retornar erro ou "não encontrei", diga isso ao cliente com transparência e tente de novo ou escale
 • Use vocabulário adaptado ao contexto: ${clientWord}, ${serviceWord}, ${providerWord}
 • Seja conciso: máximo 3 parágrafos por mensagem
 • Responda SEMPRE em português brasileiro
 • Use poucos emojis — apenas em confirmações e lembretes
 • Você tem TODAS as informações necessárias nos serviços cadastrados e nas instruções personalizadas — use-as antes de qualquer outra ação. Dúvidas sobre preço, convênio, formas de pagamento, horários e procedimentos SEMPRE têm resposta nesses dados.
 • NUNCA invente informações. Se uma informação (ex: aceitação de um convênio específico, valor de um procedimento não listado) não estiver nos serviços nem nas instruções personalizadas, NÃO oriente o cliente a "confirmar com o estabelecimento" — VOCÊ é o contato do estabelecimento. Nesses casos, diga algo como "Não tenho essa informação aqui no momento, mas já estou repassando para nossa equipe te responder em breve!" e acione escalate_to_human com a dúvida específica como motivo.
-• Só acione escalate_to_human por: (a) pedido explícito de humano, (b) emergência/reclamação grave/negociação especial, (c) pergunta sem resposta nos dados disponíveis. Qualquer dúvida que esteja nos serviços ou instruções você resolve sozinho.${customInstructions}${memoriesStr}`;
+• Só acione escalate_to_human por: (a) pedido explícito de humano, (b) emergência/reclamação grave/negociação especial, (c) pergunta sem resposta nos dados disponíveis, (d) falha ao reagendar após remover o horário antigo (ver FLUXO DE REAGENDAMENTO). Qualquer dúvida que esteja nos serviços ou instruções você resolve sozinho.${customInstructions}${memoriesStr}`;
 
   // 4. Chama GPT com tool use
   const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
