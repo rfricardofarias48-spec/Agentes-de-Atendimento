@@ -19,6 +19,16 @@ const supabase = createClient(
 
 const MODEL = 'gpt-5.4-nano';
 
+// ─── Histórico de conversa (curto prazo, literal) ──────────────
+// Complementar ao mem0 (memória semântica de longo prazo): aqui é o
+// texto literal das últimas trocas, usado só pra manter o fio da
+// conversa atual (ex.: agente pergunta "segunda, quarta ou sexta?" e
+// o paciente responde só "quarta" — sem isso o modelo perde o contexto).
+const HISTORY_MAX_MESSAGES = 20;       // total de mensagens guardadas na coluna
+const HISTORY_LLM_MESSAGES = 12;       // quantas entram no contexto do modelo (as mais recentes)
+const HISTORY_MAX_CONTENT_CHARS = 1000; // trunca mensagens individuais gigantes antes de salvar
+const HISTORY_MAX_AGE_HOURS = 24;      // mensagens mais antigas que isso não entram no contexto do modelo
+
 const TZ = 'America/Sao_Paulo';
 /** Returns a Date whose .getHours()/.getDay()/.getDate() reflect BRT time */
 function toBRT(d: Date): Date { return new Date(d.toLocaleString('en-US', { timeZone: TZ })); }
@@ -101,6 +111,12 @@ function resolveProfessional(professionals: Professional[], name?: string): Prof
   return active.length === 1 ? active[0] : undefined;
 }
 
+interface HistoryItem {
+  role: 'user' | 'assistant';
+  content: string;
+  ts: string; // ISO
+}
+
 interface Conversation {
   id: string;
   patient_phone: string;
@@ -108,6 +124,74 @@ interface Conversation {
   escalated_to_human: boolean;
   chatwoot_conversation_id: string | null;
   message_count: number;
+  history: HistoryItem[];
+}
+
+/** Trunca conteúdo gigante antes de salvar no histórico, com sufixo "…". */
+function truncateContent(content: string): string {
+  if (content.length <= HISTORY_MAX_CONTENT_CHARS) return content;
+  return content.slice(0, HISTORY_MAX_CONTENT_CHARS) + '…';
+}
+
+/**
+ * Converte o histórico salvo no banco para o formato aceito pelo array
+ * `messages` da OpenAI: filtra por idade (HISTORY_MAX_AGE_HOURS), pega
+ * as últimas HISTORY_LLM_MESSAGES e mapeia para { role, content }.
+ * Tolera histórico malformado — nunca lança exceção, retorna [] em caso
+ * de dado inválido.
+ */
+function buildHistoryMessages(history: unknown): OpenAI.Chat.ChatCompletionMessageParam[] {
+  try {
+    if (!Array.isArray(history)) return [];
+
+    const cutoff = Date.now() - HISTORY_MAX_AGE_HOURS * 60 * 60 * 1000;
+
+    const valid = history.filter((item): item is HistoryItem => {
+      if (!item || typeof item !== 'object') return false;
+      const it = item as Record<string, unknown>;
+      if (it.role !== 'user' && it.role !== 'assistant') return false;
+      if (typeof it.content !== 'string' || !it.content) return false;
+      if (typeof it.ts !== 'string') return false;
+      const ts = new Date(it.ts).getTime();
+      if (Number.isNaN(ts)) return false;
+      return ts >= cutoff;
+    });
+
+    return valid
+      .slice(-HISTORY_LLM_MESSAGES)
+      .map(item => ({ role: item.role, content: item.content }));
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Persiste novos itens no histórico da conversa. Usa a função RPC
+ * append_conversation_history (append atômico no banco, evita que duas
+ * mensagens simultâneas do mesmo paciente se sobrescrevam). Se a RPC
+ * falhar, cai para um update simples calculado em memória. Nunca lança
+ * exceção — salvar o histórico não pode quebrar o fluxo de resposta.
+ */
+async function saveHistory(
+  conversationId: string,
+  currentHistory: HistoryItem[],
+  newItems: HistoryItem[],
+): Promise<void> {
+  try {
+    const { error } = await supabase.rpc('append_conversation_history', {
+      conversation_id: conversationId,
+      new_items: newItems,
+      max_items: HISTORY_MAX_MESSAGES,
+    });
+
+    if (error) {
+      console.warn('[Bento] RPC append_conversation_history falhou, usando fallback:', error.message);
+      const merged = [...(currentHistory || []), ...newItems].slice(-HISTORY_MAX_MESSAGES);
+      await supabase.from('conversations').update({ history: merged }).eq('id', conversationId);
+    }
+  } catch (err) {
+    console.error('[Bento] Falha ao salvar histórico da conversa:', err);
+  }
 }
 
 // ─── Definição das tools ──────────────────────────────────────
@@ -650,12 +734,23 @@ export async function processMessage(
     })
     .eq('id', conv.id);
 
-  // Se escalado para humano, não processa
-  if (conv.escalated_to_human) return;
+  // Se escalado para humano, não processa — mas ainda registra a mensagem
+  // do paciente no histórico, pra quando a conversa voltar pro bot ele
+  // saber o que foi dito durante a escalação.
+  if (conv.escalated_to_human) {
+    await saveHistory(conv.id, conv.history, [
+      { role: 'user', content: truncateContent(text), ts: new Date().toISOString() },
+    ]);
+    return;
+  }
 
   // 2. Busca memórias relevantes do paciente
   const memUserId = `${org.id}:${phone}`;
   const memories = await searchMemory(memUserId, text, 5);
+
+  // Histórico literal (curto prazo) das últimas trocas, para dar contexto
+  // multi-turno ao modelo (complementar ao mem0, que é semântico)
+  const historyMessages = buildHistoryMessages(conv.history);
 
   // 3. Monta system prompt
   const tone = settings.tone === 'formal' ? 'formal e profissional' : 'amigável e acolhedor';
@@ -687,7 +782,9 @@ export async function processMessage(
     ? `\nO QUE VOCÊ JÁ SABE SOBRE ESTE ${clientWord.toUpperCase()}:\n${memories.map(m => `• ${m}`).join('\n')}`
     : '';
 
-  const greetingBlock = isFirstMessage
+  // Se há histórico de conversa, não é primeiro contato de verdade — mesmo
+  // que message_count esteja zerado por alguma inconsistência.
+  const greetingBlock = (isFirstMessage && historyMessages.length === 0)
     ? `\nEsta é a PRIMEIRA mensagem desta pessoa nesta conversa. Comece se apresentando de forma calorosa e receptiva como ${settings.agent_name}, e pergunte como pode ajudar. Não presuma o motivo do contato.`
     : '';
 
@@ -763,9 +860,12 @@ REGRAS IMPORTANTES:
 • NUNCA invente informações. Se uma informação (ex: aceitação de um convênio específico, valor de um procedimento não listado) não estiver nos serviços nem nas instruções personalizadas, NÃO oriente o cliente a "confirmar com o estabelecimento" — VOCÊ é o contato do estabelecimento. Nesses casos, diga algo como "Não tenho essa informação aqui no momento, mas já estou repassando para nossa equipe te responder em breve!" e acione escalate_to_human com a dúvida específica como motivo.
 • Só acione escalate_to_human por: (a) pedido explícito de humano, (b) emergência/reclamação grave/negociação especial, (c) pergunta sem resposta nos dados disponíveis, (d) falha ao reagendar após remover o horário antigo (ver FLUXO DE REAGENDAMENTO). Qualquer dúvida que esteja nos serviços ou instruções você resolve sozinho.${customInstructions}${memoriesStr}`;
 
-  // 4. Chama GPT com tool use
+  // 4. Chama GPT com tool use — injeta o histórico literal (curto prazo)
+  // entre o system prompt e a mensagem atual, pra manter o fio de fluxos
+  // multi-turno (ex.: agendamento em andamento)
   const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
     { role: 'system', content: systemPrompt },
+    ...historyMessages,
     { role: 'user', content: text },
   ];
 
@@ -807,7 +907,14 @@ REGRAS IMPORTANTES:
   }
 
   reply = response.choices[0].message.content || '';
-  if (!reply) return;
+  if (!reply) {
+    // Modelo não retornou texto (ex.: só tool call sem resposta final) —
+    // ainda assim registra a mensagem do paciente no histórico.
+    await saveHistory(conv.id, conv.history, [
+      { role: 'user', content: truncateContent(text), ts: new Date().toISOString() },
+    ]);
+    return;
+  }
 
   // 6. Envia resposta via Evolution
   await sendText(org.evolution_instance, phone, reply, org.evolution_token);
@@ -848,10 +955,17 @@ REGRAS IMPORTANTES:
     }
   }
 
-  // 8. Salva memória no Mem0
+  // 8. Salva memória no Mem0 (semântica, longo prazo)
   await addMemory(memUserId, [
     { role: 'user', content: text },
     { role: 'assistant', content: reply },
+  ]);
+
+  // 9. Salva histórico literal da troca (curto prazo, complementar ao mem0)
+  const nowIso = new Date().toISOString();
+  await saveHistory(conv.id, conv.history, [
+    { role: 'user', content: truncateContent(text), ts: nowIso },
+    { role: 'assistant', content: truncateContent(reply), ts: nowIso },
   ]);
 }
 
