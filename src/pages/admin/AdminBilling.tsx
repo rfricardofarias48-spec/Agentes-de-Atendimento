@@ -4,17 +4,16 @@ import { supabase } from '../../lib/supabase'
 import { type Organization } from '../../types'
 import { TZ, toBRT } from '../../lib/date'
 
-const PLAN_PRICES: Record<string, number> = { starter: 299.90, pro: 449.90, clinic: 849.90 }
 const MONTHS = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez']
 
 type FinanceTab = 'geral' | 'historico'
 
 interface Sale {
   id: string
-  org_id: string
-  org_name: string
-  plan: string
-  amount: number
+  client_name: string
+  monthly_fee: number
+  setup_fee: number
+  status: string
   paid_at: string
   created_at: string
 }
@@ -40,15 +39,17 @@ export default function AdminBilling() {
         supabase.from('sales').select('*').order('created_at', { ascending: false }).limit(200),
       ])
       setOrgs(orgsData ?? [])
-      setSales((salesData ?? []).map((s: Record<string, unknown>) => ({
-        id: s.id as string,
-        org_id: s.org_id as string,
-        org_name: (s.org_name as string) || '',
-        plan: (s.plan as string) || '',
-        amount: Number(s.amount) || 0,
-        paid_at: (s.paid_at as string) || '',
-        created_at: s.created_at as string,
-      })))
+      setSales((salesData ?? [])
+        .map((s: Record<string, unknown>) => ({
+          id: s.id as string,
+          client_name: (s.client_name as string) || '',
+          monthly_fee: Number(s.monthly_fee) || 0,
+          setup_fee: Number(s.setup_fee) || 0,
+          status: (s.status as string) || '',
+          paid_at: (s.paid_at as string) || '',
+          created_at: s.created_at as string,
+        }))
+        .filter(s => s.status === 'paid'))
       setLoading(false)
     }
     load()
@@ -58,12 +59,9 @@ export default function AdminBilling() {
   const payingCount = activeOrgs.length
   const totalCount = orgs.length
 
-  const mrr = activeOrgs.reduce((s, o) => s + (PLAN_PRICES[o.plan] ?? 0), 0)
+  const mrr = activeOrgs.reduce((s, o) => s + (o.monthly_fee ?? 0), 0)
   const arr = mrr * 12
-
-  const starterCount = activeOrgs.filter(o => o.plan === 'starter').length
-  const proCount     = activeOrgs.filter(o => o.plan === 'pro').length
-  const clinicCount  = activeOrgs.filter(o => o.plan === 'clinic').length
+  const avgTicket = payingCount > 0 ? mrr / payingCount : 0
 
   const monthlyData = MONTHS.map((label, idx) => {
     const inMonth = sales.filter(s => {
@@ -72,7 +70,7 @@ export default function AdminBilling() {
     })
     return {
       label,
-      mrr: inMonth.reduce((a, s) => a + s.amount, 0),
+      mrr: inMonth.reduce((a, s) => a + s.monthly_fee, 0),
       users: inMonth.length,
     }
   })
@@ -105,8 +103,9 @@ export default function AdminBilling() {
     const m = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`
     return m === histMonth
   })
-  const histMrr   = histSales.reduce((a, s) => a + s.amount, 0)
-  const histArpu  = histSales.length > 0 ? histMrr / histSales.length : 0
+  const histMrr    = histSales.reduce((a, s) => a + s.monthly_fee, 0)
+  const histSetup  = histSales.reduce((a, s) => a + s.setup_fee, 0)
+  const histArpu   = histSales.length > 0 ? histMrr / histSales.length : 0
 
   if (loading) return (
     <div className="flex justify-center py-20">
@@ -220,33 +219,20 @@ export default function AdminBilling() {
               </div>
             </div>
 
-            {/* Distribuição de Receita */}
+            {/* Ticket Médio */}
             <div style={CARD} className="p-7 flex flex-col justify-between">
               <div>
                 <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-5" style={{ background: '#f9fafb', border: '1px solid #e4e7ec' }}>
-                  <PieChart className="w-5 h-5" style={{ color: '#667085' }} />
+                  <Activity className="w-5 h-5" style={{ color: '#667085' }} />
                 </div>
-                <p className="text-[10px] font-semibold uppercase tracking-widest mb-4" style={{ color: '#98a2b3' }}>Distribuição de Receita</p>
+                <p className="text-[10px] font-semibold uppercase tracking-widest mb-1" style={{ color: '#98a2b3' }}>Ticket Médio</p>
+                <h3 className="text-4xl font-bold tracking-tight" style={{ color: '#101828' }}>
+                  R$ {avgTicket.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}
+                </h3>
               </div>
-              <div className="space-y-3">
-                {[
-                  { label: 'Essencial', count: starterCount, color: '#94a3b8' },
-                  { label: 'Pro',      count: proCount,     color: '#3b82f6' },
-                  { label: 'Max',      count: clinicCount,  color: '#2C82B5' },
-                ].map(p => (
-                  <div key={p.label} className="flex items-center gap-3">
-                    <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: p.color }} />
-                    <span className="text-xs font-medium flex-1" style={{ color: '#667085' }}>{p.label}</span>
-                    <span className="text-sm font-bold" style={{ color: '#344054' }}>{p.count}</span>
-                    <div className="w-20 h-1.5 rounded-full overflow-hidden" style={{ background: '#f2f4f7' }}>
-                      <div
-                        className="h-full rounded-full"
-                        style={{ width: `${(p.count / (payingCount || 1)) * 100}%`, background: p.color }}
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <p className="text-[10px] font-semibold mt-4" style={{ color: '#98a2b3' }}>
+                Mensalidade média entre os {payingCount} clientes ativos
+              </p>
             </div>
           </div>
 
@@ -386,34 +372,29 @@ export default function AdminBilling() {
             </div>
           </div>
 
-          {/* Distribuição + lista de vendas */}
+          {/* Setup vs Mensalidade + lista de vendas */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-            {/* Distribuição por plano */}
+            {/* Setup vs Mensalidade do período */}
             <div style={CARD} className="p-7">
               <h3 className="text-base font-semibold mb-6 flex items-center gap-2" style={{ color: '#101828' }}>
-                <PieChart className="w-5 h-5 text-slate-400" /> Distribuição de Receita
+                <PieChart className="w-5 h-5 text-slate-400" /> Setup vs. Mensalidade
               </h3>
               <div className="space-y-5">
                 {[
-                  { label: 'Essencial', price: 'R$ 299,90/mês', count: histSales.filter(s => s.plan === 'starter').length, color: '#94a3b8' },
-                  { label: 'Pro',       price: 'R$ 449,90/mês', count: histSales.filter(s => s.plan === 'pro').length,     color: '#3b82f6' },
-                  { label: 'Max',       price: 'R$ 849,90/mês', count: histSales.filter(s => s.plan === 'clinic').length,  color: '#2C82B5' },
+                  { label: 'Setup (único)', value: histSetup, color: '#94a3b8' },
+                  { label: 'Mensalidade (recorrente)', value: histMrr, color: '#2C82B5' },
                 ].map(p => (
                   <div key={p.label}>
                     <div className="flex justify-between items-end mb-2">
-                      <div>
-                        <span className="text-sm font-semibold block" style={{ color: '#344054' }}>{p.label}</span>
-                        <span className="text-xs" style={{ color: '#98a2b3' }}>{p.price}</span>
-                      </div>
-                      <div className="text-right">
-                        <span className="text-lg font-bold" style={{ color: '#101828' }}>{p.count}</span>
-                        <span className="text-xs ml-1" style={{ color: '#98a2b3' }}>clientes</span>
-                      </div>
+                      <span className="text-sm font-semibold block" style={{ color: '#344054' }}>{p.label}</span>
+                      <span className="text-lg font-bold" style={{ color: '#101828' }}>
+                        R$ {p.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </span>
                     </div>
                     <div className="w-full h-2.5 rounded-full overflow-hidden" style={{ background: '#f2f4f7' }}>
                       <div
                         className="h-full rounded-full transition-all duration-700"
-                        style={{ width: `${(p.count / (histSales.length || 1)) * 100}%`, background: p.color }}
+                        style={{ width: `${(p.value / ((histSetup + histMrr) || 1)) * 100}%`, background: p.color }}
                       />
                     </div>
                   </div>
@@ -442,16 +423,20 @@ export default function AdminBilling() {
                         className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold"
                         style={{ background: '#e4e7ec', color: '#667085' }}
                       >
-                        {(s.org_name || '?').charAt(0).toUpperCase()}
+                        {(s.client_name || '?').charAt(0).toUpperCase()}
                       </div>
                       <div>
-                        <p className="text-sm font-semibold" style={{ color: '#344054' }}>{s.org_name || '—'}</p>
-                        <p className="text-[10px] font-semibold uppercase" style={{ color: '#98a2b3' }}>{s.plan}</p>
+                        <p className="text-sm font-semibold" style={{ color: '#344054' }}>{s.client_name || '—'}</p>
+                        {s.setup_fee > 0 && (
+                          <p className="text-[10px] font-semibold uppercase" style={{ color: '#98a2b3' }}>
+                            + R$ {s.setup_fee.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} de setup
+                          </p>
+                        )}
                       </div>
                     </div>
                     <div className="text-right">
                       <p className="text-sm font-bold text-brand-600">
-                        + R$ {s.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        + R$ {s.monthly_fee.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}/mês
                       </p>
                       <p className="text-[10px]" style={{ color: '#98a2b3' }}>
                         {new Date(s.paid_at || s.created_at).toLocaleDateString('pt-BR', { timeZone: TZ })}

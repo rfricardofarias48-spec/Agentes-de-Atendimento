@@ -4,21 +4,20 @@ import { Users, ArrowRight, TrendingUp, MessageSquare, BarChart3 } from 'lucide-
 import { supabase } from '../../lib/supabase'
 import { type Organization } from '../../types'
 import { TZ } from '../../lib/date'
-import { planLabel, statusLabel, formatDateShort } from '../../lib/utils'
+import { statusLabel, formatDateShort } from '../../lib/utils'
 import { cn } from '../../lib/utils'
 
-const planBadge: Record<string, string> = {
-  starter: 'bg-slate-100 text-slate-600',
-  pro:     'bg-blue-50 text-blue-600',
-  clinic:  'bg-brand-50 text-brand-700',
-}
 const statusBadge: Record<string, string> = {
   active:    'bg-emerald-50 text-emerald-700',
   trial:     'bg-amber-50 text-amber-700',
   inactive:  'bg-slate-100 text-slate-500',
   suspended: 'bg-red-50 text-red-600',
 }
-const PLAN_MRR: Record<string, number> = { starter: 299.90, pro: 449.90, clinic: 849.90 }
+
+function fmtCurrency(v: number | null | undefined): string {
+  if (!v) return '—'
+  return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+}
 
 const CARD_ACCENTS = {
   brand:   { border: '#2C82B5', iconBg: 'rgba(44,130,181,0.12)',  iconColor: '#2C82B5'  },
@@ -58,12 +57,12 @@ export default function AdminDashboard() {
       .then(({ data }) => { setOrgs(data ?? []); setLoading(false) })
   }, [])
 
-  const activeOrgs   = orgs.filter(o => o.status === 'active')
-  const mrr          = activeOrgs.reduce((s, o) => s + (PLAN_MRR[o.plan] ?? 0), 0)
-  const totalConvs   = orgs.reduce((s, o) => s + (o.conversations_used ?? 0), 0)
-  const starterCount = orgs.filter(o => o.plan === 'starter').length
-  const proCount     = orgs.filter(o => o.plan === 'pro').length
-  const clinicCount  = orgs.filter(o => o.plan === 'clinic').length
+  const activeOrgs    = orgs.filter(o => o.status === 'active')
+  const mrr           = activeOrgs.reduce((s, o) => s + (o.monthly_fee ?? 0), 0)
+  const totalConvs    = orgs.reduce((s, o) => s + (o.conversations_used ?? 0), 0)
+  const avgTicket      = activeOrgs.length > 0 ? mrr / activeOrgs.length : 0
+  const setupPending   = orgs.filter(o => o.setup_fee_status === 'pending').length
+  const overdueCount   = orgs.filter(o => o.asaas_status === 'overdue').length
 
   return (
     <div className="space-y-5 pb-8">
@@ -125,7 +124,7 @@ export default function AdminDashboard() {
           icon={<MessageSquare className="w-3.5 h-3.5" />}
         />
 
-        {/* Planos */}
+        {/* Cobrança */}
         <div
           className="relative bg-white rounded-2xl px-5 pt-4 pb-5 transition-all duration-200 hover:-translate-y-[2px] hover:shadow-[0_6px_20px_rgba(0,0,0,0.08)]"
           style={{ border: '1px solid #eef0f3', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}
@@ -135,22 +134,21 @@ export default function AdminDashboard() {
             <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: CARD_ACCENTS.slate.iconBg }}>
               <BarChart3 className="w-3.5 h-3.5" style={{ color: CARD_ACCENTS.slate.iconColor }} />
             </div>
-            <p className="text-[11px] font-semibold text-slate-400 tracking-wide">Planos</p>
+            <p className="text-[11px] font-semibold text-slate-400 tracking-wide">Cobrança</p>
           </div>
           <div className="space-y-2">
-            {[
-              { label: 'Essencial', count: starterCount, color: '#94a3b8' },
-              { label: 'Pro',      count: proCount,     color: '#3b82f6' },
-              { label: 'Max',      count: clinicCount,  color: '#2C82B5' },
-            ].map(({ label, count, color }) => (
-              <div key={label} className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: color }} />
-                  <span className="text-xs text-slate-500">{label}</span>
-                </div>
-                <span className="text-xs font-bold tabular-nums text-slate-700">{count}</span>
-              </div>
-            ))}
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-slate-500">Ticket médio</span>
+              <span className="text-xs font-bold tabular-nums text-slate-700">{fmtCurrency(avgTicket)}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-slate-500">Setup pendente</span>
+              <span className={cn('text-xs font-bold tabular-nums', setupPending > 0 ? 'text-amber-600' : 'text-slate-700')}>{setupPending}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-slate-500">Inadimplentes</span>
+              <span className={cn('text-xs font-bold tabular-nums', overdueCount > 0 ? 'text-red-600' : 'text-slate-700')}>{overdueCount}</span>
+            </div>
           </div>
         </div>
       </div>
@@ -186,7 +184,7 @@ export default function AdminDashboard() {
             <table className="w-full">
               <thead>
                 <tr style={{ borderBottom: '1px solid #f8fafc' }}>
-                  {['Clínica','Plano','Status','Conversas','Cadastro',''].map(h => (
+                  {['Clínica','Mensalidade','Status','Conversas','Cadastro',''].map(h => (
                     <th key={h} className="text-left py-3 px-5 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">
                       {h}
                     </th>
@@ -207,9 +205,7 @@ export default function AdminDashboard() {
                       <p className="text-xs mt-0.5 text-slate-400">{org.evolution_instance || org.slug}</p>
                     </td>
                     <td className="py-3.5 px-5">
-                      <span className={`inline-flex items-center px-2.5 py-[3px] rounded-full text-[10px] font-semibold uppercase ${planBadge[org.plan] ?? 'bg-slate-100 text-slate-500'}`}>
-                        {planLabel(org.plan)}
-                      </span>
+                      <span className="text-sm font-semibold text-slate-700 tabular-nums">{fmtCurrency(org.monthly_fee)}</span>
                     </td>
                     <td className="py-3.5 px-5">
                       <span className={`inline-flex items-center gap-1.5 px-2.5 py-[3px] rounded-full text-[10px] font-semibold ${statusBadge[org.status] ?? 'bg-slate-100 text-slate-500'}`}>

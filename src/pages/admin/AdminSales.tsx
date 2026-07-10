@@ -3,39 +3,6 @@ import {
   Link2, Copy, Check, Loader2, ExternalLink, DollarSign,
 } from 'lucide-react'
 
-type Plan = 'starter' | 'pro' | 'clinic'
-type Billing = 'mensal' | 'anual'
-
-const ANNUAL_DISCOUNT = 0.20
-
-const PLAN_LABELS: Record<Plan, string> = {
-  starter: 'Essencial',
-  pro:     'Pro',
-  clinic:  'Max',
-}
-
-const MONTHLY: Record<Plan, number> = {
-  starter: 299.90,
-  pro:     449.90,
-  clinic:  849.90,
-}
-
-function annualTotal(plan: Plan) {
-  return parseFloat((MONTHLY[plan] * 12 * (1 - ANNUAL_DISCOUNT)).toFixed(2))
-}
-
-const PLAN_PRICES: Record<Plan, { mensal: number; anual: number }> = {
-  starter: { mensal: MONTHLY.starter, anual: annualTotal('starter') },
-  pro:     { mensal: MONTHLY.pro,     anual: annualTotal('pro') },
-  clinic:  { mensal: MONTHLY.clinic,  anual: annualTotal('clinic') },
-}
-
-const PLAN_COLORS: Record<Plan, { bg: string; text: string; border: string }> = {
-  starter: { bg: '#f8fafc', text: '#475467',  border: '#e4e7ec' },
-  pro:     { bg: '#eff6ff', text: '#1d4ed8',  border: '#bfdbfe' },
-  clinic:  { bg: '#f0f7ff', text: '#2570a0',  border: '#b3d4ec' },
-}
-
 const fmt = (v: number) =>
   v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 
@@ -46,37 +13,55 @@ const CARD: React.CSSProperties = {
   boxShadow: '0 2px 12px rgba(0,0,0,0.03)',
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({ label, children, hint }: { label: string; children: React.ReactNode; hint?: string }) {
   return (
     <div>
       <label className="block text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400 mb-1.5">
         {label}
       </label>
       {children}
+      {hint && <p className="text-[11px] text-slate-400 mt-1">{hint}</p>}
+    </div>
+  )
+}
+
+function CurrencyInput({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder?: string }) {
+  return (
+    <div className="relative">
+      <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-semibold" style={{ color: '#98a2b3' }}>R$</span>
+      <input
+        type="number"
+        min="0"
+        step="0.01"
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="input-dark w-full pl-9 pr-3.5 py-2.5 text-sm"
+      />
     </div>
   )
 }
 
 export default function AdminSales() {
-  const [clientName, setClientName]       = useState('')
-  const [clientEmail, setClientEmail]     = useState('')
-  const [plan, setPlan]                   = useState<Plan>('starter')
-  const [billing, setBilling]             = useState<Billing>('mensal')
-  const [discountInput, setDiscountInput] = useState('')
-  const [loading, setLoading]             = useState(false)
-  const [error, setError]                 = useState<string | null>(null)
-  const [result, setResult]               = useState<{ url: string; planLabel: string; billing: string; amount: number; discountPercent: number } | null>(null)
-  const [copied, setCopied]               = useState(false)
+  const [clientName, setClientName]     = useState('')
+  const [clientEmail, setClientEmail]   = useState('')
+  const [setupInput, setSetupInput]     = useState('')
+  const [monthlyInput, setMonthlyInput] = useState('')
+  const [loading, setLoading]           = useState(false)
+  const [error, setError]               = useState<string | null>(null)
+  const [result, setResult]             = useState<{ url: string; setupFee: number; monthlyFee: number } | null>(null)
+  const [copied, setCopied]             = useState(false)
 
-  const baseAmount   = PLAN_PRICES[plan][billing]
-  const discountPct  = Math.min(100, Math.max(0, parseFloat(discountInput) || 0))
-  const amount       = parseFloat((baseAmount * (1 - discountPct / 100)).toFixed(2))
-  const monthlyEquiv = billing === 'anual' ? amount / 12 : null
-  const annualDiscount = billing === 'anual' ? Math.round((1 - PLAN_PRICES[plan].anual / (PLAN_PRICES[plan].mensal * 12)) * 100) : 0
+  const setupFee   = Math.max(0, parseFloat(setupInput) || 0)
+  const monthlyFee = Math.max(0, parseFloat(monthlyInput) || 0)
 
   async function handleGenerate() {
     if (!clientName.trim() || !clientEmail.trim()) {
       setError('Preencha nome e e-mail do cliente.')
+      return
+    }
+    if (!monthlyFee) {
+      setError('Informe a mensalidade (valor maior que zero).')
       return
     }
     setError(null)
@@ -87,11 +72,16 @@ export default function AdminSales() {
       const res = await fetch('/api/sales/generate-link', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ clientName: clientName.trim(), clientEmail: clientEmail.trim(), plan, billing, discountPercent: discountPct }),
+        body: JSON.stringify({
+          clientName: clientName.trim(),
+          clientEmail: clientEmail.trim(),
+          setupFee,
+          monthlyFee,
+        }),
       })
-      const data = await res.json() as { url?: string; planLabel?: string; billing?: string; amount?: number; discountPercent?: number; error?: string }
+      const data = await res.json() as { url?: string; setupFee?: number; monthlyFee?: number; error?: string }
       if (!res.ok || !data.url) throw new Error(data.error || 'Erro ao gerar link')
-      setResult({ url: data.url, planLabel: data.planLabel!, billing: data.billing!, amount: data.amount!, discountPercent: data.discountPercent ?? 0 })
+      setResult({ url: data.url, setupFee: data.setupFee ?? 0, monthlyFee: data.monthlyFee ?? 0 })
     } catch (e) {
       setError(String(e))
     } finally {
@@ -110,7 +100,8 @@ export default function AdminSales() {
     setResult(null)
     setClientName('')
     setClientEmail('')
-    setDiscountInput('')
+    setSetupInput('')
+    setMonthlyInput('')
     setError(null)
   }
 
@@ -121,7 +112,7 @@ export default function AdminSales() {
       <div>
         <h1 className="text-xl font-bold text-slate-800 leading-none">Vendas</h1>
         <p className="text-sm text-slate-500 mt-1">
-          Gere links de pagamento Asaas para novos clientes
+          Gere o link de pagamento pra um cliente novo — setup e mensalidade negociados livremente, sem planos fixos.
         </p>
       </div>
 
@@ -156,111 +147,27 @@ export default function AdminSales() {
             </Field>
           </div>
 
-          {/* Plano */}
-          <Field label="Plano">
-            <div className="grid grid-cols-3 gap-2">
-              {(Object.keys(PLAN_LABELS) as Plan[]).map(p => {
-                const colors = PLAN_COLORS[p]
-                const active = plan === p
-                return (
-                  <button
-                    key={p}
-                    type="button"
-                    onClick={() => setPlan(p)}
-                    className="flex flex-col items-center gap-1 px-3 py-3 rounded-xl transition-all text-center"
-                    style={active ? {
-                      background: colors.bg,
-                      border: `2px solid ${colors.border}`,
-                      color: colors.text,
-                      boxShadow: '0 1px 3px rgba(16,24,40,0.08)',
-                    } : {
-                      border: '2px solid #e4e7ec',
-                      color: '#98a2b3',
-                    }}
-                  >
-                    <span className="text-[13px] font-bold">{PLAN_LABELS[p]}</span>
-                    <span className="text-[11px] font-medium">{fmt(PLAN_PRICES[p].mensal)}/mês</span>
-                  </button>
-                )
-              })}
-            </div>
-          </Field>
-
-          {/* Período */}
-          <Field label="Período">
-            <div className="flex gap-2">
-              {(['mensal', 'anual'] as Billing[]).map(b => (
-                <button
-                  key={b}
-                  type="button"
-                  onClick={() => setBilling(b)}
-                  className="flex-1 flex flex-col items-center gap-0.5 px-3 py-3 rounded-xl transition-all"
-                  style={billing === b ? {
-                    background: '#f0f7ff',
-                    border: '2px solid #b3d4ec',
-                    color: '#2570a0',
-                    boxShadow: '0 1px 3px rgba(16,24,40,0.08)',
-                  } : {
-                    border: '2px solid #e4e7ec',
-                    color: '#98a2b3',
-                  }}
-                >
-                  <span className="text-[13px] font-bold capitalize">{b}</span>
-                  {b === 'anual' ? (
-                    <>
-                      <span className="text-[11px] font-semibold">{fmt(PLAN_PRICES[plan].anual)}</span>
-                      <span className="text-[10px] px-1.5 py-0.5 rounded-md font-bold" style={{ background: '#dcfce7', color: '#16a34a' }}>
-                        -{annualDiscount}% off
-                      </span>
-                    </>
-                  ) : (
-                    <span className="text-[11px] font-semibold">{fmt(PLAN_PRICES[plan].mensal)}</span>
-                  )}
-                </button>
-              ))}
-            </div>
-          </Field>
-
-          {/* Desconto adicional */}
-          <Field label="Desconto adicional (%)">
-            <div className="relative">
-              <input
-                type="number"
-                min="0"
-                max="100"
-                step="1"
-                value={discountInput}
-                onChange={e => setDiscountInput(e.target.value)}
-                placeholder="0"
-                className="input-dark w-full px-3.5 py-2.5 text-sm pr-10"
-              />
-              <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-sm font-semibold" style={{ color: '#98a2b3' }}>%</span>
-            </div>
-          </Field>
+          {/* Setup + Mensalidade */}
+          <div className="grid grid-cols-2 gap-4">
+            <Field label="Setup (único)" hint="Cobrado à parte, automaticamente, assim que a mensalidade for paga.">
+              <CurrencyInput value={setupInput} onChange={setSetupInput} placeholder="0,00" />
+            </Field>
+            <Field label="Mensalidade">
+              <CurrencyInput value={monthlyInput} onChange={setMonthlyInput} placeholder="299,90" />
+            </Field>
+          </div>
 
           {/* Resumo */}
           <div className="p-3.5 rounded-xl space-y-1.5" style={{ background: '#f9fafb', border: '1px solid #f2f4f7' }}>
             <div className="flex items-center justify-between">
-              <p className="text-xs font-medium" style={{ color: '#667085' }}>
-                {PLAN_LABELS[plan]} · {billing === 'anual' ? 'Anual' : 'Mensal'}
-              </p>
-              {discountPct > 0
-                ? <p className="text-xs line-through" style={{ color: '#98a2b3' }}>{fmt(baseAmount)}</p>
-                : <p className="text-lg font-bold" style={{ color: '#101828' }}>{fmt(amount)}</p>
-              }
+              <p className="text-xs font-medium" style={{ color: '#667085' }}>Mensalidade</p>
+              <p className="text-lg font-bold" style={{ color: '#101828' }}>{fmt(monthlyFee)}</p>
             </div>
-            {discountPct > 0 && (
+            {setupFee > 0 && (
               <div className="flex items-center justify-between">
-                <span className="text-[11px] px-1.5 py-0.5 rounded-md font-bold" style={{ background: '#dcfce7', color: '#16a34a' }}>
-                  -{discountPct}% desconto
-                </span>
-                <p className="text-lg font-bold" style={{ color: '#101828' }}>{fmt(amount)}</p>
+                <p className="text-xs font-medium" style={{ color: '#667085' }}>Setup (cobrança separada)</p>
+                <p className="text-sm font-semibold" style={{ color: '#344054' }}>{fmt(setupFee)}</p>
               </div>
-            )}
-            {monthlyEquiv && (
-              <p className="text-[11px]" style={{ color: '#98a2b3' }}>
-                equivale a {fmt(monthlyEquiv)}/mês
-              </p>
             )}
           </div>
 
@@ -290,19 +197,15 @@ export default function AdminSales() {
               <div>
                 <p className="font-semibold text-sm" style={{ color: '#101828' }}>Link gerado com sucesso!</p>
                 <p className="text-xs" style={{ color: '#98a2b3' }}>
-                  {result.planLabel} · {result.billing === 'anual' ? 'Anual' : 'Mensal'} · {fmt(result.amount)}
-                  {result.discountPercent > 0 && (
-                    <span className="ml-1.5 px-1.5 py-0.5 rounded font-bold text-[10px]" style={{ background: '#dcfce7', color: '#16a34a' }}>
-                      -{result.discountPercent}% off
-                    </span>
-                  )}
+                  Mensalidade {fmt(result.monthlyFee)}
+                  {result.setupFee > 0 && <> · Setup {fmt(result.setupFee)}</>}
                 </p>
               </div>
             </div>
 
             <div className="space-y-2">
               <p className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: '#98a2b3' }}>
-                Link de Pagamento
+                Link de Pagamento (mensalidade)
               </p>
               <div
                 className="flex items-center gap-2 p-3 rounded-xl"
@@ -342,7 +245,8 @@ export default function AdminSales() {
             <div className="p-3.5 rounded-xl space-y-1" style={{ background: '#fffbeb', border: '1px solid #fde68a' }}>
               <p className="text-xs font-semibold" style={{ color: '#92400e' }}>Após o pagamento</p>
               <p className="text-xs" style={{ color: '#a16207' }}>
-                A conta do cliente será criada automaticamente via webhook. O acesso será enviado por e-mail para <strong>{clientEmail}</strong>.
+                A conta do cliente será criada automaticamente via webhook, e o acesso enviado por e-mail para <strong>{clientEmail}</strong>.
+                {result.setupFee > 0 && ' A cobrança do setup é gerada logo em seguida, separadamente.'}
               </p>
             </div>
 

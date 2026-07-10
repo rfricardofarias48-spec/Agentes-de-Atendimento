@@ -6,8 +6,8 @@ import {
   Bot, Settings2, Upload, Plus, X, FileText, ChevronDown,
 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
-import { type Organization, type OrgPlan, type OrgStatus } from '../../types'
-import { planLabel, statusLabel, formatDate } from '../../lib/utils'
+import { type Organization, type OrgStatus } from '../../types'
+import { statusLabel, formatDate } from '../../lib/utils'
 import { TZ } from '../../lib/date'
 
 interface SetupStep { id: string; label: string; ok: boolean; detail: string }
@@ -21,10 +21,7 @@ interface Service {
   pdf_name: string | null
 }
 
-const plans: OrgPlan[] = ['starter', 'pro', 'clinic']
 const statuses: OrgStatus[] = ['active', 'trial', 'inactive', 'suspended']
-const maxConvByPlan: Record<OrgPlan, number> = { starter: 600, pro: 2000, clinic: 999999 }
-const PLAN_PRICES: Record<OrgPlan, number> = { starter: 299.90, pro: 449.90, clinic: 849.90 }
 
 const CARD_STYLE: React.CSSProperties = {
   background: '#ffffff',
@@ -53,6 +50,23 @@ function TextInput({ value, onChange, placeholder, type = 'text' }: {
       placeholder={placeholder}
       className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent transition-all bg-white placeholder:text-slate-300"
     />
+  )
+}
+
+function CurrencyInput({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder?: string }) {
+  return (
+    <div className="relative">
+      <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-semibold text-slate-400">R$</span>
+      <input
+        type="number"
+        min="0"
+        step="0.01"
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="w-full border border-slate-200 rounded-xl pl-9 pr-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent transition-all bg-white placeholder:text-slate-300"
+      />
+    </div>
   )
 }
 
@@ -115,6 +129,12 @@ export default function AdminClientDetail() {
 
   // Email do usuário vinculado
   const [linkedEmail, setLinkedEmail] = useState<string | null>(null)
+
+  // Cobrança (setup + mensalidade, sincronizado com o Asaas)
+  const [setupInput, setSetupInput]     = useState('')
+  const [monthlyInput, setMonthlyInput] = useState('')
+  const [savingBilling, setSavingBilling] = useState(false)
+  const [billingMsg, setBillingMsg] = useState<{ ok: boolean; text: string } | null>(null)
 
   // Evolution connection
   const [connectionStatus, setConnectionStatus] = useState<'unknown' | 'open' | 'connecting' | 'close'>('unknown')
@@ -203,7 +223,11 @@ export default function AdminClientDetail() {
       supabase.from('agent_settings').select('*').eq('org_id', id).single(),
       fetch(`/api/admin/users?orgId=${id}`).then(r => r.json()),
     ]).then(([{ data: orgData }, { data: settings }, userInfo]) => {
-      if (orgData) setOrg(orgData)
+      if (orgData) {
+        setOrg(orgData)
+        setSetupInput(orgData.setup_fee != null ? String(orgData.setup_fee) : '')
+        setMonthlyInput(orgData.monthly_fee != null ? String(orgData.monthly_fee) : '')
+      }
       if (settings) {
         setAgentId(settings.id)
         setAgentName(settings.agent_name || 'Assistente')
@@ -217,8 +241,32 @@ export default function AdminClientDetail() {
     })
   }, [id])
 
-  function handlePlanChange(plan: OrgPlan) {
-    setOrg(o => ({ ...o, plan, max_conversations_month: maxConvByPlan[plan] }))
+  async function handleSaveBilling(chargeSetupNow = false) {
+    if (!id) return
+    setSavingBilling(true)
+    setBillingMsg(null)
+    const monthlyFee = Math.max(0, parseFloat(monthlyInput) || 0)
+    const setupFee   = Math.max(0, parseFloat(setupInput) || 0)
+    try {
+      const res = await fetch('/api/sales/generate-link', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orgId: id, monthlyFee, setupFee, chargeSetupNow }),
+      })
+      const data = await res.json() as { ok?: boolean; error?: string; subscriptionSynced?: boolean }
+      if (!res.ok || !data.ok) throw new Error(data.error || 'Erro ao salvar cobrança')
+      setOrg(o => ({ ...o, monthly_fee: monthlyFee, setup_fee: setupFee }))
+      setBillingMsg({
+        ok: true,
+        text: chargeSetupNow
+          ? 'Cobrança de setup gerada no Asaas!'
+          : data.subscriptionSynced ? 'Salvo e sincronizado com a assinatura no Asaas.' : 'Salvo.',
+      })
+    } catch (e) {
+      setBillingMsg({ ok: false, text: String(e) })
+    } finally {
+      setSavingBilling(false)
+    }
   }
 
   async function checkEvolutionConnection() {
@@ -889,21 +937,15 @@ export default function AdminClientDetail() {
                   </Field>
                 </div>
 
-                <Field label="Plano">
-                  <div className="flex gap-2 flex-wrap">
-                    {plans.map(p => (
-                      <button key={p} onClick={() => handlePlanChange(p)}
-                        className="px-3.5 py-1.5 rounded-xl text-xs font-semibold border-2 transition-all"
-                        style={org.plan === p ? {
-                          borderColor: p === 'starter' ? '#94a3b8' : p === 'pro' ? '#60a5fa' : '#4d9aca',
-                          color: p === 'starter' ? '#475467' : p === 'pro' ? '#2563eb' : '#2570a0',
-                          background: '#ffffff', boxShadow: '0 1px 3px rgba(16,24,40,0.08)',
-                        } : { borderColor: '#e4e7ec', color: '#98a2b3' }}
-                      >
-                        {planLabel(p)}<span className="ml-1.5 text-[10px]" style={{ color: '#d0d5dd' }}>R${PLAN_PRICES[p]}</span>
-                      </button>
-                    ))}
-                  </div>
+                <Field label="Limite de conversas/mês">
+                  <input
+                    type="number"
+                    min="0"
+                    value={org.max_conversations_month ?? ''}
+                    onChange={e => setOrg(o => ({ ...o, max_conversations_month: parseInt(e.target.value, 10) || 0 }))}
+                    placeholder="300"
+                    className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent transition-all bg-white placeholder:text-slate-300"
+                  />
                 </Field>
 
                 <Field label="Status">
@@ -1011,6 +1053,71 @@ export default function AdminClientDetail() {
                 </div>
               </Card>
 
+              {/* Cobrança — setup + mensalidade negociados, sincronizados com o Asaas */}
+              <Card title="Cobrança">
+                <div className="grid grid-cols-2 gap-4">
+                  <Field label="Setup (único)">
+                    <CurrencyInput value={setupInput} onChange={setSetupInput} placeholder="0,00" />
+                  </Field>
+                  <Field label="Mensalidade">
+                    <CurrencyInput value={monthlyInput} onChange={setMonthlyInput} placeholder="299,90" />
+                  </Field>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <Field label="Status do Setup">
+                    <div className="flex items-center gap-2 px-3.5 py-2.5 rounded-[0.625rem] text-sm"
+                      style={{
+                        background: '#f9fafb', border: '1px solid #e4e7ec',
+                        color: org.setup_fee_status === 'paid' ? '#16a34a' : org.setup_fee_status === 'pending' ? '#d97706' : '#98a2b3',
+                      }}>
+                      {org.setup_fee_status === 'paid' ? '● Pago' : org.setup_fee_status === 'pending' ? '● Pendente' : 'Sem cobrança'}
+                    </div>
+                  </Field>
+                  <Field label="Assinatura (mensalidade)">
+                    <div className="flex items-center gap-2 px-3.5 py-2.5 rounded-[0.625rem] text-sm"
+                      style={{
+                        background: '#f9fafb', border: '1px solid #e4e7ec',
+                        color: org.asaas_status === 'active' ? '#16a34a' : org.asaas_status === 'overdue' ? '#dc2626' : '#98a2b3',
+                      }}>
+                      {org.asaas_status === 'active' ? '● Ativa' : org.asaas_status === 'overdue' ? '● Inadimplente' : (org.asaas_status || 'Sem assinatura')}
+                    </div>
+                  </Field>
+                </div>
+
+                {billingMsg && (
+                  <p className={billingMsg.ok
+                    ? 'text-xs font-medium px-3 py-2 rounded-lg text-emerald-600 bg-emerald-50'
+                    : 'text-xs font-medium px-3 py-2 rounded-lg text-red-500 bg-red-50'}>
+                    {billingMsg.text}
+                  </p>
+                )}
+
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button
+                    onClick={() => handleSaveBilling(false)}
+                    disabled={savingBilling}
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold text-white disabled:opacity-60 transition-all"
+                    style={{ background: 'linear-gradient(135deg, #2C82B5, #1e5f88)' }}
+                  >
+                    {savingBilling ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                    Salvar e Sincronizar
+                  </button>
+                  {parseFloat(setupInput) > 0 && (
+                    <button
+                      onClick={() => handleSaveBilling(true)}
+                      disabled={savingBilling}
+                      className="px-4 py-2.5 rounded-xl text-xs font-semibold border-2 disabled:opacity-60 transition-all"
+                      style={{ borderColor: '#e4e7ec', color: '#475467' }}
+                    >
+                      Cobrar Setup Agora
+                    </button>
+                  )}
+                </div>
+                <p className="text-[10px]" style={{ color: '#98a2b3' }}>
+                  A mensalidade é sincronizada com a assinatura do Asaas automaticamente ao salvar (se o cliente já pagou o link inicial).
+                </p>
+              </Card>
+
               {/* Asaas — preenchido automaticamente pelo webhook */}
               <Card title="Asaas">
                 <div className="grid grid-cols-2 gap-4">
@@ -1020,32 +1127,21 @@ export default function AdminClientDetail() {
                       {org.asaas_customer_id || 'Aguardando pagamento'}
                     </div>
                   </Field>
-                  <Field label="Status">
-                    <div className="flex items-center gap-2 px-3.5 py-2.5 rounded-[0.625rem] text-sm"
-                      style={{
-                        background: '#f9fafb', border: '1px solid #e4e7ec',
-                        color: org.asaas_status === 'active' ? '#16a34a' : org.asaas_status === 'overdue' ? '#dc2626' : '#d0d5dd',
-                      }}>
-                      {org.asaas_status === 'active' ? '● Ativo' : org.asaas_status === 'overdue' ? '● Inadimplente' : (org.asaas_status || '—')}
+                  <Field label="Assinatura (ID)">
+                    <div className="flex items-center px-3.5 py-2.5 rounded-[0.625rem] text-sm font-mono truncate"
+                      style={{ background: '#f9fafb', border: '1px solid #e4e7ec', color: org.asaas_subscription_id ? '#344054' : '#d0d5dd' }}>
+                      {org.asaas_subscription_id || '—'}
                     </div>
                   </Field>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <Field label="Período">
-                    <div className="flex items-center px-3.5 py-2.5 rounded-[0.625rem] text-sm"
-                      style={{ background: '#f9fafb', border: '1px solid #e4e7ec', color: org.billing ? '#344054' : '#d0d5dd' }}>
-                      {org.billing === 'anual' ? 'Anual' : org.billing === 'mensal' ? 'Mensal' : '—'}
-                    </div>
-                  </Field>
-                  <Field label="Próximo Vencimento">
-                    <div className="flex items-center px-3.5 py-2.5 rounded-[0.625rem] text-sm"
-                      style={{ background: '#f9fafb', border: '1px solid #e4e7ec', color: org.subscription_period_end ? '#344054' : '#d0d5dd' }}>
-                      {org.subscription_period_end
-                        ? new Date(org.subscription_period_end).toLocaleDateString('pt-BR', { timeZone: TZ })
-                        : '—'}
-                    </div>
-                  </Field>
-                </div>
+                <Field label="Próximo Vencimento">
+                  <div className="flex items-center px-3.5 py-2.5 rounded-[0.625rem] text-sm"
+                    style={{ background: '#f9fafb', border: '1px solid #e4e7ec', color: org.subscription_period_end ? '#344054' : '#d0d5dd' }}>
+                    {org.subscription_period_end
+                      ? new Date(org.subscription_period_end).toLocaleDateString('pt-BR', { timeZone: TZ })
+                      : '—'}
+                  </div>
+                </Field>
                 <p className="text-[10px]" style={{ color: '#98a2b3' }}>
                   Preenchido automaticamente via webhook após pagamento.
                 </p>

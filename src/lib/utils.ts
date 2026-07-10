@@ -23,15 +23,6 @@ export function formatDateShort(date: string) {
   }).format(new Date(date))
 }
 
-export function planLabel(plan: string) {
-  const labels: Record<string, string> = {
-    starter: 'Essencial',
-    pro: 'Pro',
-    clinic: 'Max',
-  }
-  return labels[plan] ?? plan
-}
-
 export function statusLabel(status: string) {
   const labels: Record<string, string> = {
     active: 'Ativo',

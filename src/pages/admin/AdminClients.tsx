@@ -2,14 +2,9 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Search, Users, CheckCircle2, Zap, Plus, X, Loader2 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
-import { type Organization, type OrgPlan } from '../../types'
-import { planLabel, statusLabel, formatDateShort, cn } from '../../lib/utils'
+import { type Organization } from '../../types'
+import { statusLabel, formatDateShort, cn } from '../../lib/utils'
 
-const planBadge: Record<string, string> = {
-  starter: 'bg-slate-100 text-slate-600',
-  pro:     'bg-blue-50 text-blue-600',
-  clinic:  'bg-brand-50 text-brand-700',
-}
 const statusBadge: Record<string, string> = {
   active:    'bg-emerald-50 text-emerald-700',
   trial:     'bg-amber-50 text-amber-700',
@@ -17,14 +12,12 @@ const statusBadge: Record<string, string> = {
   suspended: 'bg-red-50 text-red-600',
 }
 
-const planFilter = ['todos', 'starter', 'pro', 'clinic'] as const
-type PlanFilter = typeof planFilter[number]
+const DEFAULT_MAX_CONVERSATIONS = 300
 
-const PLAN_LABELS: Record<PlanFilter, string> = {
-  todos: 'Todos', starter: 'Essencial', pro: 'Pro', clinic: 'Max',
+function fmtCurrency(v: number | null | undefined): string {
+  if (v == null) return '—'
+  return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 }
-
-const MAX_CONV: Record<OrgPlan, number> = { starter: 600, pro: 2000, clinic: 999999 }
 
 function slugify(name: string): string {
   return name
@@ -42,12 +35,14 @@ interface NewClientForm {
   email: string
   password: string
   phone: string
-  plan: OrgPlan
+  setupFee: string
+  monthlyFee: string
+  maxConversations: string
 }
 
 function NewClientModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
   const [form, setForm] = useState<NewClientForm>({
-    name: '', email: '', password: '', phone: '', plan: 'starter',
+    name: '', email: '', password: '', phone: '', setupFee: '', monthlyFee: '', maxConversations: '',
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -65,19 +60,24 @@ function NewClientModal({ onClose, onCreated }: { onClose: () => void; onCreated
       // 1. Criar organização
       const rawPhone = form.phone.replace(/\D/g, '')
       const normalizedPhone = rawPhone ? (rawPhone.startsWith('55') ? rawPhone : `55${rawPhone}`) : null
+      const setupFee = Math.max(0, parseFloat(form.setupFee) || 0)
+      const monthlyFee = Math.max(0, parseFloat(form.monthlyFee) || 0)
+      const maxConversations = parseInt(form.maxConversations, 10) || DEFAULT_MAX_CONVERSATIONS
 
       const { data: org, error: orgErr } = await supabase
         .from('organizations')
         .insert({
           name: form.name.trim(),
           slug: slugify(form.name.trim()),
-          plan: form.plan,
           status: 'trial',
           phone: normalizedPhone,
-          max_conversations_month: MAX_CONV[form.plan],
+          max_conversations_month: maxConversations,
           conversations_used: 0,
           agent_tone: 'friendly',
           whatsapp_numbers: [],
+          setup_fee: setupFee,
+          monthly_fee: monthlyFee,
+          setup_fee_status: setupFee > 0 ? 'pending' : 'none',
         })
         .select('id')
         .single()
@@ -124,8 +124,6 @@ function NewClientModal({ onClose, onCreated }: { onClose: () => void; onCreated
       setLoading(false)
     }
   }
-
-  const plans: OrgPlan[] = ['starter', 'pro', 'clinic']
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
@@ -214,26 +212,50 @@ function NewClientModal({ onClose, onCreated }: { onClose: () => void; onCreated
             />
           </div>
 
-          <div>
-            <label className="block text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400 mb-2">
-              Plano
-            </label>
-            <div className="flex gap-2">
-              {plans.map(p => (
-                <button
-                  key={p}
-                  type="button"
-                  onClick={() => set('plan')(p)}
-                  className="flex-1 py-2 rounded-xl text-xs font-semibold border-2 transition-all"
-                  style={form.plan === p ? {
-                    borderColor: '#4d9aca', color: '#2570a0',
-                    background: '#fff', boxShadow: '0 1px 3px rgba(16,24,40,0.08)',
-                  } : { borderColor: '#e4e7ec', color: '#98a2b3' }}
-                >
-                  {planLabel(p)}
-                </button>
-              ))}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400 mb-1.5">
+                Setup (único)
+              </label>
+              <div className="relative">
+                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-semibold text-slate-400">R$</span>
+                <input
+                  type="number" min="0" step="0.01"
+                  value={form.setupFee}
+                  onChange={e => set('setupFee')(e.target.value)}
+                  placeholder="0,00"
+                  className="w-full border border-slate-200 rounded-xl pl-9 pr-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent transition-all"
+                />
+              </div>
             </div>
+            <div>
+              <label className="block text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400 mb-1.5">
+                Mensalidade
+              </label>
+              <div className="relative">
+                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-semibold text-slate-400">R$</span>
+                <input
+                  type="number" min="0" step="0.01"
+                  value={form.monthlyFee}
+                  onChange={e => set('monthlyFee')(e.target.value)}
+                  placeholder="299,90"
+                  className="w-full border border-slate-200 rounded-xl pl-9 pr-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent transition-all"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400 mb-1.5">
+              Limite de conversas/mês
+            </label>
+            <input
+              type="number" min="0"
+              value={form.maxConversations}
+              onChange={e => set('maxConversations')(e.target.value)}
+              placeholder={String(DEFAULT_MAX_CONVERSATIONS)}
+              className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent transition-all"
+            />
           </div>
 
           {error && (
@@ -276,7 +298,6 @@ function NewClientModal({ onClose, onCreated }: { onClose: () => void; onCreated
 export default function AdminClients() {
   const [orgs, setOrgs]         = useState<Organization[]>([])
   const [search, setSearch]     = useState('')
-  const [planTab, setPlanTab]   = useState<PlanFilter>('todos')
   const [loading, setLoading]   = useState(true)
   const [showNew, setShowNew]   = useState(false)
 
@@ -289,19 +310,10 @@ export default function AdminClients() {
 
   const filtered = orgs.filter(o => {
     const q = search.toLowerCase()
-    const matchSearch = o.name.toLowerCase().includes(q)
+    return o.name.toLowerCase().includes(q)
       || (o.evolution_instance || '').toLowerCase().includes(q)
       || (o.slug || '').toLowerCase().includes(q)
-    const matchPlan = planTab === 'todos' || o.plan === planTab
-    return matchSearch && matchPlan
   })
-
-  const counts: Record<PlanFilter, number> = {
-    todos:   orgs.length,
-    starter: orgs.filter(o => o.plan === 'starter').length,
-    pro:     orgs.filter(o => o.plan === 'pro').length,
-    clinic:  orgs.filter(o => o.plan === 'clinic').length,
-  }
 
   return (
     <div className="space-y-5 pb-8">
@@ -329,40 +341,16 @@ export default function AdminClients() {
         </button>
       </div>
 
-      {/* Filtros */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-        <div className="flex items-center bg-white border border-slate-200 rounded-2xl p-1 shadow-[0_2px_10px_rgba(0,0,0,0.05)]">
-          {planFilter.map(p => (
-            <button
-              key={p}
-              onClick={() => setPlanTab(p)}
-              className={cn(
-                'flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all duration-200',
-                planTab === p ? 'text-white shadow-[0_2px_8px_rgba(37,112,160,0.28)]' : 'text-slate-400 hover:text-slate-600',
-              )}
-              style={planTab === p ? { background: 'linear-gradient(135deg, #2C82B5, #2570a0)' } : {}}
-            >
-              {PLAN_LABELS[p]}
-              <span className={cn(
-                'inline-flex items-center justify-center w-4 h-4 rounded-md text-[10px] font-bold tabular-nums',
-                planTab === p ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-400',
-              )}>
-                {counts[p]}
-              </span>
-            </button>
-          ))}
-        </div>
-
-        <div className="relative sm:ml-auto">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Buscar clínica ou instância..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="pl-9 pr-4 py-2.5 text-sm w-64 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent transition-all bg-white"
-          />
-        </div>
+      {/* Busca */}
+      <div className="relative">
+        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+        <input
+          type="text"
+          placeholder="Buscar clínica ou instância..."
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          className="pl-9 pr-4 py-2.5 text-sm w-64 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent transition-all bg-white"
+        />
       </div>
 
       {/* Tabela */}
@@ -377,7 +365,7 @@ export default function AdminClients() {
               <Users className="w-5 h-5 text-slate-300" />
             </div>
             <p className="text-sm font-medium text-slate-400">Nenhum usuário encontrado</p>
-            {search === '' && planTab === 'todos' && (
+            {search === '' && (
               <button onClick={() => setShowNew(true)}
                 className="mt-3 text-xs font-semibold text-brand-500 hover:text-brand-700 transition-colors">
                 + Criar primeiro cliente
@@ -389,7 +377,7 @@ export default function AdminClients() {
             <table className="w-full">
               <thead>
                 <tr style={{ borderBottom: '1px solid #f8fafc' }}>
-                  {['Clínica','Plano','Status','WhatsApp','Conversas','Cadastro','Ações'].map(h => (
+                  {['Clínica','Mensalidade','Status','WhatsApp','Conversas','Cadastro','Ações'].map(h => (
                     <th key={h} className="text-left py-3 px-5 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">
                       {h}
                     </th>
@@ -412,8 +400,8 @@ export default function AdminClients() {
                         <p className="text-xs mt-0.5 text-slate-400">{org.evolution_instance || org.slug}</p>
                       </td>
                       <td className="py-3.5 px-5">
-                        <span className={`inline-flex items-center px-2.5 py-[3px] rounded-full text-[10px] font-semibold uppercase ${planBadge[org.plan] ?? 'bg-slate-100 text-slate-500'}`}>
-                          {planLabel(org.plan)}
+                        <span className="text-sm font-semibold text-slate-700 tabular-nums">
+                          {fmtCurrency(org.monthly_fee)}
                         </span>
                       </td>
                       <td className="py-3.5 px-5">

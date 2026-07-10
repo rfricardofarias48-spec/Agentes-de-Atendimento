@@ -2,31 +2,33 @@
  * POST /api/webhooks/asaas
  * Processa eventos de pagamento do Asaas.
  *
+ * Duas linhas de cobrança, identificadas pelo externalReference:
+ *  - "setup:<orgId>"   → cobrança avulsa do setup fee (ver createOneTimeCharge)
+ *  - "<saleId>"        → mensalidade recorrente (Payment Link) — dados completos na tabela sales
+ *
  * Eventos tratados:
- *  - PAYMENT_CONFIRMED / PAYMENT_RECEIVED → cria org + convida usuário via e-mail
+ *  - PAYMENT_CONFIRMED / PAYMENT_RECEIVED
+ *      · setup:<orgId>  → marca setup_fee_status='paid' na org
+ *      · <saleId> (1ª vez)  → cria a organização com setup_fee/monthly_fee da venda,
+ *        e dispara a cobrança avulsa do setup fee automaticamente (se houver)
+ *      · <saleId> (renovação) → atualiza status/próximo vencimento da assinatura
  *  - PAYMENT_OVERDUE  → suspende org
  *  - PAYMENT_RESTORED → reativa org
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { supabaseAdmin } from '../_lib/supabaseAdmin.js';
-import { validateWebhookToken } from '../_services/asaasService.js';
+import { validateWebhookToken, createOneTimeCharge } from '../_services/asaasService.js';
 
 const APP_URL = process.env.VITE_APP_URL || 'https://app.elevva.net.br';
 
-const maxConvByPlan: Record<string, number> = {
-  starter: 600,
-  pro:     2000,
-  clinic:  999999,
-};
+// Limite padrão de conversas/mês pra contas criadas via link de pagamento —
+// o admin pode ajustar livremente depois na tela do cliente.
+const DEFAULT_MAX_CONVERSATIONS = 300;
 
-function calcPeriodEnd(billing: string, dueDate?: string): string {
+function calcNextDueDate(dueDate?: string): string {
   const base = dueDate ? new Date(dueDate + 'T12:00:00Z') : new Date();
-  if (billing === 'anual') {
-    base.setFullYear(base.getFullYear() + 1);
-  } else {
-    base.setMonth(base.getMonth() + 1);
-  }
+  base.setMonth(base.getMonth() + 1);
   return base.toISOString();
 }
 
@@ -58,7 +60,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).json({ ok: true, note: 'Sem dados relevantes' });
   }
 
-  const saleId = payment.externalReference ?? null;
+  const ref = payment.externalReference ?? null;
+
+  // ── Cobrança do setup fee (avulsa, separada da mensalidade) ────────────
+  if (ref?.startsWith('setup:')) {
+    const orgId = ref.slice('setup:'.length);
+    if (['PAYMENT_CONFIRMED', 'PAYMENT_RECEIVED'].includes(event)) {
+      await supabaseAdmin
+        .from('organizations')
+        .update({ setup_fee_status: 'paid', setup_payment_id: payment.id })
+        .eq('id', orgId);
+      console.log(`[Asaas] Setup fee pago — org ${orgId}`);
+    }
+    return res.status(200).json({ ok: true });
+  }
+
+  // A partir daqui, ref é o id da venda (sales.id) — fluxo da mensalidade recorrente
+  const saleId = ref;
 
   // ── PAYMENT_OVERDUE: suspender org ──────────────────────────────────────
   if (event === 'PAYMENT_OVERDUE') {
@@ -102,7 +120,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const { data: sale } = await supabaseAdmin
     .from('sales')
-    .select('client_name, client_email, plan, billing, status')
+    .select('client_name, client_email, setup_fee, monthly_fee, status')
     .eq('id', saleId)
     .maybeSingle();
 
@@ -110,15 +128,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).json({ ok: true, note: 'Venda não encontrada' });
   }
 
-  const { client_name: clientName, client_email: clientEmail, plan, billing } = sale;
+  const { client_name: clientName, client_email: clientEmail, setup_fee: setupFee, monthly_fee: monthlyFee } = sale;
 
-  const periodEnd = calcPeriodEnd(billing, payment.dueDate);
+  const periodEnd = calcNextDueDate(payment.dueDate);
   const asaasData = {
     asaas_customer_id:       payment.customer ?? null,
     asaas_subscription_id:   payment.subscription ?? null,
     asaas_status:            'active',
     subscription_period_end: periodEnd,
-    billing,
+    monthly_fee:             monthlyFee,
   };
 
   // ── Org já existe? (renovação de assinatura) ───────────────────────────
@@ -131,10 +149,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (existingOrg) {
     await supabaseAdmin
       .from('organizations')
-      .update({ status: 'active', plan, ...asaasData })
+      .update({ status: 'active', ...asaasData })
       .eq('id', existingOrg.id);
 
-    console.log(`[Asaas] Org ${existingOrg.id} renovada — plano ${plan}`);
+    console.log(`[Asaas] Org ${existingOrg.id} renovada — mensalidade R$ ${monthlyFee}`);
 
   } else {
     // ── Org nova: criar organização ────────────────────────────────────
@@ -151,11 +169,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         name: clientName,
         slug: `${slugBase}-${Date.now().toString(36)}`,
         billing_email: clientEmail,
-        plan,
         status: 'active',
         agent_tone: 'friendly',
-        max_conversations_month: maxConvByPlan[plan] ?? 600,
+        max_conversations_month: DEFAULT_MAX_CONVERSATIONS,
         conversations_used: 0,
+        setup_fee: setupFee,
+        setup_fee_status: setupFee && setupFee > 0 ? 'pending' : 'none',
         ...asaasData,
       })
       .select()
@@ -164,6 +183,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (orgErr || !newOrg) {
       console.error('[Asaas] Erro ao criar org:', orgErr);
       return res.status(500).json({ error: 'Erro ao criar organização' });
+    }
+
+    // ── Setup fee: dispara a cobrança avulsa automaticamente ────────────
+    if (setupFee && setupFee > 0 && payment.customer) {
+      try {
+        const charge = await createOneTimeCharge({
+          customerId: payment.customer,
+          value: setupFee,
+          description: `Taxa de configuração — ${clientName}`,
+          externalReference: `setup:${newOrg.id}`,
+        });
+        await supabaseAdmin
+          .from('organizations')
+          .update({ setup_payment_id: charge.id })
+          .eq('id', newOrg.id);
+        console.log(`[Asaas] Cobrança de setup fee criada — org ${newOrg.id} payment ${charge.id}`);
+      } catch (err) {
+        console.error('[Asaas] Falha ao criar cobrança de setup fee:', err);
+      }
     }
 
     // ── Criar usuário via convite (envia e-mail para o cliente definir senha) ──
@@ -200,7 +238,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       custom_instructions: '',
     });
 
-    console.log(`[Asaas] Conta criada: ${newOrg.id} para ${clientEmail} — plano ${plan}`);
+    console.log(`[Asaas] Conta criada: ${newOrg.id} para ${clientEmail} — mensalidade R$ ${monthlyFee}`);
   }
 
   // Marcar venda como paga
