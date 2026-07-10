@@ -55,7 +55,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     .maybeSingle();
 
   // Buscar email do usuário vinculado
-  const userInfoRes = await fetch(`${APP_URL}/api/admin/get-org-user?orgId=${orgId}`).catch(() => null);
+  const userInfoRes = await fetch(`${APP_URL}/api/admin/users?orgId=${orgId}`).catch(() => null);
   const userInfo = userInfoRes ? await userInfoRes.json().catch(() => ({})) as { email?: string } : {};
   const linkedEmail = userInfo?.email ?? org.billing_email;
 
