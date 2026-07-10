@@ -7,7 +7,7 @@
 import OpenAI from 'openai';
 import { createClient } from '@supabase/supabase-js';
 import { searchMemory, addMemory, getMemories } from './mem0Service.js';
-import { sendText, sendDocument } from './evolutionService.js';
+import { sendWhatsAppText, sendWhatsAppDocument } from './whatsappService.js';
 import { mirrorMessage } from './chatwootService.js';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -40,13 +40,15 @@ function brtDateStr(d: Date): string { return d.toLocaleDateString('en-CA', { ti
 interface Organization {
   id: string;
   name: string;
-  evolution_instance: string;
+  evolution_instance: string | null;
   evolution_token: string | null;
   chatwoot_account_id: number | null;
   chatwoot_token: string | null;
   chatwoot_inbox_id: number | null;
   chatwoot_url: string | null;
   agent_tone: 'formal' | 'friendly';
+  whatsapp_provider: string | null;
+  whatsapp_phone_number_id: string | null;
 }
 
 interface Service {
@@ -523,13 +525,12 @@ async function executeTool(
       );
       const shouldSendPdf = !!svcEntry?.pdf_url && settings.auto_send_pdf !== false;
       if (shouldSendPdf) {
-        sendDocument(
-          org.evolution_instance,
+        sendWhatsAppDocument(
+          org,
           phone,
           svcEntry!.pdf_url!,
           svcEntry!.pdf_name || 'orientacoes.pdf',
           `📋 Orientações — ${svcEntry!.name}`,
-          org.evolution_token,
         ).catch(err => console.error('[Bento] Falha ao enviar PDF do serviço:', err));
       }
 
@@ -625,13 +626,12 @@ async function executeTool(
       const svcEntry = settings.services?.find(s => s.name.toLowerCase() === specialty.toLowerCase());
       const shouldSendPdf = !!svcEntry?.pdf_url && settings.auto_send_pdf !== false;
       if (shouldSendPdf) {
-        sendDocument(
-          org.evolution_instance,
+        sendWhatsAppDocument(
+          org,
           phone,
           svcEntry!.pdf_url!,
           svcEntry!.pdf_name || 'orientacoes.pdf',
           `📋 Orientações — ${svcEntry!.name}`,
-          org.evolution_token,
         ).catch(err => console.error('[Bento] Falha ao enviar PDF do serviço:', err));
       }
 
@@ -672,12 +672,8 @@ async function executeTool(
           chatwootLink +
           `\n\n_Responda aqui para consultar o histórico completo do cliente._`;
 
-        sendText(
-          org.evolution_instance,
-          settings.notification_phone,
-          alertMsg,
-          org.evolution_token,
-        ).catch(err => console.error('[Bento] Falha ao enviar alerta de escalonamento:', err));
+        sendWhatsAppText(org, settings.notification_phone, alertMsg)
+          .catch(err => console.error('[Bento] Falha ao enviar alerta de escalonamento:', err));
       }
 
       return JSON.stringify({ escalated: true, reason: args.reason });
@@ -916,8 +912,8 @@ REGRAS IMPORTANTES:
     return;
   }
 
-  // 6. Envia resposta via Evolution
-  await sendText(org.evolution_instance, phone, reply, org.evolution_token);
+  // 6. Envia resposta via WhatsApp (Evolution ou API oficial, conforme a org)
+  await sendWhatsAppText(org, phone, reply);
 
   // 7. Espelha no Chatwoot
   if (org.chatwoot_account_id && org.chatwoot_token && org.chatwoot_inbox_id) {
@@ -988,7 +984,7 @@ export async function processProMessage(
     .single();
 
   if (!lastEscalated) {
-    await sendText(org.evolution_instance, proPhone, 'Nenhuma conversa escalada encontrada no momento.', org.evolution_token);
+    await sendWhatsAppText(org, proPhone, 'Nenhuma conversa escalada encontrada no momento.');
     return;
   }
 
@@ -1035,25 +1031,20 @@ export async function processProMessage(
   });
 
   const reply = response.choices[0].message.content || 'Não consegui processar sua pergunta.';
-  await sendText(org.evolution_instance, proPhone, reply, org.evolution_token);
+  await sendWhatsAppText(org, proPhone, reply);
 }
 
 // ─── Lookup de organização por instância ─────────────────────
 
-export async function getOrgByInstance(instanceName: string): Promise<{
+const ORG_SELECT_FIELDS =
+  'id, name, evolution_instance, evolution_token, chatwoot_account_id, chatwoot_token, chatwoot_inbox_id, chatwoot_url, agent_tone, status, whatsapp_provider, whatsapp_phone_number_id';
+
+/** Busca settings + profissionais e monta o contexto completo pra uma org já resolvida. */
+async function loadOrgContext(org: Organization): Promise<{
   org: Organization;
   settings: AgentSettings;
   professionals: Professional[];
-} | null> {
-  const { data: org } = await supabase
-    .from('organizations')
-    .select('id, name, evolution_instance, evolution_token, chatwoot_account_id, chatwoot_token, chatwoot_inbox_id, chatwoot_url, agent_tone, status')
-    .eq('evolution_instance', instanceName)
-    .in('status', ['active', 'trial'])
-    .single();
-
-  if (!org) return null;
-
+}> {
   const { data: settings } = await supabase
     .from('agent_settings')
     .select('agent_name, greeting_message, tone, specialties, working_hours, custom_instructions, services, appointment_duration, notification_phone, auto_send_pdf')
@@ -1082,4 +1073,43 @@ export async function getOrgByInstance(instanceName: string): Promise<{
     },
     professionals: professionals || [],
   };
+}
+
+export async function getOrgByInstance(instanceName: string): Promise<{
+  org: Organization;
+  settings: AgentSettings;
+  professionals: Professional[];
+} | null> {
+  const { data: org } = await supabase
+    .from('organizations')
+    .select(ORG_SELECT_FIELDS)
+    .eq('evolution_instance', instanceName)
+    .in('status', ['active', 'trial'])
+    .single();
+
+  if (!org) return null;
+  return loadOrgContext(org);
+}
+
+/**
+ * Espelha getOrgByInstance, mas pra organizações migradas pra API oficial
+ * da Meta — a busca é pelo whatsapp_phone_number_id (identificador que vem
+ * em todo webhook da Cloud API), já que ali não existe "instância" própria
+ * por cliente como no Evolution.
+ */
+export async function getOrgByPhoneNumberId(phoneNumberId: string): Promise<{
+  org: Organization;
+  settings: AgentSettings;
+  professionals: Professional[];
+} | null> {
+  const { data: org } = await supabase
+    .from('organizations')
+    .select(ORG_SELECT_FIELDS)
+    .eq('whatsapp_phone_number_id', phoneNumberId)
+    .eq('whatsapp_provider', 'official')
+    .in('status', ['active', 'trial'])
+    .single();
+
+  if (!org) return null;
+  return loadOrgContext(org);
 }

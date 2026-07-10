@@ -12,6 +12,9 @@ export interface Organization {
   whatsapp_numbers: string[]
   evolution_instance: string | null
   evolution_token: string | null
+  whatsapp_provider: 'evolution' | 'official'
+  whatsapp_phone_number_id: string | null
+  whatsapp_business_account_id: string | null
   chatwoot_account_id: number | null
   chatwoot_token: string | null
   chatwoot_inbox_id: number | null

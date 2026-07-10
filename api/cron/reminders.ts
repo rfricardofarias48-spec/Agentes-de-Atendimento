@@ -5,7 +5,7 @@
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
-import { sendText } from '../_services/evolutionService.js';
+import { sendWhatsAppText } from '../_services/whatsappService.js';
 
 const supabase = createClient(
   process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || '',
@@ -27,8 +27,10 @@ interface ApptRow {
 }
 
 interface OrgRow {
-  evolution_instance: string;
+  evolution_instance: string | null;
   evolution_token: string | null;
+  whatsapp_provider: string | null;
+  whatsapp_phone_number_id: string | null;
   name: string;
 }
 
@@ -54,7 +56,7 @@ async function sendReminders(appointments: ApptRow[]): Promise<void> {
   const [orgsRes, settingsRes] = await Promise.all([
     supabase
       .from('organizations')
-      .select('id, evolution_instance, evolution_token, name')
+      .select('id, evolution_instance, evolution_token, name, whatsapp_provider, whatsapp_phone_number_id')
       .in('id', orgIds),
     supabase
       .from('agent_settings')
@@ -84,7 +86,7 @@ async function sendReminders(appointments: ApptRow[]): Promise<void> {
     const msg = `Olá, ${name}! 👋 Lembrando que você tem *${service}*${professional} amanhã, ${date} às *${time}*.\n\nSe precisar remarcar ou cancelar, é só me chamar aqui. Até amanhã! 😊`;
 
     try {
-      await sendText(org.evolution_instance, appt.patient_phone, msg, org.evolution_token);
+      await sendWhatsAppText(org, appt.patient_phone, msg);
       await supabase
         .from('appointments')
         .update({ reminder_24h_sent_at: new Date().toISOString() })

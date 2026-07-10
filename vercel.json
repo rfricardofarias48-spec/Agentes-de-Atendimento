@@ -12,6 +12,7 @@
     "api/admin/auto-setup.ts": { "maxDuration": 60 },
     "api/admin/finalize-setup.ts": { "maxDuration": 60 },
     "api/webhook/evolution.ts": { "maxDuration": 60 },
+    "api/webhook/whatsapp-official.ts": { "maxDuration": 60 },
     "api/client/billing.ts": { "maxDuration": 20 }
   }
 }

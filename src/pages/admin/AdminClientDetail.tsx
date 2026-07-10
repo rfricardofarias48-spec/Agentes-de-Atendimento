@@ -136,6 +136,11 @@ export default function AdminClientDetail() {
   const [savingBilling, setSavingBilling] = useState(false)
   const [billingMsg, setBillingMsg] = useState<{ ok: boolean; text: string } | null>(null)
 
+  // WhatsApp — provider oficial (Meta Cloud API), credenciais globais no servidor
+  const [phoneNumberIdInput, setPhoneNumberIdInput] = useState('')
+  const [savingWhatsappOfficial, setSavingWhatsappOfficial] = useState(false)
+  const [whatsappOfficialMsg, setWhatsappOfficialMsg] = useState<{ ok: boolean; text: string } | null>(null)
+
   // Evolution connection
   const [connectionStatus, setConnectionStatus] = useState<'unknown' | 'open' | 'connecting' | 'close'>('unknown')
   const [checkingConn, setCheckingConn] = useState(false)
@@ -171,7 +176,7 @@ export default function AdminClientDetail() {
     setShowQRModal(true)
     // busca imediata
     try {
-      const r = await fetch(`/api/admin/qr-status?orgId=${id}`)
+      const r = await fetch(`/api/admin/auto-setup?orgId=${id}`)
       const d = await r.json() as { connected: boolean; qrCode: string | null }
       if (d.connected) { setQrModalConn(true); return }
       setQrModalCode(d.qrCode)
@@ -179,7 +184,7 @@ export default function AdminClientDetail() {
     // polling
     qrModalPollRef.current = setInterval(async () => {
       try {
-        const r = await fetch(`/api/admin/qr-status?orgId=${id}`)
+        const r = await fetch(`/api/admin/auto-setup?orgId=${id}`)
         const d = await r.json() as { connected: boolean; qrCode: string | null }
         if (d.connected) { setQrModalConn(true); stopQRModalPoll() }
         else if (d.qrCode) setQrModalCode(d.qrCode)
@@ -227,6 +232,7 @@ export default function AdminClientDetail() {
         setOrg(orgData)
         setSetupInput(orgData.setup_fee != null ? String(orgData.setup_fee) : '')
         setMonthlyInput(orgData.monthly_fee != null ? String(orgData.monthly_fee) : '')
+        setPhoneNumberIdInput(orgData.whatsapp_phone_number_id ?? '')
       }
       if (settings) {
         setAgentId(settings.id)
@@ -269,6 +275,49 @@ export default function AdminClientDetail() {
     }
   }
 
+  async function handleMigrateToOfficial() {
+    if (!id) return
+    if (!phoneNumberIdInput.trim()) {
+      setWhatsappOfficialMsg({ ok: false, text: 'Preencha o Phone Number ID antes de migrar.' })
+      return
+    }
+    setSavingWhatsappOfficial(true)
+    setWhatsappOfficialMsg(null)
+    try {
+      await supabase.from('organizations')
+        .update({ whatsapp_phone_number_id: phoneNumberIdInput.trim() })
+        .eq('id', id)
+
+      const res = await fetch('/api/admin/auto-setup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orgId: id, migrateToOfficial: true }),
+      })
+      const data = await res.json() as { steps?: { ok: boolean; detail: string }[]; error?: string }
+      if (!res.ok) throw new Error(data.error || 'Erro ao migrar')
+
+      const failedStep = data.steps?.find(s => !s.ok)
+      if (failedStep) {
+        setWhatsappOfficialMsg({ ok: false, text: failedStep.detail })
+      } else {
+        setWhatsappOfficialMsg({ ok: true, text: data.steps?.[0]?.detail || 'Migrado para a API oficial com sucesso!' })
+        setOrg(o => ({ ...o, whatsapp_provider: 'official', whatsapp_phone_number_id: phoneNumberIdInput.trim() }))
+      }
+    } catch (e) {
+      setWhatsappOfficialMsg({ ok: false, text: String(e) })
+    } finally {
+      setSavingWhatsappOfficial(false)
+    }
+  }
+
+  async function handleRevertToEvolution() {
+    if (!id) return
+    if (!window.confirm('Voltar essa organização a usar o Evolution? As mensagens passam a ser respondidas pelo canal antigo imediatamente.')) return
+    await supabase.from('organizations').update({ whatsapp_provider: 'evolution' }).eq('id', id)
+    setOrg(o => ({ ...o, whatsapp_provider: 'evolution' }))
+    setWhatsappOfficialMsg(null)
+  }
+
   async function checkEvolutionConnection() {
     if (!org.evolution_instance) return
     setCheckingConn(true)
@@ -297,7 +346,7 @@ export default function AdminClientDetail() {
     stopPoll()
     pollRef.current = setInterval(async () => {
       try {
-        const r = await fetch(`/api/admin/qr-status?orgId=${id}`)
+        const r = await fetch(`/api/admin/auto-setup?orgId=${id}`)
         const d = await r.json() as { connected: boolean; qrCode: string | null }
         if (d.connected) {
           setSkillConnected(true)
@@ -312,7 +361,7 @@ export default function AdminClientDetail() {
 
   async function refreshSkillQR() {
     try {
-      const r = await fetch(`/api/admin/qr-status?orgId=${id}`)
+      const r = await fetch(`/api/admin/auto-setup?orgId=${id}`)
       const d = await r.json() as { qrCode: string | null }
       if (d.qrCode) setSkillQR(d.qrCode)
     } catch { /* ignore */ }
@@ -1050,6 +1099,63 @@ export default function AdminClientDetail() {
                   <Field label="Token da Instância">
                     <TextInput value={org.evolution_token ?? ''} onChange={v => setOrg(o => ({ ...o, evolution_token: v }))} placeholder="415C2136-..." type="password" />
                   </Field>
+                </div>
+              </Card>
+
+              {/* WhatsApp Oficial — API oficial da Meta, credenciais globais (só precisa do Phone Number ID por cliente) */}
+              <Card
+                title="WhatsApp Oficial"
+                extra={
+                  <span
+                    className="flex items-center gap-1.5 text-[10px] font-semibold px-2.5 py-1 rounded-full"
+                    style={{
+                      background: org.whatsapp_provider === 'official' ? '#f0fdf4' : '#f9fafb',
+                      border: `1px solid ${org.whatsapp_provider === 'official' ? '#bbf7d0' : '#e4e7ec'}`,
+                      color: org.whatsapp_provider === 'official' ? '#15803d' : '#98a2b3',
+                    }}
+                  >
+                    {org.whatsapp_provider === 'official' ? '● Ativo' : 'Usando Evolution'}
+                  </span>
+                }
+              >
+                <Field label="Phone Number ID">
+                  <TextInput
+                    value={phoneNumberIdInput}
+                    onChange={setPhoneNumberIdInput}
+                    placeholder="ID do número na Meta Business Manager"
+                  />
+                </Field>
+                <p className="text-[10px]" style={{ color: '#98a2b3' }}>
+                  Token e App da Meta são globais — só esse ID muda por cliente. Sem credencial pra digitar aqui.
+                </p>
+
+                {whatsappOfficialMsg && (
+                  <p className={whatsappOfficialMsg.ok
+                    ? 'text-xs font-medium px-3 py-2 rounded-lg text-emerald-600 bg-emerald-50'
+                    : 'text-xs font-medium px-3 py-2 rounded-lg text-red-500 bg-red-50'}>
+                    {whatsappOfficialMsg.text}
+                  </p>
+                )}
+
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button
+                    onClick={handleMigrateToOfficial}
+                    disabled={savingWhatsappOfficial}
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold text-white disabled:opacity-60 transition-all"
+                    style={{ background: 'linear-gradient(135deg, #2C82B5, #1e5f88)' }}
+                  >
+                    {savingWhatsappOfficial ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3.5 h-3.5" />}
+                    {org.whatsapp_provider === 'official' ? 'Revalidar Conexão' : 'Migrar para API Oficial'}
+                  </button>
+                  {org.whatsapp_provider === 'official' && (
+                    <button
+                      onClick={handleRevertToEvolution}
+                      className="px-4 py-2.5 rounded-xl text-xs font-semibold border-2 transition-all"
+                      style={{ borderColor: '#e4e7ec', color: '#475467' }}
+                    >
+                      Voltar para Evolution
+                    </button>
+                  )}
                 </div>
               </Card>
 

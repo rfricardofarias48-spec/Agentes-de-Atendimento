@@ -1,16 +1,20 @@
 /**
- * POST /api/admin/auto-setup
- * Orquestra a criação completa de uma org:
- *   1. Cria instância Evolution
- *   2. Cria Account + Usuário Chatwoot via Platform API (automático)
- *      └─ Fallback: se CHATWOOT_PLATFORM_TOKEN não configurado, exige credenciais manuais
- *   3. Aplica Settings da instância (Reject Calls, Ignore Groups…)
- *   4. Configura Webhook (Base64, eventos corretos)
- *   5. Integra Evolution ↔ Chatwoot (preenche aba Chatwoot)
- *   6. Localiza inbox_id criado via autoCreate
- *   7. Retorna QR code para o admin escanear
+ * GET  /api/admin/auto-setup?orgId=xxx
+ *   Status de conexão + QR code da instância Evolution (polling). Vivia
+ *   antes em api/admin/qr-status.ts — consolidado aqui pra não estourar
+ *   o limite de functions da Vercel (mesmo motivo de outras consolidações
+ *   já feitas neste projeto).
  *
- * Body: { orgId: string }
+ * POST /api/admin/auto-setup   Body: { orgId: string }
+ *   Provider-aware:
+ *   - whatsapp_provider = 'evolution' (default): orquestra a criação
+ *     completa da infra (instância Evolution + Chatwoot + integração +
+ *     QR code), como sempre foi.
+ *   - whatsapp_provider = 'official': não provisiona nada (o número já
+ *     existe no Meta Business Manager) — só valida o
+ *     whatsapp_phone_number_id contra a Graph API (token global,
+ *     META_ACCESS_TOKEN) e, se válido, ativa o provider oficial pra essa
+ *     organização. É o botão "Migrar para API Oficial" do admin.
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
@@ -20,6 +24,7 @@ import {
   getQRCode,
   configureWebhook,
   configureInstanceSettings,
+  getConnectionStatus,
 } from '../_services/evolutionService.js';
 import {
   configureChatwootOnEvolution,
@@ -27,6 +32,7 @@ import {
   getFirstInboxId,
   platformSetupChatwootAccount,
 } from '../_services/chatwootService.js';
+import { getPhoneNumberInfo } from '../_services/metaWhatsappService.js';
 
 const WEBHOOK_URL = process.env.VITE_APP_URL
   ? `${process.env.VITE_APP_URL}/api/webhook/evolution`
@@ -54,25 +60,113 @@ function slugify(name: string): string {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (req.method === 'GET') return handleQrStatus(req, res);
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const { orgId } = req.body as { orgId?: string };
+  const { orgId, migrateToOfficial } = req.body as { orgId?: string; migrateToOfficial?: boolean };
   if (!orgId) return res.status(400).json({ error: 'orgId required' });
 
   const { data: org } = await supabaseAdmin
     .from('organizations')
-    .select('id, name, phone, evolution_instance, evolution_token, chatwoot_account_id, chatwoot_token, chatwoot_inbox_id, chatwoot_url')
+    .select('id, name, phone, whatsapp_provider, whatsapp_phone_number_id, evolution_instance, evolution_token, chatwoot_account_id, chatwoot_token, chatwoot_inbox_id, chatwoot_url')
     .eq('id', orgId)
     .single();
 
   if (!org) return res.status(404).json({ error: 'Organização não encontrada' });
 
+  // migrateToOfficial=true dispara a validação mesmo antes de a org estar
+  // marcada como 'official' — só vira 'official' de fato se a validação passar.
+  if (org.whatsapp_provider === 'official' || migrateToOfficial) {
+    return handleOfficialSetup(org, res);
+  }
+  return handleEvolutionSetup(org, orgId, res);
+}
+
+// ── GET: status/QR da instância Evolution (polling) ──────────────────────
+async function handleQrStatus(req: VercelRequest, res: VercelResponse) {
+  const orgId = req.query.orgId as string | undefined;
+  if (!orgId) return res.status(400).json({ error: 'orgId required' });
+
+  const { data: org } = await supabaseAdmin
+    .from('organizations')
+    .select('evolution_instance, evolution_token')
+    .eq('id', orgId)
+    .single();
+
+  if (!org?.evolution_instance) {
+    return res.status(404).json({ error: 'Instância não configurada' });
+  }
+
+  const state = await getConnectionStatus(org.evolution_instance, org.evolution_token);
+  const connected = state === 'open';
+  const qrCode = connected ? null : await getQRCode(org.evolution_instance, org.evolution_token);
+
+  return res.status(200).json({ state, connected, qrCode });
+}
+
+// ── POST — provider oficial: valida o número e ativa, sem provisionar nada ──
+async function handleOfficialSetup(
+  org: { id: string; name: string; whatsapp_phone_number_id: string | null },
+  res: VercelResponse,
+) {
   const steps: Step[] = [];
-  let evolutionInstance = org.evolution_instance as string | null;
-  let evolutionToken    = org.evolution_token    as string | null;
-  let chatwootAccountId = org.chatwoot_account_id as number | null;
-  let chatwootToken     = org.chatwoot_token     as string | null;
-  let chatwootInboxId   = org.chatwoot_inbox_id  as number | null;
+
+  if (!org.whatsapp_phone_number_id) {
+    steps.push({
+      id: 'phone_number_id',
+      label: 'Phone Number ID',
+      ok: false,
+      detail: 'Preencha o Phone Number ID da Meta antes de migrar.',
+    });
+    return res.status(200).json({ steps, provider: 'official' });
+  }
+
+  const info = await getPhoneNumberInfo(org.whatsapp_phone_number_id);
+  if (!info) {
+    steps.push({
+      id: 'meta_validate',
+      label: 'Validar número na Meta',
+      ok: false,
+      detail: 'Não foi possível validar — confira o Phone Number ID e se META_ACCESS_TOKEN está configurado.',
+    });
+    return res.status(200).json({ steps, provider: 'official' });
+  }
+
+  steps.push({
+    id: 'meta_validate',
+    label: 'Número validado na Meta',
+    ok: true,
+    detail: `${info.verifiedName ?? org.name} · ${info.displayPhoneNumber ?? '—'} · qualidade: ${info.qualityRating ?? '—'}`,
+  });
+
+  await supabaseAdmin.from('organizations').update({ whatsapp_provider: 'official' }).eq('id', org.id);
+
+  steps.push({
+    id: 'provider',
+    label: 'API oficial ativada',
+    ok: true,
+    detail: 'Esta organização agora responde pela API oficial do WhatsApp.',
+  });
+
+  return res.status(200).json({ steps, provider: 'official' });
+}
+
+// ── POST — provider evolution: fluxo completo de provisionamento (como sempre foi) ──
+async function handleEvolutionSetup(
+  org: {
+    id: string; name: string; phone: string | null;
+    evolution_instance: string | null; evolution_token: string | null;
+    chatwoot_account_id: number | null; chatwoot_token: string | null; chatwoot_inbox_id: number | null;
+  },
+  orgId: string,
+  res: VercelResponse,
+) {
+  const steps: Step[] = [];
+  let evolutionInstance = org.evolution_instance;
+  let evolutionToken    = org.evolution_token;
+  let chatwootAccountId = org.chatwoot_account_id;
+  let chatwootToken     = org.chatwoot_token;
+  let chatwootInboxId   = org.chatwoot_inbox_id;
 
   // ── 1. Criar instância Evolution ─────────────────────────────────────────
   if (!evolutionInstance) {
