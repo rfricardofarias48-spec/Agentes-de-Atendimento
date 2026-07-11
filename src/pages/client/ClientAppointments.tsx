@@ -1,5 +1,5 @@
 import { type ReactNode, useEffect, useState, useMemo, useRef } from 'react'
-import { Search, Plus, X, ChevronLeft, ChevronRight, Calendar, List, User, Stethoscope, Phone, FileText, Pencil, Trash2, ChevronDown, Lock, AlertTriangle } from 'lucide-react'
+import { Search, Plus, X, ChevronLeft, ChevronRight, Calendar, List, User, Stethoscope, Phone, FileText, Pencil, Trash2, ChevronDown, Lock, AlertTriangle, Users, Check } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { type Appointment } from '../../types'
@@ -19,6 +19,12 @@ import { Button } from '../../components/ui/button'
 import { cn } from '../../lib/utils'
 
 // ── Types ──────────────────────────────────────────────────────
+interface Professional {
+  id: string
+  name: string
+  active: boolean
+}
+
 interface BlockedSlot {
   id: string
   org_id: string
@@ -27,6 +33,7 @@ interface BlockedSlot {
   start_time: string | null
   end_time: string | null
   reason: string | null
+  professional_id: string | null
 }
 
 interface BlockForm {
@@ -36,12 +43,13 @@ interface BlockForm {
   start_time: string
   end_time: string
   reason: string
+  professional_id: string
 }
 
 interface PendingBlock extends BlockForm { key: string }
 
 const EMPTY_BLOCK: BlockForm = {
-  date: '', date_end: '', all_day: true, start_time: '08:00', end_time: '18:00', reason: '',
+  date: '', date_end: '', all_day: true, start_time: '08:00', end_time: '18:00', reason: '', professional_id: '',
 }
 
 // ── Calendar constants ─────────────────────────────────────────
@@ -233,10 +241,16 @@ export default function ClientAppointments() {
   const { orgId } = useAuth()
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [blockedSlots, setBlockedSlots] = useState<BlockedSlot[]>([])
+  const [professionals, setProfessionals] = useState<Professional[]>([])
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
   const [view, setView] = useState<ViewMode>('calendar')
   const [startDate, setStartDate] = useState<Date>(() => weekStart(new Date()))
+
+  // Filtro de profissionais visíveis na agenda — vazio = mostra todos
+  const [selectedProfessionalIds, setSelectedProfessionalIds] = useState<string[]>([])
+  const [showProfessionalFilter, setShowProfessionalFilter] = useState(false)
+  const professionalFilterRef = useRef<HTMLDivElement>(null)
 
   // Appointment modal
   const [showModal, setShowModal] = useState(false)
@@ -262,6 +276,7 @@ export default function ClientAppointments() {
   useEffect(() => {
     function handle(e: MouseEvent) {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) setShowMenu(false)
+      if (professionalFilterRef.current && !professionalFilterRef.current.contains(e.target as Node)) setShowProfessionalFilter(false)
     }
     document.addEventListener('mousedown', handle)
     return () => document.removeEventListener('mousedown', handle)
@@ -284,28 +299,49 @@ export default function ClientAppointments() {
     setBlockedSlots(data ?? [])
   }
 
-  useEffect(() => { fetchAppointments(); fetchBlockedSlots() }, [orgId])
+  async function fetchProfessionals() {
+    if (!orgId) return
+    const { data } = await supabase
+      .from('professionals').select('id, name, active').eq('org_id', orgId)
+      .eq('active', true).order('name', { ascending: true })
+    setProfessionals(data ?? [])
+  }
+
+  useEffect(() => { fetchAppointments(); fetchBlockedSlots(); fetchProfessionals() }, [orgId])
 
   const days = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(startDate, i)), [startDate])
+
+  // Filtro por profissional (botão "Profissional" na toolbar) — vazio = mostra
+  // todo mundo. Agendamentos/bloqueios sem profissional definido (professional_id
+  // null) sempre aparecem, pra nada "sumir" da agenda quando um filtro é aplicado.
+  const visibleAppointments = useMemo(() => {
+    if (selectedProfessionalIds.length === 0) return appointments
+    return appointments.filter(a => !a.professional_id || selectedProfessionalIds.includes(a.professional_id))
+  }, [appointments, selectedProfessionalIds])
+
+  const visibleBlockedSlots = useMemo(() => {
+    if (selectedProfessionalIds.length === 0) return blockedSlots
+    return blockedSlots.filter(b => !b.professional_id || selectedProfessionalIds.includes(b.professional_id))
+  }, [blockedSlots, selectedProfessionalIds])
 
   const apptsByDay = useMemo(() => {
     const map: Record<string, Appointment[]> = {}
     days.forEach(d => { map[dayKey(d)] = [] })
-    appointments.forEach(a => {
+    visibleAppointments.forEach(a => {
       const k = brtDateStr(new Date(a.scheduled_at))
       if (map[k]) map[k].push(a)
     })
     return map
-  }, [appointments, days])
+  }, [visibleAppointments, days])
 
   const blocksByDay = useMemo(() => {
     const map: Record<string, BlockedSlot[]> = {}
-    blockedSlots.forEach(b => {
+    visibleBlockedSlots.forEach(b => {
       if (!map[b.date]) map[b.date] = []
       map[b.date].push(b)
     })
     return map
-  }, [blockedSlots])
+  }, [visibleBlockedSlots])
 
   const startHour = useMemo(() => {
     const visibleAppts = days.flatMap(d => apptsByDay[dayKey(d)] ?? [])
@@ -321,12 +357,12 @@ export default function ClientAppointments() {
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase()
-    return appointments.filter(a =>
+    return visibleAppointments.filter(a =>
       a.patient_name.toLowerCase().includes(q) ||
       a.specialty.toLowerCase().includes(q) ||
       (a.doctor_name ?? '').toLowerCase().includes(q)
     )
-  }, [search, appointments])
+  }, [search, visibleAppointments])
 
   function prev() { setStartDate(d => addDays(d, -7)) }
   function next() { setStartDate(d => addDays(d, 7)) }
@@ -362,9 +398,12 @@ export default function ClientAppointments() {
     let cur = new Date(start)
     while (cur <= end) {
       const dateStr = cur.toISOString().slice(0, 10)
-      // avoid duplicates
-      const alreadyPending = pendingBlocks.some(p => p.date === dateStr && p.all_day === blockForm.all_day && p.start_time === blockForm.start_time)
-      const alreadySaved = blockedSlots.some(b => b.date === dateStr)
+      // avoid duplicates — considera profissional: um bloqueio "geral" e um "só da Dra. Fulana" no mesmo dia não conflitam
+      const alreadyPending = pendingBlocks.some(p =>
+        p.date === dateStr && p.all_day === blockForm.all_day && p.start_time === blockForm.start_time
+        && (p.professional_id || '') === (blockForm.professional_id || ''))
+      const alreadySaved = blockedSlots.some(b =>
+        b.date === dateStr && (b.professional_id || '') === (blockForm.professional_id || ''))
       if (!alreadyPending && !alreadySaved) {
         entries.push({ ...blockForm, date: dateStr, key: crypto.randomUUID() })
       }
@@ -372,12 +411,12 @@ export default function ClientAppointments() {
     }
 
     if (entries.length === 0) {
-      setBlockError('Todos os dias selecionados já possuem bloqueio.')
+      setBlockError('Todos os dias selecionados já possuem bloqueio para esse profissional.')
       return
     }
 
     setPendingBlocks(prev => [...prev, ...entries])
-    setBlockForm(f => ({ ...EMPTY_BLOCK, all_day: f.all_day, start_time: f.start_time, end_time: f.end_time }))
+    setBlockForm(f => ({ ...EMPTY_BLOCK, all_day: f.all_day, start_time: f.start_time, end_time: f.end_time, professional_id: f.professional_id }))
   }
 
   async function handleSaveAllBlocks() {
@@ -390,6 +429,7 @@ export default function ClientAppointments() {
       start_time: b.all_day ? null : b.start_time,
       end_time: b.all_day ? null : b.end_time,
       reason: b.reason.trim() || null,
+      professional_id: b.professional_id || null,
     }))
     const { error } = await supabase.from('blocked_slots').insert(inserts)
     setSavingBlock(false)
@@ -468,9 +508,18 @@ export default function ClientAppointments() {
     closeModal(); fetchAppointments()
   }
 
+  function professionalName(id: string | null): string | null {
+    if (!id) return null
+    return professionals.find(p => p.id === id)?.name ?? null
+  }
+
   function isBlockedTime(date: string, time: string): string | null {
     const fmt = (t: string) => t.slice(0, 5)
-    const dayBlocks = blockedSlots.filter(b => b.date === date)
+    // Bloqueios gerais (professional_id null) valem pra todo mundo; bloqueios
+    // de um profissional específico não afetam o agendamento manual sem
+    // profissional selecionado — só entram em conflito quando esse profissional
+    // for escolhido no formulário (ver Passo futuro, fora de escopo por ora).
+    const dayBlocks = blockedSlots.filter(b => b.date === date && !b.professional_id)
     for (const b of dayBlocks) {
       if (b.all_day) return `Este dia está bloqueado na agenda${b.reason ? ` — ${b.reason}` : ''}.`
       if (b.start_time && b.end_time && time >= b.start_time.slice(0, 5) && time < b.end_time.slice(0, 5))
@@ -529,6 +578,57 @@ export default function ClientAppointments() {
             <button onClick={goToday} className="px-3.5 py-1.5 rounded-xl border border-slate-200 bg-white text-[13px] font-semibold text-slate-600 hover:bg-slate-50 transition-all shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
               Hoje
             </button>
+
+            {professionals.length > 0 && (
+              <div className="relative" ref={professionalFilterRef}>
+                <button
+                  onClick={() => setShowProfessionalFilter(v => !v)}
+                  className={cn(
+                    'flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl border text-[13px] font-semibold transition-all shadow-[0_2px_8px_rgba(0,0,0,0.04)]',
+                    selectedProfessionalIds.length > 0
+                      ? 'border-brand-300 bg-brand-50 text-brand-700'
+                      : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50',
+                  )}
+                >
+                  <Users className="w-3.5 h-3.5" />
+                  Profissional{selectedProfessionalIds.length > 0 ? ` (${selectedProfessionalIds.length})` : ''}
+                  <ChevronDown className={cn('w-3.5 h-3.5 transition-transform duration-150', showProfessionalFilter && 'rotate-180')} />
+                </button>
+                {showProfessionalFilter && (
+                  <div className="absolute left-0 top-full mt-2 z-50 bg-white rounded-2xl border border-slate-100 shadow-[0_8px_32px_rgba(0,0,0,0.12)] overflow-hidden min-w-[230px]">
+                    <div className="flex items-center justify-between px-4 py-2.5 border-b border-slate-50">
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Ver agenda de</span>
+                      {selectedProfessionalIds.length > 0 && (
+                        <button onClick={() => setSelectedProfessionalIds([])} className="text-[11px] font-semibold text-brand-500 hover:text-brand-700 transition-colors">
+                          Limpar
+                        </button>
+                      )}
+                    </div>
+                    <div className="max-h-64 overflow-y-auto py-1">
+                      {professionals.map(p => {
+                        const checked = selectedProfessionalIds.includes(p.id)
+                        return (
+                          <button key={p.id}
+                            onClick={() => setSelectedProfessionalIds(prev => checked ? prev.filter(id => id !== p.id) : [...prev, p.id])}
+                            className="flex items-center gap-2.5 w-full px-4 py-2.5 text-[13px] text-left hover:bg-slate-50 transition-colors"
+                          >
+                            <div className={cn('w-4 h-4 rounded-md border-2 flex items-center justify-center shrink-0 transition-colors',
+                              checked ? 'bg-brand-500 border-brand-500' : 'border-slate-300')}>
+                              {checked && <Check className="w-3 h-3 text-white" />}
+                            </div>
+                            <span className={cn('flex-1 truncate', checked ? 'font-semibold text-slate-800' : 'text-slate-600')}>{p.name}</span>
+                          </button>
+                        )
+                      })}
+                    </div>
+                    <div className="px-4 py-2 border-t border-slate-50">
+                      <p className="text-[10px] text-slate-400">Nenhum selecionado = mostra todos.</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             {visibleBlockCount > 0 && (
               <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 border border-slate-200">
                 <div className="w-2.5 h-2.5 rounded-sm bg-slate-400" />
@@ -792,6 +892,22 @@ export default function ClientAppointments() {
                 </div>
               )}
 
+              {/* Profissional — só aparece se a clínica tiver profissionais cadastrados */}
+              {professionals.length > 0 && (
+                <FormField label="Profissional">
+                  <select
+                    value={blockForm.professional_id}
+                    onChange={e => setBlockForm(f => ({ ...f, professional_id: e.target.value }))}
+                    className="w-full h-10 rounded-xl border border-slate-200 px-3 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent"
+                  >
+                    <option value="">Todos os profissionais</option>
+                    {professionals.map(p => (
+                      <option key={p.id} value={p.id}>{p.name}</option>
+                    ))}
+                  </select>
+                </FormField>
+              )}
+
               {/* Motivo */}
               <FormField label="Motivo (opcional)">
                 <Input placeholder="Ex: Férias, evento externo..."
@@ -828,6 +944,7 @@ export default function ClientAppointments() {
                           <span className="font-normal text-slate-500 ml-1.5">
                             {b.all_day ? '· Dia inteiro' : `· ${b.start_time} – ${b.end_time}`}
                             {b.reason ? ` · ${b.reason}` : ''}
+                            {b.professional_id ? ` · ${professionalName(b.professional_id) ?? 'profissional'}` : professionals.length > 0 ? ' · Todos' : ''}
                           </span>
                         </p>
                         <button onClick={() => setPendingBlocks(prev => prev.filter(p => p.key !== b.key))}
@@ -868,6 +985,7 @@ export default function ClientAppointments() {
                           <span className="text-slate-400 ml-1.5">
                             {b.all_day ? '· Dia inteiro' : `· ${b.start_time} – ${b.end_time}`}
                             {b.reason ? ` · ${b.reason}` : ''}
+                            {b.professional_id ? ` · ${professionalName(b.professional_id) ?? 'profissional'}` : professionals.length > 0 ? ' · Todos' : ''}
                           </span>
                         </p>
                         <button onClick={() => handleDeleteBlock(b.id)}

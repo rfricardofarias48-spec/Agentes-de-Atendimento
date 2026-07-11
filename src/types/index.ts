@@ -56,6 +56,7 @@ export interface Appointment {
   patient_phone: string
   specialty: string
   doctor_name: string | null
+  professional_id: string | null
   scheduled_at: string
   status: 'scheduled' | 'confirmed' | 'cancelled' | 'completed'
   google_event_id: string | null
