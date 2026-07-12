@@ -93,12 +93,12 @@ const STATUS_OPTIONS = [
 ]
 interface FormData {
   patient_name: string; patient_phone: string; specialty: string
-  doctor_name: string; date: string; time: string; notes: string
+  doctor_name: string; professional_id: string; date: string; time: string; notes: string
   status: 'scheduled' | 'confirmed' | 'completed' | 'cancelled'
 }
 const EMPTY: FormData = {
   patient_name: '', patient_phone: '', specialty: '',
-  doctor_name: '', date: '', time: '', notes: '', status: 'scheduled',
+  doctor_name: '', professional_id: '', date: '', time: '', notes: '', status: 'scheduled',
 }
 
 type ViewMode = 'calendar' | 'list'
@@ -448,7 +448,7 @@ export default function ClientAppointments() {
     const brt = toBRT(d)
     setEditForm({
       patient_name: appt.patient_name, patient_phone: appt.patient_phone ?? '',
-      specialty: appt.specialty, doctor_name: appt.doctor_name ?? '',
+      specialty: appt.specialty, doctor_name: appt.doctor_name ?? '', professional_id: appt.professional_id ?? '',
       date: brtDateStr(d),
       time: `${String(brt.getHours()).padStart(2, '0')}:${String(brt.getMinutes()).padStart(2, '0')}`,
       notes: appt.notes ?? '', status: appt.status,
@@ -462,12 +462,13 @@ export default function ClientAppointments() {
     if (!editForm.patient_name.trim() || !editForm.specialty.trim() || !editForm.date || !editForm.time) {
       setFormError('Preencha: nome, especialidade, data e horário.'); return
     }
-    const blockMsg = isBlockedTime(editForm.date, editForm.time)
+    const blockMsg = isBlockedTime(editForm.date, editForm.time, editForm.professional_id || null)
     if (blockMsg) { setFormError(blockMsg); return }
     setSaving(true); setFormError('')
     const { error } = await supabase.from('appointments').update({
       patient_name: editForm.patient_name.trim(), patient_phone: editForm.patient_phone.trim() || '',
       specialty: editForm.specialty.trim(), doctor_name: editForm.doctor_name.trim() || null,
+      professional_id: editForm.professional_id || null,
       scheduled_at: `${editForm.date}T${editForm.time}:00-03:00`, notes: editForm.notes.trim() || null, status: editForm.status,
     }).eq('id', detailAppt.id)
     setSaving(false)
@@ -495,12 +496,13 @@ export default function ClientAppointments() {
     if (!form.patient_name.trim() || !form.specialty.trim() || !form.date || !form.time) {
       setFormError('Preencha: nome, especialidade, data e horário.'); return
     }
-    const blockMsg = isBlockedTime(form.date, form.time)
+    const blockMsg = isBlockedTime(form.date, form.time, form.professional_id || null)
     if (blockMsg) { setFormError(blockMsg); return }
     setSaving(true); setFormError('')
     const { error } = await supabase.from('appointments').insert({
       org_id: orgId, patient_name: form.patient_name.trim(), patient_phone: form.patient_phone.trim() || '',
       specialty: form.specialty.trim(), doctor_name: form.doctor_name.trim() || null,
+      professional_id: form.professional_id || null,
       scheduled_at: `${form.date}T${form.time}:00-03:00`, notes: form.notes.trim() || null, status: form.status,
     })
     setSaving(false)
@@ -513,13 +515,12 @@ export default function ClientAppointments() {
     return professionals.find(p => p.id === id)?.name ?? null
   }
 
-  function isBlockedTime(date: string, time: string): string | null {
+  function isBlockedTime(date: string, time: string, professionalId?: string | null): string | null {
     const fmt = (t: string) => t.slice(0, 5)
     // Bloqueios gerais (professional_id null) valem pra todo mundo; bloqueios
-    // de um profissional específico não afetam o agendamento manual sem
-    // profissional selecionado — só entram em conflito quando esse profissional
-    // for escolhido no formulário (ver Passo futuro, fora de escopo por ora).
-    const dayBlocks = blockedSlots.filter(b => b.date === date && !b.professional_id)
+    // de um profissional específico só entram em conflito quando esse mesmo
+    // profissional é o selecionado no formulário do agendamento.
+    const dayBlocks = blockedSlots.filter(b => b.date === date && (!b.professional_id || b.professional_id === professionalId))
     for (const b of dayBlocks) {
       if (b.all_day) return `Este dia está bloqueado na agenda${b.reason ? ` — ${b.reason}` : ''}.`
       if (b.start_time && b.end_time && time >= b.start_time.slice(0, 5) && time < b.end_time.slice(0, 5))
@@ -1082,8 +1083,25 @@ export default function ClientAppointments() {
                     </FormField>
                   </div>
                   <FormField label="Profissional">
-                    <input className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent"
-                      value={editForm.doctor_name} onChange={e => setEditForm(f => ({ ...f, doctor_name: e.target.value }))} />
+                    {professionals.length > 0 ? (
+                      <select
+                        value={editForm.professional_id}
+                        onChange={e => {
+                          const id = e.target.value
+                          const name = professionals.find(p => p.id === id)?.name ?? ''
+                          setEditForm(f => ({ ...f, professional_id: id, doctor_name: name }))
+                        }}
+                        className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent"
+                      >
+                        <option value="">Selecione o profissional</option>
+                        {professionals.map(p => (
+                          <option key={p.id} value={p.id}>{p.name}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent"
+                        value={editForm.doctor_name} onChange={e => setEditForm(f => ({ ...f, doctor_name: e.target.value }))} />
+                    )}
                   </FormField>
                   <div className="grid grid-cols-2 gap-2">
                     <FormField label="Data" required>
@@ -1147,9 +1165,26 @@ export default function ClientAppointments() {
                 </FormField>
               </div>
               <FormField label="Profissional">
-                <Input placeholder="Quem irá atendê-lo" value={form.doctor_name}
-                  onChange={e => setForm(f => ({ ...f, doctor_name: e.target.value }))}
-                  className="rounded-xl border-slate-200 focus-visible:ring-brand-400 h-10 text-sm" />
+                {professionals.length > 0 ? (
+                  <select
+                    value={form.professional_id}
+                    onChange={e => {
+                      const id = e.target.value
+                      const name = professionals.find(p => p.id === id)?.name ?? ''
+                      setForm(f => ({ ...f, professional_id: id, doctor_name: name }))
+                    }}
+                    className="w-full h-10 rounded-xl border border-slate-200 px-3 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent"
+                  >
+                    <option value="">Selecione o profissional</option>
+                    {professionals.map(p => (
+                      <option key={p.id} value={p.id}>{p.name}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <Input placeholder="Quem irá atendê-lo" value={form.doctor_name}
+                    onChange={e => setForm(f => ({ ...f, doctor_name: e.target.value }))}
+                    className="rounded-xl border-slate-200 focus-visible:ring-brand-400 h-10 text-sm" />
+                )}
               </FormField>
               <div className="grid grid-cols-2 gap-3">
                 <FormField label="Data" required>
