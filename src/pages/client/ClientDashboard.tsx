@@ -1,5 +1,5 @@
 import { type ReactNode, useEffect, useState, useMemo } from 'react'
-import { CalendarDays, BadgeCheck, CircleX, TrendingUp, ArrowRight, Zap, ExternalLink, AlertTriangle, Inbox, Calendar, Copy, Eye, EyeOff, LogIn } from 'lucide-react'
+import { CalendarDays, BadgeCheck, CircleX, TrendingUp, ArrowRight, ExternalLink, Inbox, Calendar, Copy, Eye, EyeOff, LogIn, X } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { type Appointment, type Conversation, type Organization } from '../../types'
@@ -51,7 +51,6 @@ export default function ClientDashboard() {
   const [org, setOrg] = useState<Organization | null>(null)
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [conversations, setConversations] = useState<Conversation[]>([])
-  const [notificationPhone, setNotificationPhone] = useState<string | null>(null)
   const [period, setPeriod] = useState<Period>('month')
   const [loading, setLoading] = useState(true)
   const [chartReady, setChartReady] = useState(false)
@@ -61,16 +60,14 @@ export default function ClientDashboard() {
     async function load() {
       const monthAgo = new Date()
       monthAgo.setDate(monthAgo.getDate() - 30)
-      const [{ data: orgData }, { data: apptData }, { data: convData }, { data: settingsData }] = await Promise.all([
+      const [{ data: orgData }, { data: apptData }, { data: convData }] = await Promise.all([
         supabase.from('organizations').select('*').eq('id', orgId!).single(),
         supabase.from('appointments').select('*').eq('org_id', orgId!).gte('scheduled_at', monthAgo.toISOString()).order('scheduled_at', { ascending: false }),
         supabase.from('conversations').select('*').eq('org_id', orgId!).gte('started_at', monthAgo.toISOString()),
-        supabase.from('agent_settings').select('notification_phone').eq('org_id', orgId!).single(),
       ])
       if (orgData) setOrg(orgData)
       if (apptData) setAppointments(apptData)
       if (convData) setConversations(convData)
-      if (settingsData) setNotificationPhone(settingsData.notification_phone ?? null)
       setLoading(false)
     }
     load()
@@ -288,7 +285,7 @@ export default function ClientDashboard() {
         </div>
 
         {/* Agent card — 2 cols */}
-        <AgentCard org={org} conversations={conversations} notificationPhone={notificationPhone} />
+        <AgentCard org={org} />
 
       </div>
 
@@ -320,29 +317,8 @@ function CopyButton({ value }: { value: string }) {
   )
 }
 
-function AgentCard({ org, conversations, notificationPhone }: { org: Organization | null; conversations: Conversation[]; notificationPhone: string | null }) {
-  const used   = org?.conversations_used ?? 0
-  const limit  = org?.max_conversations_month ?? 1
-  const pct    = Math.min((used / limit) * 100, 100)
-  const remaining = Math.max(limit - used, 0)
-
-  const barGradient = pct > 85
-    ? 'linear-gradient(90deg, #f43f5e, #fb7185)'
-    : pct > 65
-    ? 'linear-gradient(90deg, #f59e0b, #fbbf24)'
-    : 'linear-gradient(90deg, #2C82B5, #5bafd4)'
-
-  const now = new Date()
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
-  const escalated = conversations.filter(c => c.escalated_to_human && new Date(c.started_at) >= monthStart).length
-
-  const [progressWidth, setProgressWidth] = useState(0)
-  const [showPass, setShowPass] = useState(false)
-  useEffect(() => {
-    const t = setTimeout(() => setProgressWidth(pct), 300)
-    return () => clearTimeout(t)
-  }, [pct])
-
+function AgentCard({ org }: { org: Organization | null }) {
+  const [showLogin, setShowLogin] = useState(false)
   const hasCredentials = !!(org?.chatwoot_login_email && org?.chatwoot_login_password)
 
   return (
@@ -361,114 +337,9 @@ function AgentCard({ org, conversations, notificationPhone }: { org: Organizatio
       </div>
 
       {/* Body */}
-      <div className="px-5 py-4 flex flex-col gap-4">
+      <div className="px-5 py-4 flex flex-col gap-2.5">
 
-        {/* Conversations usage */}
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">Conversas este mês</span>
-            <span className="text-[12px] font-black text-gray-900 tabular-nums">{used} / {limit}</span>
-          </div>
-          <div className="h-2 rounded-full overflow-hidden" style={{ background: 'rgba(0,0,0,0.05)' }}>
-            <div
-              className="h-full rounded-full transition-all duration-700 ease-out"
-              style={{ width: `${progressWidth}%`, background: barGradient }}
-            />
-          </div>
-          <div className="flex items-center justify-between mt-1.5">
-            <span className="text-[10px] text-slate-400">{remaining} restantes</span>
-            {pct > 85 && (
-              <span className="flex items-center gap-1 text-[10px] font-semibold text-rose-500">
-                <AlertTriangle className="w-3 h-3" /> Limite próximo
-              </span>
-            )}
-            {pct > 65 && pct <= 85 && (
-              <span className="text-[10px] font-semibold text-amber-500">{Math.round(pct)}% usado</span>
-            )}
-          </div>
-        </div>
-
-        {/* Stats row */}
-        <div className="grid grid-cols-2 gap-2.5">
-          <div className="rounded-xl px-3.5 py-3 flex items-center gap-2.5" style={{ background: '#f8fafc', border: '1px solid #f1f5f9' }}>
-            <Zap className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-400 leading-none">Resposta</p>
-              <p className="text-[12px] font-black text-gray-900 mt-0.5 leading-none">Instantânea</p>
-            </div>
-          </div>
-          <div className="rounded-xl px-3.5 py-3 flex items-center gap-2.5" style={{ background: '#f8fafc', border: '1px solid #f1f5f9' }}>
-            <Inbox className="w-3.5 h-3.5 text-brand-400 shrink-0" />
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-400 leading-none">Escaladas</p>
-              <p className="text-[12px] font-black text-gray-900 mt-0.5 leading-none tabular-nums">{escalated} conversas</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Número de contato do Bento */}
-        <div className="rounded-xl px-3.5 py-3 flex items-center gap-2.5" style={{ background: '#f8fafc', border: '1px solid #f1f5f9' }}>
-          <div className="w-5 h-5 rounded-md bg-emerald-50 flex items-center justify-center shrink-0">
-            <span className="text-[10px]">📱</span>
-          </div>
-          <div className="min-w-0">
-            <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-400 leading-none">Alertas para</p>
-            {notificationPhone ? (
-              <p className="text-[12px] font-black text-gray-900 mt-0.5 leading-none tabular-nums truncate">
-                +{notificationPhone}
-              </p>
-            ) : (
-              <p className="text-[11px] text-slate-400 mt-0.5 leading-none">Não configurado</p>
-            )}
-          </div>
-        </div>
-
-        {/* Credenciais do Chatwoot */}
-        {hasCredentials && (
-          <div className="rounded-xl overflow-hidden" style={{ border: '1px solid rgba(44,130,181,0.18)', background: 'rgba(44,130,181,0.03)' }}>
-            <div className="flex items-center gap-2 px-3.5 py-2.5 border-b" style={{ borderColor: 'rgba(44,130,181,0.12)' }}>
-              <LogIn className="w-3.5 h-3.5 shrink-0" style={{ color: '#2C82B5' }} />
-              <p className="text-[10px] font-bold uppercase tracking-[0.12em]" style={{ color: '#2C82B5' }}>
-                Acesso ao Painel de Conversas
-              </p>
-            </div>
-            <div className="px-3.5 py-3 flex flex-col gap-2">
-              <p className="text-[10px] text-slate-500 leading-relaxed">
-                Use estas credenciais para fazer login no Chatwoot e ver as conversas do seu Bento em tempo real.
-              </p>
-              {/* E-mail */}
-              <div className="flex items-center gap-2 rounded-lg px-3 py-2" style={{ background: 'rgba(255,255,255,0.8)', border: '1px solid rgba(44,130,181,0.12)' }}>
-                <div className="flex-1 min-w-0">
-                  <p className="text-[9px] font-bold uppercase tracking-[0.1em] text-slate-400 leading-none">E-mail</p>
-                  <p className="text-[11px] font-semibold text-gray-800 mt-0.5 leading-none truncate">{org!.chatwoot_login_email}</p>
-                </div>
-                <CopyButton value={org!.chatwoot_login_email!} />
-              </div>
-              {/* Senha */}
-              <div className="flex items-center gap-2 rounded-lg px-3 py-2" style={{ background: 'rgba(255,255,255,0.8)', border: '1px solid rgba(44,130,181,0.12)' }}>
-                <div className="flex-1 min-w-0">
-                  <p className="text-[9px] font-bold uppercase tracking-[0.1em] text-slate-400 leading-none">Senha</p>
-                  <p className="text-[11px] font-semibold text-gray-800 mt-0.5 leading-none font-mono">
-                    {showPass ? org!.chatwoot_login_password : '••••••••••••'}
-                  </p>
-                </div>
-                <button
-                  onClick={() => setShowPass(p => !p)}
-                  className="shrink-0 p-1 rounded-md hover:bg-slate-100 transition-colors"
-                  title={showPass ? 'Ocultar senha' : 'Mostrar senha'}
-                >
-                  {showPass
-                    ? <EyeOff className="w-3.5 h-3.5 text-slate-400" />
-                    : <Eye className="w-3.5 h-3.5 text-slate-400" />
-                  }
-                </button>
-                <CopyButton value={org!.chatwoot_login_password!} />
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* CTA */}
+        {/* CTA principal */}
         <button
           onClick={() => org?.chatwoot_url && window.open(org.chatwoot_url, '_blank')}
           disabled={!org?.chatwoot_url}
@@ -476,15 +347,82 @@ function AgentCard({ org, conversations, notificationPhone }: { org: Organizatio
           style={{ background: 'linear-gradient(135deg, #2C82B5, #2570a0)' }}
         >
           <ExternalLink className="w-4 h-4" />
-          {hasCredentials ? 'Abrir Chatwoot' : 'Ver Agente em Ação'}
+          Abrir Chatwoot
         </button>
+
+        {/* Ver dados de login */}
         {hasCredentials && (
-          <p className="text-center text-[10px] text-slate-400 -mt-2">
-            Faça login com as credenciais acima ao abrir pela primeira vez
-          </p>
+          <button
+            onClick={() => setShowLogin(true)}
+            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-[13px] font-bold transition-all duration-200 hover:bg-slate-50"
+            style={{ border: '1px solid #e2e8f0', color: '#475569' }}
+          >
+            <LogIn className="w-4 h-4" style={{ color: '#2C82B5' }} />
+            Ver dados de login
+          </button>
         )}
 
       </div>
+
+      {/* Modal de credenciais */}
+      {showLogin && hasCredentials && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" onClick={() => setShowLogin(false)} />
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-4" style={{ background: 'linear-gradient(135deg, #2C82B5 0%, #1e5f88 100%)' }}>
+              <div className="flex items-center gap-2">
+                <LogIn className="w-4 h-4 text-white" />
+                <h2 className="text-[13px] font-bold text-white">Acesso ao Painel de Conversas</h2>
+              </div>
+              <button onClick={() => setShowLogin(false)} className="w-7 h-7 flex items-center justify-center rounded-lg bg-white/10 hover:bg-white/20 transition-colors">
+                <X className="w-3.5 h-3.5 text-white" />
+              </button>
+            </div>
+            <div className="px-5 py-4 flex flex-col gap-3">
+              <p className="text-[11px] text-slate-500 leading-relaxed">
+                Use estas credenciais para fazer login no Chatwoot e ver as conversas do seu Bento em tempo real.
+              </p>
+              {/* E-mail */}
+              <div className="flex items-center gap-2 rounded-lg px-3 py-2.5" style={{ background: '#f8fafc', border: '1px solid #f1f5f9' }}>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[9px] font-bold uppercase tracking-[0.1em] text-slate-400 leading-none">E-mail</p>
+                  <p className="text-[12px] font-semibold text-gray-800 mt-1 leading-none truncate">{org!.chatwoot_login_email}</p>
+                </div>
+                <CopyButton value={org!.chatwoot_login_email!} />
+              </div>
+              {/* Senha */}
+              <div className="flex items-center gap-2 rounded-lg px-3 py-2.5" style={{ background: '#f8fafc', border: '1px solid #f1f5f9' }}>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[9px] font-bold uppercase tracking-[0.1em] text-slate-400 leading-none">Senha</p>
+                  <ShowablePassword value={org!.chatwoot_login_password!} />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function ShowablePassword({ value }: { value: string }) {
+  const [showPass, setShowPass] = useState(false)
+  return (
+    <div className="flex items-center gap-1.5 mt-1">
+      <p className="text-[12px] font-semibold text-gray-800 leading-none font-mono flex-1 truncate">
+        {showPass ? value : '••••••••••••'}
+      </p>
+      <button
+        onClick={() => setShowPass(p => !p)}
+        className="shrink-0 p-1 rounded-md hover:bg-slate-200/60 transition-colors"
+        title={showPass ? 'Ocultar senha' : 'Mostrar senha'}
+      >
+        {showPass
+          ? <EyeOff className="w-3.5 h-3.5 text-slate-400" />
+          : <Eye className="w-3.5 h-3.5 text-slate-400" />
+        }
+      </button>
+      <CopyButton value={value} />
     </div>
   )
 }
