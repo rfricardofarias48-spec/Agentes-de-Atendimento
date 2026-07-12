@@ -82,7 +82,7 @@ export default function App() {
             </ProtectedRoute>
           } />
           <Route path="/dashboard/payments" element={
-            <ProtectedRoute requiredRole="client">
+            <ProtectedRoute requiredRole="client" allowWhenSuspended>
               <ClientLayout><ClientPayments /></ClientLayout>
             </ProtectedRoute>
           } />

@@ -70,6 +70,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         .from('organizations')
         .update({ setup_fee_status: 'paid', setup_payment_id: payment.id })
         .eq('id', orgId);
+      await supabaseAdmin.from('payment_history').insert({
+        org_id: orgId,
+        value: payment.value ?? 0,
+        due_date: (payment.dueDate ?? new Date().toISOString()).slice(0, 10),
+        paid_date: new Date().toISOString().slice(0, 10),
+        status: 'paid',
+        type: 'setup',
+        asaas_payment_id: payment.id ?? null,
+      });
       console.log(`[Asaas] Setup fee pago — org ${orgId}`);
     }
     return res.status(200).json({ ok: true });
@@ -152,6 +161,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .update({ status: 'active', ...asaasData })
       .eq('id', existingOrg.id);
 
+    await supabaseAdmin.from('payment_history').insert({
+      org_id: existingOrg.id,
+      value: payment.value ?? monthlyFee ?? 0,
+      due_date: (payment.dueDate ?? new Date().toISOString()).slice(0, 10),
+      paid_date: new Date().toISOString().slice(0, 10),
+      status: 'paid',
+      type: 'subscription',
+      asaas_payment_id: payment.id ?? null,
+    });
+
     console.log(`[Asaas] Org ${existingOrg.id} renovada — mensalidade R$ ${monthlyFee}`);
 
   } else {
@@ -184,6 +203,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       console.error('[Asaas] Erro ao criar org:', orgErr);
       return res.status(500).json({ error: 'Erro ao criar organização' });
     }
+
+    await supabaseAdmin.from('payment_history').insert({
+      org_id: newOrg.id,
+      value: payment.value ?? monthlyFee ?? 0,
+      due_date: (payment.dueDate ?? new Date().toISOString()).slice(0, 10),
+      paid_date: new Date().toISOString().slice(0, 10),
+      status: 'paid',
+      type: 'subscription',
+      asaas_payment_id: payment.id ?? null,
+    });
 
     // ── Setup fee: dispara a cobrança avulsa automaticamente ────────────
     if (setupFee && setupFee > 0 && payment.customer) {
