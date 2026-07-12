@@ -2,12 +2,10 @@ import { useEffect, useState } from 'react'
 import { Save, Lock, User, Bell, Eye, EyeOff, CheckCircle2, XCircle, Loader2 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
-import { type Organization } from '../../types'
 import { cn } from '../../lib/utils'
 
 export default function ClientSettings() {
-  const { orgId } = useAuth()
-  const [org, setOrg] = useState<Partial<Organization>>({})
+  const { orgId, user } = useAuth()
   const [loading, setLoading] = useState(true)
 
   // Perfil
@@ -38,7 +36,6 @@ export default function ClientSettings() {
       supabase.from('agent_settings').select('reminder_24h,auto_send_pdf').eq('org_id', orgId).single(),
     ]).then(([{ data: orgData }, { data: notifData }]) => {
       if (orgData) {
-        setOrg(orgData)
         setClinicName(orgData.name ?? '')
         setPhone(orgData.phone ?? '')
       }
@@ -149,7 +146,7 @@ export default function ClientSettings() {
             <label className="block text-sm font-medium text-slate-700">E-mail de acesso</label>
             <input
               type="email"
-              value={(org as { email?: string }).email ?? ''}
+              value={user?.email ?? ''}
               disabled
               className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm bg-slate-50 text-slate-400 cursor-not-allowed"
             />
