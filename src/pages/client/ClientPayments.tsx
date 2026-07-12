@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Copy, Check, Loader2, FileText, CheckCircle2, AlertTriangle, ExternalLink } from 'lucide-react'
+import { Copy, Check, Loader2, FileText, CheckCircle2, AlertTriangle, ExternalLink, Receipt, Clock } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { cn } from '../../lib/utils'
 
@@ -12,6 +12,14 @@ interface PaymentInfo {
   pix: { encodedImage: string; payload: string } | null
 }
 
+interface HistoryEntry {
+  value: number
+  dueDate: string
+  paidDate: string | null
+  status: string
+  type: 'subscription' | 'setup'
+}
+
 interface BillingData {
   monthlyFee: number | null
   nextDueDate: string | null
@@ -20,6 +28,7 @@ interface BillingData {
   setupFee: number | null
   setupFeeStatus: 'none' | 'pending' | 'paid'
   setupPayment: PaymentInfo | null
+  history: HistoryEntry[]
 }
 
 function fmt(v: number | null | undefined) {
@@ -195,8 +204,74 @@ export default function ClientPayments() {
               <p className="text-sm font-semibold text-slate-700">Nenhuma cobrança pendente no momento</p>
             </div>
           )}
+
+          {/* Histórico de pagamentos */}
+          <PaymentHistory entries={data.history} />
         </>
       )}
+    </div>
+  )
+}
+
+// ── Histórico de pagamentos ─────────────────────────────────────────
+
+const HISTORY_STATUS: Record<string, { label: string; className: string }> = {
+  paid:     { label: 'Pago',     className: 'bg-emerald-50 text-emerald-600 border border-emerald-100' },
+  pending:  { label: 'Pendente', className: 'bg-amber-50 text-amber-600 border border-amber-100' },
+  overdue:  { label: 'Atrasado', className: 'bg-red-50 text-red-600 border border-red-100' },
+}
+
+const HISTORY_TYPE_LABEL: Record<HistoryEntry['type'], string> = {
+  subscription: 'Mensalidade',
+  setup: 'Taxa de configuração',
+}
+
+function PaymentHistory({ entries }: { entries: HistoryEntry[] }) {
+  if (entries.length === 0) return null
+
+  return (
+    <div className="bg-white rounded-2xl border border-slate-100 shadow-[0px_4px_20px_rgba(0,0,0,0.03)] overflow-hidden">
+      <div className="flex items-center gap-2.5 px-6 py-4 border-b border-slate-50">
+        <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'rgba(44,130,181,0.1)' }}>
+          <Receipt className="w-4 h-4" style={{ color: '#2C82B5' }} />
+        </div>
+        <div>
+          <p className="text-sm font-bold text-slate-800 leading-none">Histórico de pagamentos</p>
+          <p className="text-[11px] text-slate-400 mt-1">Últimas cobranças geradas</p>
+        </div>
+      </div>
+
+      <div className="divide-y divide-slate-50">
+        {entries.map((entry, i) => {
+          const statusInfo = HISTORY_STATUS[entry.status] ?? { label: entry.status, className: 'bg-slate-50 text-slate-500 border border-slate-100' }
+          return (
+            <div key={i} className="flex items-center justify-between gap-4 px-6 py-3.5 hover:bg-slate-50/60 transition-colors">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-8 h-8 rounded-full bg-slate-50 border border-slate-100 flex items-center justify-center shrink-0">
+                  {entry.status === 'paid'
+                    ? <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                    : <Clock className="w-4 h-4 text-amber-500" />
+                  }
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[13px] font-semibold text-slate-800 truncate leading-none">
+                    {HISTORY_TYPE_LABEL[entry.type]}
+                  </p>
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    {entry.status === 'paid' && entry.paidDate ? `Pago em ${fmtDate(entry.paidDate)}` : `Venceu em ${fmtDate(entry.dueDate)}`}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 shrink-0">
+                <span className="text-sm font-black text-slate-900 tabular-nums">{fmt(entry.value)}</span>
+                <span className={cn('text-[10px] font-bold px-2.5 py-1 rounded-full whitespace-nowrap', statusInfo.className)}>
+                  {statusInfo.label}
+                </span>
+              </div>
+            </div>
+          )
+        })}
+      </div>
     </div>
   )
 }

@@ -27,6 +27,14 @@ interface PaymentInfo {
   pix: { encodedImage: string; payload: string } | null;
 }
 
+interface HistoryEntry {
+  value: number;
+  dueDate: string;
+  paidDate: string | null;
+  status: string;
+  type: 'subscription' | 'setup';
+}
+
 async function enrichPayment(payment: AsaasPayment): Promise<PaymentInfo> {
   const pix = await getPixQrCode(payment.id);
   return {
@@ -79,6 +87,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (payment) setupPayment = await enrichPayment(payment);
   }
 
+  // Histórico de cobranças já geradas (mensalidade + setup)
+  const { data: historyRows } = await supabaseAdmin
+    .from('payment_history')
+    .select('value, due_date, paid_date, status, type')
+    .eq('org_id', profile.org_id)
+    .order('due_date', { ascending: false })
+    .limit(24);
+
+  const history: HistoryEntry[] = (historyRows || []).map(h => ({
+    value: h.value,
+    dueDate: h.due_date,
+    paidDate: h.paid_date,
+    status: h.status,
+    type: h.type,
+  }));
+
   return res.status(200).json({
     monthlyFee: org.monthly_fee,
     nextDueDate: org.subscription_period_end,
@@ -87,5 +111,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     setupFee: org.setup_fee,
     setupFeeStatus: org.setup_fee_status,
     setupPayment,
+    history,
   });
 }
