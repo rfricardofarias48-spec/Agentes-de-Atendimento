@@ -1,5 +1,5 @@
 import { type ReactNode, useEffect, useState, useMemo } from 'react'
-import { CalendarDays, BadgeCheck, CircleX, TrendingUp, ArrowRight, ExternalLink, Inbox, Calendar, Copy, Eye, EyeOff, LogIn, X } from 'lucide-react'
+import { CalendarDays, BadgeCheck, CircleX, TrendingUp, ArrowRight, Sparkles, Inbox, Calendar, Copy, Eye, EyeOff, LogIn, KeyRound, X } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { type Appointment, type Conversation, type Organization } from '../../types'
@@ -343,21 +343,26 @@ function AgentCard({ org }: { org: Organization | null }) {
         <button
           onClick={() => org?.chatwoot_url && window.open(org.chatwoot_url, '_blank')}
           disabled={!org?.chatwoot_url}
-          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-[13px] font-bold text-white transition-all duration-200 hover:shadow-[0_6px_20px_rgba(44,130,181,0.38)] hover:-translate-y-[1px] active:translate-y-0 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:shadow-none disabled:hover:translate-y-0"
-          style={{ background: 'linear-gradient(135deg, #2C82B5, #2570a0)' }}
+          className="group relative w-full flex items-center justify-center gap-2.5 py-3.5 rounded-2xl text-[14px] font-bold text-white overflow-hidden transition-all duration-300 hover:shadow-[0_10px_30px_rgba(44,130,181,0.42)] hover:-translate-y-[2px] active:translate-y-0 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:shadow-none disabled:hover:translate-y-0"
+          style={{ background: 'linear-gradient(135deg, #2C82B5 0%, #1e5f88 100%)', boxShadow: '0 4px 16px rgba(44,130,181,0.25)' }}
         >
-          <ExternalLink className="w-4 h-4" />
-          Abrir Chatwoot
+          {/* Shine sweep on hover */}
+          <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-out"
+            style={{ background: 'linear-gradient(115deg, transparent 40%, rgba(255,255,255,0.25) 50%, transparent 60%)' }} />
+          <span className="relative z-10 flex items-center justify-center w-6 h-6 rounded-full" style={{ background: 'rgba(255,255,255,0.15)' }}>
+            <Sparkles className="w-3.5 h-3.5" />
+          </span>
+          <span className="relative z-10">Ver Agente em Ação</span>
         </button>
 
         {/* Ver dados de login */}
         {hasCredentials && (
           <button
             onClick={() => setShowLogin(true)}
-            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-[13px] font-bold transition-all duration-200 hover:bg-slate-50"
-            style={{ border: '1px solid #e2e8f0', color: '#475569' }}
+            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-[12.5px] font-bold transition-all duration-200 hover:bg-slate-50 hover:border-slate-300"
+            style={{ border: '1px solid #e2e8f0', color: '#64748b' }}
           >
-            <LogIn className="w-4 h-4" style={{ color: '#2C82B5' }} />
+            <KeyRound className="w-3.5 h-3.5" style={{ color: '#2C82B5' }} />
             Ver dados de login
           </button>
         )}
@@ -380,7 +385,7 @@ function AgentCard({ org }: { org: Organization | null }) {
             </div>
             <div className="px-5 py-4 flex flex-col gap-3">
               <p className="text-[11px] text-slate-500 leading-relaxed">
-                Use estas credenciais para fazer login no Chatwoot e ver as conversas do seu Bento em tempo real.
+                Use estas credenciais para entrar no painel e acompanhar as conversas do seu Bento em tempo real.
               </p>
               {/* E-mail */}
               <div className="flex items-center gap-2 rounded-lg px-3 py-2.5" style={{ background: '#f8fafc', border: '1px solid #f1f5f9' }}>
